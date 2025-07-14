@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Get commit info
         id: vars
         run: |
@@ -19,10 +22,7 @@ jobs:
 
       - name: Send Discord Notification
         run: |
-          MESSAGE="✅ 새 push가 발생했습니다!
-커밋 메시지: $COMMIT_MESSAGE
-작성자: $COMMIT_AUTHOR
-URL: $COMMIT_URL"
+          MESSAGE="✅ 새 push가 발생했습니다!\n커밋 메시지: $COMMIT_MESSAGE\n작성자: $COMMIT_AUTHOR\nURL: $COMMIT_URL"
           curl -H "Content-Type: application/json" \
                -X POST \
                -d "{\"content\": \"$MESSAGE\"}" \
