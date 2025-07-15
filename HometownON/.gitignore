@@ -1,75 +1,119 @@
-# 📁 Node
+# ========================================================
+# 🧠 Core: Node.js + React Native
+# ========================================================
 node_modules/
+package-lock.json
+yarn.lock
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
-yarn.lock
-
-# 📁 React Native Build Artifacts
-android/.gradle/
-android/app/build/
-android/build/
-ios/build/
-ios/Pods/
-ios/Podfile.lock
-*.xcworkspace
-
-# 📁 Metro, Babel, TypeScript Cache
-.babelrc
-.cache/
-tmp/
-temp/
-*.tmp
-*.temp
 *.tsbuildinfo
 
-# 📁 React Native Packager
+# ========================================================
+# 🔨 React Native Build Cache
+# ========================================================
+/dist/
+/build/
+/tmp/
+.cache/
 .expo/
 .expo-shared/
 .expo-cache/
 *.expo
-*.expo-shared
-*.expo-cache
 
-# 📁 Watchman, Mac, Linux 등 시스템 파일
-.watchmanconfig
+# ========================================================
+# 📱 Android
+# ========================================================
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/build/
+android/build/
+android/gradle.properties
+android/gradlew
+android/gradlew.bat
+android/gradle/
+*.keystore
+*.jks
+*.apk
+*.apks
+
+# ========================================================
+# 🍎 iOS
+# ========================================================
+ios/Pods/
+ios/build/
+ios/*.xcodeproj/*
+ios/*.xcworkspace/*
+ios/Podfile.lock
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.ipa
+
+# ========================================================
+# ⚙️ CMake / Native Modules
+# ========================================================
+*.cmake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.bin
+*.o
+*.a
+*.so
+*.dylib
+
+# ========================================================
+# 🌍 Platform-specific / System
+# ========================================================
 .DS_Store
+Thumbs.db
 *.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+*.log
+*.orig
+*.rej
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon
+ehthumbs.db
+
+# VSCode / IDE
 .idea/
 .vscode/
 *.sublime-workspace
 *.sublime-project
 
-# 📁 Testing
-coverage/
-jest-cache/
-jest-*
-
-# 📁 환경변수
+# ========================================================
+# 🔐 Secrets / Config
+# ========================================================
 .env
 .env.*
 !.env.example
+*.secret
+*.key
+*.pem
+*.crt
 
-# 📱 Emulator / Device artifacts
-*.apk
-*.apks
-*.ipa
-*.keystore
-*.jks
+# ========================================================
+# 🧪 Test
+# ========================================================
+coverage/
+jest-*
+*.lcov
 
-# 📁 Logs
-*.log
-
-# 📁 Misc
-*.orig
-*.patch
-*.rej
-
-
-*.bin
-*.cmake
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-build/
+# ========================================================
+# 📷 Image Resizer / Asset transforms
+# ========================================================
+assets/resized/*
+*.webp
