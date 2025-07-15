@@ -217,4 +217,4 @@ Thumbs.db
 *.iml
 *.log
 *.bak
-
+node_modules
