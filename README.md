@@ -52,17 +52,6 @@ gohyangon-project/
 │   └── requirements.txt     # 패키지 목록
 │
 ├── frontend/
-│   ├── web/                         # React 웹 프론트
-│   │   ├── src/
-│   │   │   ├── components/    # 공통 UI 컴포넌트
-│   │   │   ├── pages/        # 페이지 단위 구성
-│   │   │   ├── hooks/        # 커스텀 훅
-│   │   │   ├── services/    # API 연동 서비스
-│   │   │   ├── utils/       # 공통 유틸
-│   │   │   └── App.js    # 최상위 엔트리
-│   │   ├── public/        # 정적 파일
-│   │   └── package.json # 패키지 설정
-│   │
 │   ├── mobile/                     # React Native 모바일 앱
 │   │   ├── src/
 │   │   │   ├── components/    # 공통 컴포넌트
