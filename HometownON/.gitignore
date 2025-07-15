@@ -47,5 +47,37 @@ android/app/src/main/generated/
 android/app/src/main/intermediates/
 android/app/src/main/tmp/
 
+<<<<<<< HEAD
 .watchmanconfig
 debug.keystore
+=======
+# 📱 Emulator / Device artifacts
+*.apk
+*.apks
+*.ipa
+*.keystore
+*.jks
+
+# 📁 Logs
+*.log
+
+# 📁 Misc
+*.orig
+*.patch
+*.rej
+
+
+*.bin
+*.cmake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+build/
+
+# Android/React Native
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+>>>>>>> origin/main
