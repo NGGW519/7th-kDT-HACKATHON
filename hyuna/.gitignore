@@ -46,6 +46,3 @@ android/app/src/main/gen/
 android/app/src/main/generated/
 android/app/src/main/intermediates/
 android/app/src/main/tmp/
-
-.watchmanconfig
-debug.keystore
