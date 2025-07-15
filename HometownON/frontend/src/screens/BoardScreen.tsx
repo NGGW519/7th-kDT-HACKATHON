@@ -1,5 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+type RootStackParamList = {
+  BoardScreen: undefined;
+  PostListScreen: { categoryId: number; categoryName: string };
+};
+
+type BoardScreenNavigationProp = StackNavigationProp<RootStackParamList, 'BoardScreen'>;
 
 interface CategoryCardProps {
   title: string;
@@ -15,20 +24,21 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ title, onPress }) => {
 };
 
 const BoardScreen: React.FC = () => {
-  const handleCategoryPress = (category: string) => {
-    console.log(`Category pressed: ${category}`);
-    // TODO: Navigate to the list of posts for this category
+  const navigation = useNavigation<BoardScreenNavigationProp>();
+
+  const handleCategoryPress = (categoryId: number, categoryName: string) => {
+    navigation.navigate('PostListScreen', { categoryId, categoryName });
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>게시판 카테고리</Text>
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <CategoryCard title="자유 게시판" onPress={() => handleCategoryPress('자유 게시판')} />
-        <CategoryCard title="만남/매칭 게시판" onPress={() => handleCategoryPress('만남/매칭 게시판')} />
-        <CategoryCard title="정보 공유 게시판" onPress={() => handleCategoryPress('정보 공유 게시판')} />
-        <CategoryCard title="질문 답변 게시판" onPress={() => handleCategoryPress('질문 답변 게시판')} />
-        <CategoryCard title="건의사항 / 버그 제보" onPress={() => handleCategoryPress('건의사항 / 버그 제보')} />
+        <CategoryCard title="자유 게시판" onPress={() => handleCategoryPress(1, '자유 게시판')} />
+        <CategoryCard title="만남/매칭 게시판" onPress={() => handleCategoryPress(2, '만남/매칭 게시판')} />
+        <CategoryCard title="정보 공유 게시판" onPress={() => handleCategoryPress(3, '정보 공유 게시판')} />
+        <CategoryCard title="질문 답변 게시판" onPress={() => handleCategoryPress(4, '질문 답변 게시판')} />
+        <CategoryCard title="건의사항 / 버그 제보" onPress={() => handleCategoryPress(5, '건의사항 / 버그 제보')} />
       </ScrollView>
     </View>
   );

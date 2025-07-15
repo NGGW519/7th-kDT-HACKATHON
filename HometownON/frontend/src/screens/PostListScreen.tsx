@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { RouteProp } from '@react-navigation/native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import axios from 'axios';
 
 // Define types for navigation
 type RootStackParamList = {
-  Board: undefined;
-  PostList: { category: string };
-  PostDetail: { postId: string };
-  PostWrite: { category: string };
+  BoardScreen: undefined;
+  PostListScreen: { categoryId: number; categoryName: string };
+  PostDetailScreen: { postId: number };
+  PostWriteScreen: { categoryId: number; categoryName: string };
 };
 
-type PostListScreenRouteProp = RouteProp<RootStackParamList, 'PostList'>;
-type PostListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'PostList'>;
+type PostListScreenRouteProp = RouteProp<RootStackParamList, 'PostListScreen'>;
+type PostListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'PostListScreen'>;
 
 interface PostListScreenProps {
   route: PostListScreenRouteProp;
@@ -20,55 +21,96 @@ interface PostListScreenProps {
 }
 
 interface Post {
-  id: string;
+  id: number;
+  category: number;
+  session_id: string;
+  is_anonymous: boolean;
   title: string;
-  author: string;
-  date: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  view_count: number;
   likes: number;
-  comments: number;
+  comments: any[]; // Adjust this type based on your CommentSerializer
 }
 
-const PostListScreen: React.FC<PostListScreenProps> = ({ route, navigation }) => {
-  const { category } = route.params;
+const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Replace with your Django backend URL
 
-  // Dummy data for posts
-  const [posts, setPosts] = useState<Post[]>([
-    { id: '1', title: '첫 번째 게시글입니다.', author: '익명1', date: '2024-07-15', likes: 10, comments: 5 },
-    { id: '2', title: '두 번째 게시글 제목', author: '사용자A', date: '2024-07-14', likes: 2, comments: 1 },
-    { id: '3', title: '세 번째 게시글입니다.', author: '익명2', date: '2024-07-13', likes: 7, comments: 3 },
-    { id: '4', title: '네 번째 게시글 제목', author: '사용자B', date: '2024-07-12', likes: 1, comments: 0 },
-    { id: '5', title: '다섯 번째 게시글입니다.', author: '익명3', date: '2024-07-11', likes: 15, comments: 8 },
-  ]);
+const PostListScreen: React.FC<PostListScreenProps> = ({ route, navigation }) => {
+  const { categoryId, categoryName } = route.params;
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/posts/?category=${categoryId}`);
+      setPosts(response.data);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [categoryId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchPosts();
+    }, [fetchPosts])
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchPosts();
+  }, [fetchPosts]);
 
   const renderPostItem = ({ item }: { item: Post }) => (
     <TouchableOpacity
       style={styles.postItem}
-      onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+      onPress={() => navigation.navigate('PostDetailScreen', { postId: item.id })}
     >
       <Text style={styles.postTitle}>{item.title}</Text>
       <View style={styles.postMeta}>
-        <Text style={styles.postAuthor}>{item.author}</Text>
-        <Text style={styles.postDate}>{item.date}</Text>
+        <Text style={styles.postAuthor}>{item.is_anonymous ? '익명' : item.session_id.substring(0, 8)}</Text>
+        <Text style={styles.postDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
       </View>
       <View style={styles.postStats}>
         <Text>좋아요: {item.likes}</Text>
-        <Text>댓글: {item.comments}</Text>
+        <Text>댓글: {item.comments.length}</Text>
+        <Text>조회수: {item.view_count}</Text>
       </View>
     </TouchableOpacity>
   );
 
+  if (loading && !refreshing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text>게시글을 불러오는 중...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{category} 게시판</Text>
+      <Text style={styles.header}>{categoryName} 게시판</Text>
       <FlatList
         data={posts}
         renderItem={renderPostItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.postList}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>게시글이 없습니다. 첫 게시글을 작성해보세요!</Text>
+        }
       />
       <TouchableOpacity
         style={styles.writeButton}
-        onPress={() => navigation.navigate('PostWrite', { category: category })}
+        onPress={() => navigation.navigate('PostWriteScreen', { categoryId, categoryName })}
       >
         <Text style={styles.writeButtonText}>글 작성</Text>
       </TouchableOpacity>
@@ -92,6 +134,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f0f0f0',
     paddingTop: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     fontSize: 24,
@@ -167,6 +214,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginHorizontal: 5,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: '#666',
   },
 });
 
