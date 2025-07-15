@@ -5,15 +5,11 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import MainPage from './src/screens/MainPage';
 import TemporaryScreen from './src/screens/TemporaryScreen';
+import MissionScreen from './src/screens/MissionScreen'; // Import the new MissionScreen
 
 const Tab = createBottomTabNavigator();
 
 // Placeholder components for other screens
-const MissionScreen = () => (
-  <View style={styles.center}>
-    <Text>미션 페이지</Text>
-  </View>
-);
 const BoardScreen = () => (
   <View style={styles.center}>
     <Text>게시판 페이지</Text>
