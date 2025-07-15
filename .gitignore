@@ -206,10 +206,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-<<<<<<< HEAD
 # ChromaDB data
 chroma_db_data/
-=======
 # =========================
 # 추가: Node.js, OS/IDE, 기타 무시 항목
 # =========================
@@ -222,4 +220,3 @@ Thumbs.db
 *.log
 *.bak
 node_modules
->>>>>>> 29a2c1deee793f7ef4961012522a5d21464e33a4
