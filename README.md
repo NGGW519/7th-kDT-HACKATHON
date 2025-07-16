@@ -52,17 +52,17 @@ gohyangon-project/
 │   └── requirements.txt     # 패키지 목록
 │
 ├── frontend/
-│   ├── mobile/                     # React Native 모바일 앱
-│   │   ├── src/
-│   │   │   ├── components/    # 공통 컴포넌트
-│   │   │   ├── screens/      # 화면 구성
-│   │   │   ├── navigation/   # 네비게이션 구조
-│   │   │   ├── services/    # API 연동
-│   │   │   ├── hooks/       # 커스텀 훅
-│   │   │   └── App.js    # 앱 엔트리
-│   │   ├── assets/       # 이미지, 폰트 등
-│   │   ├── index.js     # 앱 실행 진입점
-│   │   └── package.json # 모바일 패키지 설정
+│   └── mobile/                     # React Native 모바일 앱
+│       ├── src/
+│       │   ├── components/    # 공통 컴포넌트
+│       │   ├── screens/      # 화면 구성
+│       │   ├── navigation/   # 네비게이션 구조
+│       │   ├── services/    # API 연동
+│       │   ├── hooks/       # 커스텀 훅
+│       │   └── App.js    # 앱 엔트리
+│       ├── assets/       # 이미지, 폰트 등
+│       ├── index.js     # 앱 실행 진입점
+│       └── package.json # 모바일 패키지 설정
 │
 ├── ai\_engine/                      # AI 추천 엔진 및 분석 모듈
 │   ├── rag\_pipeline/            # RAG 파이프라인
