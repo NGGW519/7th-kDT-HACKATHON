@@ -12,8 +12,13 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'post', 'parent', 'user', 'is_anonymous', 'content', 'created_at', 'updated_at', 'likes', 'replies'] # session_id 제거, user 추가
+        fields = ['id', 'post', 'parent', 'user', 'is_anonymous', 'content', 'created_at', 'updated_at', 'replies'] # likes 제거
         read_only_fields = () # session_id 제거했으므로 read_only_fields도 변경
+
+    def get_replies(self, obj): # 이 메서드 추가
+        if obj.replies.exists():
+            return CommentSerializer(obj.replies.all(), many=True).data
+        return None
 
 class PostSerializer(serializers.ModelSerializer):
     comments = CommentSerializer(many=True, read_only=True)

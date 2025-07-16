@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatLi
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 추가
 
 // Define types for navigation
 type RootStackParamList = {
@@ -24,7 +25,7 @@ interface Comment {
   id: number;
   post: number;
   parent: number | null;
-  session_id: string;
+  user: { id: number; name: string; email: string; }; // user 정보 추가
   is_anonymous: boolean;
   content: string;
   created_at: string;
@@ -36,7 +37,7 @@ interface Comment {
 interface Post {
   id: number;
   category: number;
-  session_id: string;
+  user: { id: number; name: string; email: string; }; // user 정보 추가
   is_anonymous: boolean;
   title: string;
   content: string;
@@ -59,8 +60,12 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
   const fetchPostDetail = useCallback(async () => {
     try {
       setLoading(true);
+      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+
       const response = await axios.get(`${API_BASE_URL}/posts/${postId}/`, {
-        withCredentials: true,
+        headers: headers, // 헤더 적용
+        // withCredentials: true, // 토큰 인증 시 필요 없음
       });
       setPost(response.data);
     } catch (error) {
@@ -80,13 +85,21 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
   const handleLikePost = async () => {
     if (!post) return;
     try {
+      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+
       const response = await axios.post(`${API_BASE_URL}/posts/${post.id}/like/`, {}, {
-        withCredentials: true,
+        headers: headers, // 헤더 적용
+        // withCredentials: true, // 토큰 인증 시 필요 없음
       });
-      if (response.status === 201) {
-        setPost(prevPost => prevPost ? { ...prevPost, likes: prevPost.likes + 1 } : null);
-      } else if (response.status === 204) {
-        setPost(prevPost => prevPost ? { ...prevPost, likes: prevPost.likes - 1 } : null);
+
+      // 백엔드에서 받은 likes_count로 상태 업데이트
+      if (response.status === 201 || response.status === 200) { // <-- 이 부분 수정
+        const { likes_count } = response.data; // likes_count 가져오기
+        setPost(prevPost => prevPost ? { ...prevPost, likes: likes_count } : null);
+        Alert.alert('성공', `좋아요 처리 완료. 현재 좋아요 수: ${likes_count}`); // 확인용 알림
+      } else {
+        Alert.alert('작성 실패', '좋아요 처리 실패했습니다.');
       }
     } catch (error) {
       console.error('Error liking post:', error);
@@ -102,13 +115,17 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
     if (!post) return;
 
     try {
+      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+
       const response = await axios.post(`${API_BASE_URL}/comments/`, {
         post: post.id,
         parent: parentId,
         content: newCommentContent,
         is_anonymous: false, // You might want to add a switch for this
       }, {
-        withCredentials: true,
+        headers: headers, // 헤더 적용
+        // withCredentials: true, // 토큰 인증 시 필요 없음
       });
 
       if (response.status === 201) {
@@ -126,8 +143,12 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
 
   const handleLikeComment = async (commentId: number) => {
     try {
+      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+
       const response = await axios.post(`${API_BASE_URL}/comments/${commentId}/like/`, {}, {
-        withCredentials: true,
+        headers: headers, // 헤더 적용
+        // withCredentials: true, // 토큰 인증 시 필요 없음
       });
       if (response.status === 201) {
         fetchPostDetail(); // Refresh to update comment likes

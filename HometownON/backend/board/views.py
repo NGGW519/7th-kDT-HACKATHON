@@ -49,17 +49,15 @@ class PostViewSet(viewsets.ModelViewSet):
         if not request.user.is_authenticated:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        like, created = PostLike.objects.get_or_create(post=post, user=request.user) # user 사용
+        like, created = PostLike.objects.get_or_create(post=post, user=request.user)
 
         if created:
-            post.likes += 1
-            post.save()
-            return Response({'status': 'like added'}, status=status.HTTP_201_CREATED)
+            likes_count = PostLike.objects.filter(post=post).count()
+            return Response({'status': 'like added', 'likes_count': likes_count}, status=status.HTTP_201_CREATED)
         else:
             like.delete()
-            post.likes -= 1
-            post.save()
-            return Response({'status': 'like removed'}, status=status.HTTP_204_NO_CONTENT)
+            likes_count = PostLike.objects.filter(post=post).count()
+            return Response({'status': 'like removed', 'likes_count': likes_count}, status=status.HTTP_200_OK) # 200 OK로 변경하고 likes_count 포함
 
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
@@ -67,6 +65,18 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         if self.request.user.is_authenticated: # 인증된 사용자만 댓글 작성 가능
+            parent_comment_id = serializer.validated_data.get('parent')
+            if parent_comment_id:
+                # 부모 댓글이 존재하는지 확인
+                try:
+                    parent_comment = Comment.objects.get(id=parent_comment_id.id) # parent_comment_id는 Comment 인스턴스
+                except Comment.DoesNotExist:
+                    raise serializers.ValidationError("부모 댓글이 존재하지 않습니다.")
+
+                # 부모 댓글이 이미 다른 댓글의 답글인지 확인 (즉, parent 필드가 None이 아닌지)
+                if parent_comment.parent is not None:
+                    raise serializers.ValidationError("답글에는 답글을 달 수 없습니다.")
+
             serializer.save(user=self.request.user)
         else:
             # 익명 댓글 허용 여부에 따라 로직 변경
@@ -82,14 +92,10 @@ class CommentViewSet(viewsets.ModelViewSet):
         like, created = CommentLike.objects.get_or_create(comment=comment, user=request.user) # user 사용
 
         if created:
-            comment.likes += 1
-            comment.save()
-            return Response({'status': 'like added'}, status=status.HTTP_201_CREATED)
+            return Response({'status': 'like added', 'likes_count': comment.comment_likes.count()}, status=status.HTTP_201_CREATED) # 좋아요 수 반환
         else:
             like.delete()
-            comment.likes -= 1
-            comment.save()
-            return Response({'status': 'like removed'}, status=status.HTTP_204_NO_CONTENT)
+            return Response({'status': 'like removed', 'likes_count': comment.comment_likes.count()}, status=status.HTTP_204_NO_CONTENT) # 좋아요 수 반환
 
 logger = logging.getLogger(__name__)
 
