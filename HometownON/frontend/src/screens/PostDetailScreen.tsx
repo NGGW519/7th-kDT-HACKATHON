@@ -142,7 +142,7 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
 
   const renderComment = (comment: Comment) => (
     <View key={comment.id} style={[styles.commentItem, comment.parent && styles.replyCommentItem]}>
-      <Text style={styles.commentAuthor}>{comment.is_anonymous ? '익명' : comment.session_id.substring(0, 8)}</Text>
+      <Text style={styles.commentAuthor}>{comment.is_anonymous ? '익명' : comment.user ? comment.user.name : '알 수 없음'}</Text>
       <Text style={styles.commentDate}>{new Date(comment.created_at).toLocaleDateString()}</Text>
       <Text style={styles.commentContent}>{comment.content}</Text>
       <View style={styles.commentActions}>
@@ -194,7 +194,7 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
         <Text style={styles.postTitle}>{post.title}</Text>
         <View style={styles.postMeta}>
-          <Text style={styles.postAuthor}>{post.is_anonymous ? '익명' : post.session_id.substring(0, 8)}</Text>
+          <Text style={styles.postAuthor}>{post.is_anonymous ? '익명' : post.user ? post.user.name : '알 수 없음'}</Text>
           <Text style={styles.postDate}>{new Date(post.created_at).toLocaleDateString()}</Text>
           <Text>조회수: {post.view_count}</Text>
           <TouchableOpacity onPress={handleLikePost}>

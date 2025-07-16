@@ -73,7 +73,7 @@ const PostListScreen: React.FC<PostListScreenProps> = ({ route, navigation }) =>
     >
       <Text style={styles.postTitle}>{item.title}</Text>
       <View style={styles.postMeta}>
-        <Text style={styles.postAuthor}>{item.is_anonymous ? '익명' : item.session_id.substring(0, 8)}</Text>
+        <Text style={styles.postAuthor}>{item.is_anonymous ? '익명' : item.user ? item.user.name : '알 수 없음'}</Text>
         <Text style={styles.postDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
       </View>
       <View style={styles.postStats}>

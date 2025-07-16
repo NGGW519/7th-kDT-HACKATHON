@@ -12,8 +12,31 @@ class User(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['name', 'birth_year', 'region']
+
     def __str__(self):
         return self.name
+
+    @property
+    def is_staff(self):
+        return False # 또는 True로 설정하여 관리자 권한 부여
+
+    @property
+    def is_superuser(self):
+        return False # 또는 True로 설정하여 관리자 권한 부여
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    @property
+    def is_active(self):
+        return True
 
 
 class SocialAccount(models.Model):
@@ -254,12 +277,11 @@ class Comment(models.Model):
 
 class PostLike(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='post_likes')
+    # session_id 대신 user 사용
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='liked_posts')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # unique_together는 deprecated 예정이므로 UniqueConstraint 사용 권장
-        # unique_together = ('post', 'user')
         constraints = [
             models.UniqueConstraint(fields=['post', 'user'], name='unique_post_like')
         ]
@@ -270,12 +292,11 @@ class PostLike(models.Model):
 
 class PostView(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='post_views')
+    # session_id 대신 user 사용
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='viewed_posts')
     viewed_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # unique_together는 deprecated 예정이므로 UniqueConstraint 사용 권장
-        # unique_together = ('post', 'user') # To count unique views per user
         constraints = [
             models.UniqueConstraint(fields=['post', 'user'], name='unique_post_view')
         ]

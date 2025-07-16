@@ -7,9 +7,12 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert, // Alert 추가
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RadarChart from '../components/RadarChart';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 추가
+import axios from 'axios'; // axios 추가
 
 interface MainDashboardProps {
   route?: {
@@ -43,6 +46,28 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
     setScores(Array.from({ length: 5 }, () => Math.floor(Math.random() * 6)));
   };
 
+  // 테스트 유저 로그인 함수
+  const testLogin = async () => {
+    try {
+      // 백엔드 서버 주소 (개발 환경에 맞게 변경 필요)
+      const API_URL = 'http://10.0.2.2:8000/api/test-login/'; // Django 서버 주소
+
+      const response = await axios.post(API_URL);
+      const { token, user_id, email } = response.data;
+
+      await AsyncStorage.setItem('userToken', token);
+      await AsyncStorage.setItem('userId', user_id.toString());
+      await AsyncStorage.setItem('userEmail', email);
+
+      Alert.alert('로그인 성공', `테스트 유저 (${email})로 로그인되었습니다.`);
+      // 로그인 후 필요한 화면으로 이동 (예: 메인 대시보드 새로고침 또는 다른 화면으로 navigate)
+      // navigation.replace('MainDashboard'); // 예시
+    } catch (error) {
+      console.error('테스트 유저 로그인 실패:', error);
+      Alert.alert('로그인 실패', '테스트 유저 로그인 중 오류가 발생했습니다.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentContainer}>
@@ -63,6 +88,11 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
             style={styles.levelBadge}
           />
         </View>
+
+        {/* 테스트 유저 로그인 버튼 추가 */}
+        <TouchableOpacity onPress={testLogin} style={styles.testLoginButton}>
+          <Text style={styles.testLoginButtonText}>테스트 유저로 로그인</Text>
+        </TouchableOpacity>
 
         <View style={styles.aiCard}>
           <View style={styles.aiTitleRow}>
@@ -214,5 +244,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
+  },
+  // 새로운 스타일 추가
+  testLoginButton: {
+    backgroundColor: '#007bff', // 파란색 배경
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  testLoginButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

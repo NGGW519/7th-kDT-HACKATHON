@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Switch, ScrollView
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 추가
 
 // Define types for navigation
 type RootStackParamList = {
@@ -35,13 +36,18 @@ const PostWriteScreen: React.FC<PostWriteScreenProps> = ({ route, navigation }) 
     }
 
     try {
+      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
+
       const response = await axios.post(`${API_BASE_URL}/posts/`, {
         category: categoryId,
         title,
         content,
         is_anonymous: isAnonymous,
       }, {
-        withCredentials: true, // This is important for sending session cookies
+        headers: {
+          Authorization: `Token ${userToken}` // Authorization 헤더 추가
+        },
+        // withCredentials: true, // 토큰 인증 시 필요 없음
       });
 
       if (response.status === 201) {
@@ -53,7 +59,13 @@ const PostWriteScreen: React.FC<PostWriteScreenProps> = ({ route, navigation }) 
       }
     } catch (error) {
       console.error('Error creating post:', error);
-      Alert.alert('오류 발생', '게시글 작성 중 오류가 발생했습니다.');
+      // 백엔드에서 보낸 상세 오류 메시지 확인
+      if (error.response && error.response.data) {
+        console.error('Backend Error Details:', error.response.data);
+        Alert.alert('오류 발생', `게시글 작성 중 오류가 발생했습니다: ${JSON.stringify(error.response.data)}`);
+      } else {
+        Alert.alert('오류 발생', '게시글 작성 중 알 수 없는 오류가 발생했습니다.');
+      }
     }
   };
 
@@ -163,3 +175,4 @@ const styles = StyleSheet.create({
 });
 
 export default PostWriteScreen;
+
