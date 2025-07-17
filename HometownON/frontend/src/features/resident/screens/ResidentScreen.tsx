@@ -4,12 +4,26 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
+/**
+ * @typedef {object} RootStackParamList
+ * @property {undefined} HomeMain - 메인 홈 화면.
+ * @property {undefined} ResidentScreen - 지역 주민 화면.
+ * @property {{ categoryId: number; categoryName: string }} PostListScreen - 게시글 목록 화면.
+ */
 type RootStackParamList = {
   HomeMain: undefined;
   ResidentScreen: undefined;
-  PostListScreen: { categoryId: number; categoryName: string }; // Add PostListScreen to RootStackParamList for navigation type
+  PostListScreen: { categoryId: number; categoryName: string };
 };
 
+/**
+ * @typedef {object} TabParamList
+ * @property {undefined} 미션 - 미션 탭.
+ * @property {{ screen: string; params: { categoryId: number; categoryName: string } }} 게시판 - 게시판 탭.
+ * @property {undefined} 홈 - 홈 탭.
+ * @property {undefined} 임시 - 임시 탭.
+ * @property {undefined} 마이페이지 - 마이페이지 탭.
+ */
 type TabParamList = {
   미션: undefined;
   게시판: { screen: string; params: { categoryId: number; categoryName: string } };
@@ -18,17 +32,32 @@ type TabParamList = {
   마이페이지: undefined;
 };
 
+/**
+ * @typedef {CompositeNavigationProp<StackNavigationProp<RootStackParamList, 'ResidentScreen'>, BottomTabNavigationProp<TabParamList>>} ResidentScreenNavigationProp
+ * @description ResidentScreen의 내비게이션 속성 타입 정의.
+ */
 type ResidentScreenNavigationProp = CompositeNavigationProp<
   StackNavigationProp<RootStackParamList, 'ResidentScreen'>,
   BottomTabNavigationProp<TabParamList>
 >;
 
+/**
+ * @interface ResidentScreenProps
+ * @description ResidentScreen 컴포넌트의 props 타입을 정의합니다.
+ * @property {ResidentScreenNavigationProp} navigation - 내비게이션 객체.
+ */
 interface ResidentScreenProps {
   navigation: ResidentScreenNavigationProp;
 }
 
+/**
+ * @function ResidentScreen
+ * @description 지역 주민을 위한 메인 화면 컴포넌트.
+ * 의뢰자 게시판으로 이동하는 기능과 과거 의뢰 내역을 표시합니다.
+ * @param {ResidentScreenProps} props - 컴포넌트 props.
+ */
 export default function ResidentScreen({ navigation }: ResidentScreenProps) {
-  console.log('ResidentScreen navigation prop:', navigation);
+  // console.log('ResidentScreen navigation prop:', navigation);
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* 상단 인사말 */}
@@ -55,7 +84,7 @@ export default function ResidentScreen({ navigation }: ResidentScreenProps) {
         </View>
 
       {/* 오른쪽: 강아지 이미지 */}
-      <Image source={require('../images/mission_assistant.png')} style={styles.dogImg} /></View>
+      <Image source={require('../../../assets/images/mission_assistant.png')} style={styles.dogImg} /></View>
 
 
       {/* 과거 의뢰내역 */}
@@ -67,7 +96,7 @@ export default function ResidentScreen({ navigation }: ResidentScreenProps) {
           <Text style={styles.name}>귀도 판 로썸</Text>
           <Text style={styles.detail}>Python 전문가</Text>
         </View>
-        <Image source={require('../images/매칭성공_체크표시.png')} style={styles.statusIcon} />
+        <Image source={require('../../../assets/images/매칭성공_체크표시.png')} style={styles.statusIcon} />
         <Text style={styles.statusText}>매칭 완료</Text>
       </View>
 
@@ -77,7 +106,7 @@ export default function ResidentScreen({ navigation }: ResidentScreenProps) {
           <Text style={styles.name}>귀뚜라미</Text>
           <Text style={styles.detail}>보일러 수리공</Text>
         </View>
-        <Image source={require('../images/매칭성공_체크표시.png')} style={styles.statusIcon} />
+        <Image source={require('../../../assets/images/매칭성공_체크표시.png')} style={styles.statusIcon} />
         <Text style={styles.statusText}>매칭 완료</Text>
       </View>
 
@@ -87,126 +116,11 @@ export default function ResidentScreen({ navigation }: ResidentScreenProps) {
           <Text style={styles.name}>우삐삐</Text>
           <Text style={styles.detail}>여행 가이드</Text>
         </View>
-        <Image source={require('../images/매칭실패_x표시.png')} style={styles.statusIcon} />
+        <Image source={require('../../../assets/images/매칭실패_x표시.png')} style={styles.statusIcon} />
         <Text style={[styles.statusText, { color: 'red' }]}>매칭 실패</Text>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  profileImg: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  greeting: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  subGreeting: {
-    color: 'gray',
-    fontSize: 12,
-  },
-  menuIcon: {
-    fontSize: 24,
-    color: '#666',
-  },
-
-  bannerTitle: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  bannerDesc: {
-    color: '#fff',
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  bannerButton: {
-    backgroundColor: '#FFD700',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  buttonText: {
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  dogImg: {
-  width: 180,                // ✅ 크기 키우기
-  height: 180,
-  marginRight: -40,           
-  marginTop: -20,            
-  marginBottom: -150,        
-  resizeMode: 'contain',     
-},
-
-banner: {
-  backgroundColor: '#7D4EFF',
-  padding: 16,
-  borderRadius: 12,
-  marginBottom: 24,
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  justifyContent: 'space-between',
-  overflow: 'visible',       // ✅ 박스 밖 이미지 허용!
-  position: 'relative',      // ✅ (안전하게 배치 기준)
-},
-
-bannerTextArea: {
-  flex: 1,
-  paddingRight: 12,
-},
-
-
-  historyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  card: {
-    backgroundColor: '#F8F8F8',
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  info: {
-    flex: 1,
-  },
-  name: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  detail: {
-    fontSize: 12,
-    color: 'gray',
-  },
-  statusIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 4,
-  },
-  statusText: {
-    fontWeight: 'bold',
-  },
-});
+import { styles } from './ResidentScreen.styles';

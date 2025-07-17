@@ -1,10 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import axios from 'axios';
+import { styles } from './PostListScreen.styles';
 
-// Define types for navigation
+/**
+ * @typedef {object} RootStackParamList
+ * @property {undefined} BoardScreen - 게시판 메인 화면.
+ * @property {{ categoryId: number; categoryName: string }} PostListScreen - 게시글 목록 화면.
+ * @property {{ postId: number }} PostDetailScreen - 게시글 상세 화면.
+ * @property {{ categoryId: number; categoryName: string }} PostWriteScreen - 게시글 작성 화면.
+ */
 type RootStackParamList = {
   BoardScreen: undefined;
   PostListScreen: { categoryId: number; categoryName: string };
@@ -12,14 +19,43 @@ type RootStackParamList = {
   PostWriteScreen: { categoryId: number; categoryName: string };
 };
 
+/**
+ * @typedef {RouteProp<RootStackParamList, 'PostListScreen'>} PostListScreenRouteProp
+ * @description PostListScreen의 라우트 속성 타입 정의.
+ */
 type PostListScreenRouteProp = RouteProp<RootStackParamList, 'PostListScreen'>;
+/**
+ * @typedef {StackNavigationProp<RootStackParamList, 'PostListScreen'>} PostListScreenNavigationProp
+ * @description PostListScreen의 내비게이션 속성 타입 정의.
+ */
 type PostListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'PostListScreen'>;
 
+/**
+ * @interface PostListScreenProps
+ * @description PostListScreen 컴포넌트의 props 타입을 정의합니다.
+ * @property {PostListScreenRouteProp} route - 라우트 객체.
+ * @property {PostListScreenNavigationProp} navigation - 내비게이션 객체.
+ */
 interface PostListScreenProps {
   route: PostListScreenRouteProp;
   navigation: PostListScreenNavigationProp;
 }
 
+/**
+ * @interface Post
+ * @description 게시글 데이터 구조를 정의합니다.
+ * @property {number} id - 게시글 ID.
+ * @property {number} category - 게시글 카테고리 ID.
+ * @property {string} session_id - 세션 ID (사용자 식별용).
+ * @property {boolean} is_anonymous - 익명 여부.
+ * @property {string} title - 게시글 제목.
+ * @property {string} content - 게시글 내용.
+ * @property {string} created_at - 게시글 생성 시간.
+ * @property {string} updated_at - 게시글 마지막 업데이트 시간.
+ * @property {number} view_count - 조회수.
+ * @property {number} likes - 좋아요 수.
+ * @property {any[]} comments - 댓글 목록 (CommentSerializer에 따라 타입 조정 필요).
+ */
 interface Post {
   id: number;
   category: number;
@@ -33,22 +69,32 @@ interface Post {
   likes: number;
   comments: any[]; // Adjust this type based on your CommentSerializer
 }
+const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Django 백엔드 API 기본 URL
 
-const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Replace with your Django backend URL
-
+/**
+ * @function PostListScreen
+ * @description 특정 카테고리의 게시글 목록을 표시하는 화면 컴포넌트.
+ * 게시글 상세 보기, 글 작성, 새로고침 기능을 제공합니다.
+ * @param {PostListScreenProps} props - 컴포넌트 props.
+ */
 const PostListScreen: React.FC<PostListScreenProps> = ({ route, navigation }) => {
   const { categoryId, categoryName } = route.params;
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
+  /**
+   * @function fetchPosts
+   * @description 게시글 목록을 불러오는 비동기 함수.
+   * @returns {Promise<void>}
+   */
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/posts/?category=${categoryId}`);
       setPosts(response.data);
     } catch (error) {
-      console.error('Error fetching posts:', error);
+      // console.error('Error fetching posts:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,11 +107,21 @@ const PostListScreen: React.FC<PostListScreenProps> = ({ route, navigation }) =>
     }, [fetchPosts])
   );
 
+  /**
+   * @function onRefresh
+   * @description FlatList 새로고침 시 호출되는 함수.
+   */
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchPosts();
   }, [fetchPosts]);
 
+  /**
+   * @function renderPostItem
+   * @description FlatList의 각 게시글 항목을 렌더링하는 함수.
+   * @param {{ item: Post }} - 렌더링할 게시글 객체.
+   * @returns {JSX.Element}
+   */
   const renderPostItem = ({ item }: { item: Post }) => (
     <TouchableOpacity
       style={styles.postItem}
@@ -128,99 +184,5 @@ const PostListScreen: React.FC<PostListScreenProps> = ({ route, navigation }) =>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    paddingTop: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#333',
-  },
-  postList: {
-    paddingHorizontal: 10,
-  },
-  postItem: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  postTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#333',
-  },
-  postMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  postAuthor: {
-    fontSize: 14,
-    color: '#666',
-  },
-  postDate: {
-    fontSize: 14,
-    color: '#666',
-  },
-  postStats: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-  },
-  writeButton: {
-    backgroundColor: '#007bff',
-    padding: 15,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginVertical: 20,
-  },
-  writeButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  pagingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 20,
-  },
-  pagingButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginHorizontal: 5,
-    backgroundColor: '#ddd',
-    borderRadius: 5,
-  },
-  pagingText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginHorizontal: 5,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#666',
-  },
-});
 
 export default PostListScreen;

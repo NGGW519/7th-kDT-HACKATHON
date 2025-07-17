@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useFocusEffect } from '@react-navigation/native';
+import { styles } from './MyPageScreen.styles';
 
-const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Replace with your Django backend URL
+const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Django 백엔드 API 기본 URL
 
+/**
+ * @interface UserData
+ * @description 사용자 데이터 구조를 정의합니다.
+ * @property {number} id - 사용자 ID.
+ * @property {string} email - 사용자 이메일.
+ * @property {string} name - 사용자 이름.
+ * @property {number} birth_year - 출생 연도.
+ * @property {string} region - 지역.
+ * @property {number} adapt_score - 적응 점수.
+ */
 interface UserData {
   id: number;
   email: string;
@@ -15,11 +26,22 @@ interface UserData {
   adapt_score: number;
 }
 
+/**
+ * @function MyPageScreen
+ * @description 사용자 마이 페이지 화면 컴포넌트.
+ * 사용자 정보를 표시하고 로그아웃 기능을 제공합니다.
+ * @param {{ navigation: any }} props - 컴포넌트 props.
+ */
 const MyPageScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * @function fetchUserData
+   * @description 사용자 정보를 백엔드에서 불러오는 비동기 함수.
+   * @returns {Promise<void>}
+   */
   const fetchUserData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -38,7 +60,7 @@ const MyPageScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       });
       setUserData(response.data);
     } catch (err) {
-      console.error('Error fetching user data:', err);
+      // console.error('Error fetching user data:', err);
       setError('사용자 정보를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
@@ -51,6 +73,12 @@ const MyPageScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }, [fetchUserData])
   );
 
+  /**
+   * @function handleLogout
+   * @description 사용자 로그아웃을 처리하는 함수.
+   * AsyncStorage에서 사용자 토큰을 제거하고 스플래시 화면으로 리디렉션합니다.
+   * @returns {Promise<void>}
+   */
   const handleLogout = async () => {
     Alert.alert(
       '로그아웃',
@@ -125,80 +153,5 @@ const MyPageScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    padding: 20,
-  },
-  centeredContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-    color: '#333',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#555',
-    marginTop: 10,
-  },
-  value: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 5,
-  },
-  noDataText: {
-    fontSize: 18,
-    textAlign: 'center',
-    color: '#666',
-  },
-  logoutButton: {
-    backgroundColor: '#dc3545',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 30,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#007bff',
-    padding: 10,
-    borderRadius: 5,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-});
 
 export default MyPageScreen;

@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { styles } from './MissionScreen.styles';
 
+/**
+ * @interface Mission
+ * @description 미션 데이터 구조를 정의합니다.
+ * @property {string} id - 미션 ID.
+ * @property {string} title - 미션 제목.
+ * @property {string} description - 미션 설명.
+ * @property {'new' | 'in-progress' | 'completed'} status - 미션 상태 (새로운 미션, 진행 중, 완료됨).
+ */
 interface Mission {
   id: string;
   title: string;
@@ -8,6 +17,11 @@ interface Mission {
   status: 'new' | 'in-progress' | 'completed';
 }
 
+/**
+ * @function MissionScreen
+ * @description 미션 목록을 표시하고 미션 상태를 관리하는 화면 컴포넌트.
+ * 신규, 진행 중, 완료된 미션을 탭으로 구분하여 보여줍니다.
+ */
 const MissionScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'new' | 'in-progress' | 'completed'>('new');
   const [missions, setMissions] = useState<Mission[]>([
@@ -18,6 +32,11 @@ const MissionScreen: React.FC = () => {
     { id: '5', title: '완료된 미션 X', description: '이것은 완료된 미션 X입니다.', status: 'completed' },
   ]);
 
+  /**
+   * @function handleAcceptMission
+   * @description 미션을 수락하고 상태를 'in-progress'로 변경합니다.
+   * @param {string} id - 수락할 미션의 ID.
+   */
   const handleAcceptMission = (id: string) => {
     setMissions(prevMissions =>
       prevMissions.map(mission =>
@@ -27,6 +46,11 @@ const MissionScreen: React.FC = () => {
     setActiveTab('in-progress'); // 미션 수락 후 진행 중 미션 탭으로 이동
   };
 
+  /**
+   * @function handleCompleteMission
+   * @description 미션을 완료하고 상태를 'completed'로 변경합니다.
+   * @param {string} id - 완료할 미션의 ID.
+   */
   const handleCompleteMission = (id: string) => {
     setMissions(prevMissions =>
       prevMissions.map(mission =>
@@ -36,6 +60,13 @@ const MissionScreen: React.FC = () => {
     setActiveTab('completed'); // 미션 완료 후 완료된 미션 탭으로 이동
   };
 
+  /**
+   * @function renderMissionCard
+   * @description 단일 미션 카드를 렌더링하는 함수.
+   * 미션 상태에 따라 다른 스타일과 버튼을 표시합니다.
+   * @param {Mission} mission - 렌더링할 미션 객체.
+   * @returns {JSX.Element}
+   */
   const renderMissionCard = (mission: Mission) => {
     const cardStyle = [styles.missionCard];
     let buttonText = '';
@@ -107,101 +138,5 @@ const MissionScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    paddingTop: 20,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  tab: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 5,
-  },
-  activeTab: {
-    backgroundColor: '#e0e0e0',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#555',
-  },
-  activeTabText: {
-    color: '#333',
-  },
-  missionList: {
-    flex: 1,
-    padding: 10,
-  },
-  missionCard: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  newMissionCard: {
-    backgroundColor: '#e6ffe6', // 새로운 미션: 밝은 녹색 계열
-    borderColor: '#4CAF50',
-    borderWidth: 1,
-  },
-  inProgressMissionCard: {
-    backgroundColor: '#fff8e1', // 진행 중 미션: 밝은 노란색 계열
-    borderColor: '#FFC107',
-    borderWidth: 1,
-  },
-  completedMissionCard: {
-    backgroundColor: '#f5f5f5', // 완료된 미션: 회색 계열
-    borderColor: '#9E9E9E',
-    borderWidth: 1,
-  },
-  missionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#333',
-  },
-  missionDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 10,
-  },
-  missionButton: {
-    backgroundColor: '#007bff',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-    alignSelf: 'flex-start',
-  },
-  missionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  completedText: {
-    fontSize: 14,
-    color: '#9E9E9E',
-    fontWeight: 'bold',
-    textAlign: 'right',
-  },
-  noMissionText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#888',
-  },
-});
 
 export default MissionScreen;

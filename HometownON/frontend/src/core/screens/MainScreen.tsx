@@ -12,9 +12,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import RadarChart from '../components/RadarChart';
+import RadarChart from '../../components/RadarChart';
 
-interface MainDashboardProps {
+interface MainScreenProps {
   route?: {
     params?: {
       scores?: number[];
@@ -23,11 +23,11 @@ interface MainDashboardProps {
   navigation?: any;
 }
 
-const totalBadges = 10;
-const completedBadges = 6;
+const TOTAL_BADGES = 10; // 전체 배지 수
+const COMPLETED_BADGES = 6; // 완료된 배지 수 (임시 값)
 
-export default function MainDashboard({ route, navigation }: MainDashboardProps) {
-  console.log('🔥 MainDashboard loaded 🔥');
+export default function MainScreen({ route, navigation }: MainScreenProps) {
+  
 
   const passedScores = route?.params?.scores;
 
@@ -46,7 +46,11 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
     setScores(Array.from({ length: 5 }, () => Math.floor(Math.random() * 6)));
   };
 
-  // 테스트 유저 로그인 함수
+  /**
+   * @function testLogin
+   * @description 테스트 유저로 로그인하는 함수.
+   * 백엔드 API를 호출하여 토큰을 받고 AsyncStorage에 저장합니다.
+   */
   const testLogin = async () => {
     try {
       // 백엔드 서버 주소 (개발 환경에 맞게 변경 필요)
@@ -72,6 +76,7 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <StatusBar hidden />
+        {/* 헤더 섹션: 프로필 이미지, 환영 메시지, 레벨 배지 */}
         <View style={styles.header}>
           <Image
             source={{ uri: 'https://example.com/profile.png' }}
@@ -84,21 +89,22 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
             </Text>
           </View>
           <Image
-            source={require('../images/advanced_level.png')}
+            source={require('../../assets/images/advanced_level.png')}
             style={styles.levelBadge}
           />
         </View>
 
-        {/* 테스트 유저 로그인 버튼 추가 */}
+        {/* 테스트 유저 로그인 버튼 */}
         <TouchableOpacity onPress={testLogin} style={styles.testLoginButton}>
           <Text style={styles.testLoginButtonText}>테스트 유저로 로그인</Text>
         </TouchableOpacity>
 
+        {/* AI 목표 제시 카드 */}
         <View style={styles.aiCard}>
           <View style={styles.aiTitleRow}>
             <Text style={styles.aiTitle}>AI 목표제시</Text>
             <Image
-              source={require('../images/free-icon-ai-assistant-14355209.png')}
+              source={require('../../assets/images/free-icon-ai-assistant-14355209.png')}
               style={styles.AiImage}
             />
           </View>
@@ -109,9 +115,10 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
           </Text>
         </View>
 
+        {/* 금일의 미션 추천 박스 */}
         <View style={styles.missionBox}>
           <Image
-            source={require('../images/mission_assistant.png')}
+            source={require('../../assets/images/mission_assistant.png')}
             style={styles.dogImage}
           />
           <View style={{ flex: 1 }}>
@@ -124,24 +131,26 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
           </View>
         </View>
 
+        {/* 현재 인증 배지 현황 섹션 */}
         <View style={styles.badgeBox}>
           <Text style={styles.sectionTitle}>현재 인증배지 현황</Text>
           <Text style={styles.smallText}>xx회까지 xx개 중 4개 남았습니다.</Text>
         </View>
         <View style={styles.badgeRow}>
-          {[...Array(totalBadges)].map((_, i) => (
+          {[...Array(TOTAL_BADGES)].map((_, i) => (
             <Image
               key={i}
               source={
-                i < completedBadges
-                  ? require('../images/badge.png')
-                  : require('../images/badge_gray.png')
+                i < COMPLETED_BADGES
+                  ? require('../../assets/images/badge.png')
+                  : require('../../assets/images/badge_gray.png')
               }
               style={styles.badge}
             />
           ))}
         </View>
 
+        {/* 활동 현황 차트 섹션 */}
         <View style={styles.chartSection}>
           <Text style={styles.sectionTitle}>활동현황</Text>
           <View style={styles.chartRow}>
@@ -161,7 +170,7 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
           </TouchableOpacity>
         </View>
 
-        {/* 지역 주민 페이지 이동 버튼 추가 */}
+        {/* 지역 주민 페이지 이동 버튼 */}
         <TouchableOpacity
           style={styles.residentButton}
           onPress={() => navigation?.navigate('ResidentScreen')}
@@ -173,113 +182,4 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  contentContainer: { padding: 16, paddingBottom: 100 }, // 버튼 공간 확보
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: -20,
-  },
-  profileImage: { width: 50, height: 50, borderRadius: 25 },
-  welcomeText: { fontSize: 16, fontWeight: 'bold', marginTop: -10 },
-  subText: { fontSize: 12, color: 'gray' },
-  levelBadge: { width: 60, height: 60, marginLeft: 'auto', resizeMode: 'contain' },
-
-  aiCard: {
-    backgroundColor: '#f3f3f3',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 10,
-  },
-  aiTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  aiTitle: { fontSize: 16, fontWeight: 'bold', marginRight: 8 },
-  AiImage: { width: 20, height: 20, resizeMode: 'contain' },
-  aiContent: { fontSize: 13 },
-
-  missionBox: {
-    backgroundColor: '#F6D094',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'visible',
-    position: 'relative',
-  },
-  dogImage: {
-    width: 180,
-    height: 180,
-    marginLeft: -40,
-    marginTop: -24,
-    marginBottom: -40,
-    resizeMode: 'contain',
-  },
-  missionText: { fontWeight: 'bold', marginBottom: 4, marginRight: 12 },
-  missionButton: {
-    marginTop: 8,
-    backgroundColor: '#FF9900',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    alignSelf: 'flex-start',
-  },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-
-  badgeBox: { marginTop: 20 },
-  sectionTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 4 },
-  smallText: { fontSize: 12, color: 'gray' },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 },
-  badge: { width: 30, height: 30 },
-
-  chartSection: { marginTop: 24 },
-  chartInfo: { gap: 4, justifyContent: 'center' },
-  chartRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 24,
-  },
-  chartWrapper: { marginTop: -12 },
-  testBtn: {
-    marginTop: 12,
-    alignSelf: 'flex-end',
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  // 새로운 스타일 추가
-  testLoginButton: {
-    backgroundColor: '#007bff', // 파란색 배경
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  testLoginButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  residentButton: {
-    backgroundColor: '#28a745', // 녹색 계열
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 20,
-    width: '100%',
-  },
-  residentButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});
+import { styles } from './MainScreen.styles';

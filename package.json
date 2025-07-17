@@ -5,5 +5,8 @@
     "@react-navigation/native": "^7.1.14",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.11.1"
+  },
+  "devDependencies": {
+    "@react-native-community/cli": "^19.1.0"
   }
 }

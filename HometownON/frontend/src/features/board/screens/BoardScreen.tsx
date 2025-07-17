@@ -1,20 +1,41 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { styles } from './BoardScreen.styles';
 
+/**
+ * @typedef {object} RootStackParamList
+ * @property {undefined} BoardScreen - 게시판 메인 화면.
+ * @property {{ categoryId: number; categoryName: string }} PostListScreen - 게시글 목록 화면.
+ */
 type RootStackParamList = {
   BoardScreen: undefined;
   PostListScreen: { categoryId: number; categoryName: string };
 };
 
+/**
+ * @typedef {StackNavigationProp<RootStackParamList, 'BoardScreen'>} BoardScreenNavigationProp
+ * @description BoardScreen의 내비게이션 속성 타입 정의.
+ */
 type BoardScreenNavigationProp = StackNavigationProp<RootStackParamList, 'BoardScreen'>;
 
+/**
+ * @interface CategoryCardProps
+ * @description CategoryCard 컴포넌트의 props 타입을 정의합니다.
+ * @property {string} title - 카테고리 제목.
+ * @property {() => void} onPress - 카드 클릭 시 실행될 함수.
+ */
 interface CategoryCardProps {
   title: string;
   onPress: () => void;
 }
 
+/**
+ * @function CategoryCard
+ * @description 게시판 카테고리를 나타내는 카드 컴포넌트.
+ * @param {CategoryCardProps} props - 컴포넌트 props.
+ */
 const CategoryCard: React.FC<CategoryCardProps> = ({ title, onPress }) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
@@ -43,44 +64,5 @@ const BoardScreen: React.FC = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    paddingTop: 20,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#333',
-  },
-  scrollViewContent: {
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingBottom: 20,
-  },
-  card: {
-    backgroundColor: '#fff',
-    width: '90%',
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#555',
-  },
-});
 
 export default BoardScreen;

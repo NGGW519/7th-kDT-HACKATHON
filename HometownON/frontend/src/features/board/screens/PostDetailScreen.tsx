@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { styles } from './PostDetailScreen.styles';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import axios from 'axios';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 추가
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-// Define types for navigation
+/**
+ * @typedef {object} RootStackParamList
+ * @property {undefined} BoardScreen - 게시판 메인 화면.
+ * @property {{ categoryId: number; categoryName: string }} PostListScreen - 게시글 목록 화면.
+ * @property {{ postId: number }} PostDetailScreen - 게시글 상세 화면.
+ * @property {{ categoryId: number; categoryName: string }} PostWriteScreen - 게시글 작성 화면.
+ */
 type RootStackParamList = {
   BoardScreen: undefined;
   PostListScreen: { categoryId: number; categoryName: string };
@@ -14,19 +21,47 @@ type RootStackParamList = {
   PostWriteScreen: { categoryId: number; categoryName: string };
 };
 
+/**
+ * @typedef {RouteProp<RootStackParamList, 'PostDetailScreen'>} PostDetailScreenRouteProp
+ * @description PostDetailScreen의 라우트 속성 타입 정의.
+ */
 type PostDetailScreenRouteProp = RouteProp<RootStackParamList, 'PostDetailScreen'>;
+/**
+ * @typedef {StackNavigationProp<RootStackParamList, 'PostDetailScreen'>} PostDetailScreenNavigationProp
+ * @description PostDetailScreen의 내비게이션 속성 타입 정의.
+ */
 type PostDetailScreenNavigationProp = StackNavigationProp<RootStackParamList, 'PostDetailScreen'>;
 
+/**
+ * @interface PostDetailScreenProps
+ * @description PostDetailScreen 컴포넌트의 props 타입을 정의합니다.
+ * @property {PostDetailScreenRouteProp} route - 라우트 객체.
+ * @property {PostDetailScreenNavigationProp} navigation - 내비게이션 객체.
+ */
 interface PostDetailScreenProps {
   route: PostDetailScreenRouteProp;
   navigation: PostDetailScreenNavigationProp;
 }
 
+/**
+ * @interface Comment
+ * @description 댓글 데이터 구조를 정의합니다.
+ * @property {number} id - 댓글 ID.
+ * @property {number} post - 댓글이 속한 게시글 ID.
+ * @property {number | null} parent - 부모 댓글 ID (대댓글인 경우).
+ * @property {{ id: number; name: string; email: string; }} user - 댓글 작성자 정보.
+ * @property {boolean} is_anonymous - 익명 여부.
+ * @property {string} content - 댓글 내용.
+ * @property {string} created_at - 댓글 생성 시간.
+ * @property {string} updated_at - 댓글 마지막 업데이트 시간.
+ * @property {number} likes - 댓글 좋아요 수.
+ * @property {Comment[]} [replies] - 대댓글 목록 (선택 사항).
+ */
 interface Comment {
   id: number;
   post: number;
   parent: number | null;
-  user: { id: number; name: string; email: string; }; // user 정보 추가
+  user: { id: number; name: string; email: string; };
   is_anonymous: boolean;
   content: string;
   created_at: string;
@@ -35,6 +70,21 @@ interface Comment {
   replies?: Comment[];
 }
 
+/**
+ * @interface Post
+ * @description 게시글 데이터 구조를 정의합니다.
+ * @property {number} id - 게시글 ID.
+ * @property {number} category - 게시글 카테고리 ID.
+ * @property {{ id: number; name: string; email: string; }} user - 게시글 작성자 정보.
+ * @property {boolean} is_anonymous - 익명 여부.
+ * @property {string} title - 게시글 제목.
+ * @property {string} content - 게시글 내용.
+ * @property {string} created_at - 게시글 생성 시간.
+ * @property {string} updated_at - 게시글 마지막 업데이트 시간.
+ * @property {number} view_count - 조회수.
+ * @property {number} likes - 좋아요 수.
+ * @property {Comment[]} comments - 댓글 목록.
+ */
 interface Post {
   id: number;
   category: number;
@@ -49,8 +99,13 @@ interface Post {
   comments: Comment[];
 }
 
-const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Replace with your Django backend URL
+const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Django 백엔드 API 기본 URL
 
+/**
+ * @function PostDetailScreen
+ * @description 게시글의 상세 내용을 표시하고, 댓글 작성 및 좋아요 기능을 제공하는 화면 컴포넌트.
+ * @param {PostDetailScreenProps} props - 컴포넌트 props.
+ */
 const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }) => {
   const { postId } = route.params;
   const [post, setPost] = useState<Post | null>(null);
@@ -68,19 +123,23 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
     });
   }, [navigation]);
 
+  /**
+   * @function fetchPostDetail
+   * @description 게시글 상세 정보를 불러오는 비동기 함수.
+   * @returns {Promise<void>}
+   */
   const fetchPostDetail = useCallback(async () => {
     try {
       setLoading(true);
-      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
-      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+      const userToken = await AsyncStorage.getItem('userToken');
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {};
 
       const response = await axios.get(`${API_BASE_URL}/posts/${postId}/`, {
-        headers: headers, // 헤더 적용
-        // withCredentials: true, // 토큰 인증 시 필요 없음
+        headers: headers,
       });
       setPost(response.data);
     } catch (error) {
-      console.error('Error fetching post detail:', error);
+      // console.error('Error fetching post detail:', error);
       Alert.alert('오류', '게시글을 불러오는 데 실패했습니다.');
     } finally {
       setLoading(false);
@@ -93,31 +152,41 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
     }, [fetchPostDetail])
   );
 
+  /**
+   * @function handleLikePost
+   * @description 게시글에 좋아요를 처리하는 비동기 함수.
+   * @returns {Promise<void>}
+   */
   const handleLikePost = async () => {
     if (!post) return;
     try {
-      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
-      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+      const userToken = await AsyncStorage.getItem('userToken');
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {};
 
       const response = await axios.post(`${API_BASE_URL}/posts/${post.id}/like/`, {}, {
-        headers: headers, // 헤더 적용
-        // withCredentials: true, // 토큰 인증 시 필요 없음
+        headers: headers,
       });
 
       // 백엔드에서 받은 likes_count로 상태 업데이트
-      if (response.status === 201 || response.status === 200) { // <-- 이 부분 수정
-        const { likes_count } = response.data; // likes_count 가져오기
+      if (response.status === 201 || response.status === 200) {
+        const { likes_count } = response.data;
         setPost(prevPost => prevPost ? { ...prevPost, likes: likes_count } : null);
-        Alert.alert('성공', `좋아요 처리 완료. 현재 좋아요 수: ${likes_count}`); // 확인용 알림
+        Alert.alert('성공', `좋아요 처리 완료. 현재 좋아요 수: ${likes_count}`);
       } else {
         Alert.alert('작성 실패', '좋아요 처리 실패했습니다.');
       }
     } catch (error) {
-      console.error('Error liking post:', error);
+      // console.error('Error liking post:', error);
       Alert.alert('오류', '좋아요 처리 중 오류가 발생했습니다.');
     }
   };
 
+  /**
+   * @function handleAddComment
+   * @description 댓글 또는 대댓글을 추가하는 비동기 함수.
+   * @param {number | null} [parentId=null] - 대댓글인 경우 부모 댓글 ID.
+   * @returns {Promise<void>}
+   */
   const handleAddComment = async (parentId: number | null = null) => {
     if (newCommentContent.trim() === '') {
       Alert.alert('입력 오류', '댓글 내용을 입력해주세요.');
@@ -126,52 +195,60 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
     if (!post) return;
 
     try {
-      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
-      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+      const userToken = await AsyncStorage.getItem('userToken');
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {};
 
       const response = await axios.post(`${API_BASE_URL}/comments/`, {
         post: post.id,
         parent: parentId,
         content: newCommentContent,
-        is_anonymous: false, // You might want to add a switch for this
+        is_anonymous: false, // 익명 댓글 여부는 UI에서 설정 가능하도록 확장 가능
       }, {
-        headers: headers, // 헤더 적용
-        // withCredentials: true, // 토큰 인증 시 필요 없음
+        headers: headers,
       });
 
       if (response.status === 201) {
         setNewCommentContent('');
         setReplyToCommentId(null);
-        fetchPostDetail(); // Refresh post details to get new comments
+        fetchPostDetail(); // 댓글 작성 후 게시글 상세 정보 새로고침
       } else {
         Alert.alert('작성 실패', '댓글 작성에 실패했습니다.');
       }
     } catch (error) {
-      console.error('Error adding comment:', error);
+      // console.error('Error adding comment:', error);
       Alert.alert('오류', '댓글 작성 중 오류가 발생했습니다.');
     }
   };
 
+  /**
+   * @function handleLikeComment
+   * @description 댓글에 좋아요를 처리하는 비동기 함수.
+   * @param {number} commentId - 좋아요를 누를 댓글 ID.
+   * @returns {Promise<void>}
+   */
   const handleLikeComment = async (commentId: number) => {
     try {
-      const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
-      const headers = userToken ? { Authorization: `Token ${userToken}` } : {}; // 헤더 설정
+      const userToken = await AsyncStorage.getItem('userToken');
+      const headers = userToken ? { Authorization: `Token ${userToken}` } : {};
 
       const response = await axios.post(`${API_BASE_URL}/comments/${commentId}/like/`, {}, {
-        headers: headers, // 헤더 적용
-        // withCredentials: true, // 토큰 인증 시 필요 없음
+        headers: headers,
       });
-      if (response.status === 201) {
-        fetchPostDetail(); // Refresh to update comment likes
-      } else if (response.status === 204) {
-        fetchPostDetail(); // Refresh to update comment likes
+      if (response.status === 201 || response.status === 204) {
+        fetchPostDetail(); // 댓글 좋아요 후 게시글 상세 정보 새로고침
       }
     } catch (error) {
-      console.error('Error liking comment:', error);
+      // console.error('Error liking comment:', error);
       Alert.alert('오류', '댓글 좋아요 처리 중 오류가 발생했습니다.');
     }
   };
 
+  /**
+   * @function renderComment
+   * @description 단일 댓글을 렌더링하는 함수.
+   * @param {Comment} comment - 렌더링할 댓글 객체.
+   * @returns {JSX.Element}
+   */
   const renderComment = (comment: Comment) => (
     <View key={comment.id} style={[styles.commentItem, comment.parent && styles.replyCommentItem]}>
       <Text style={styles.commentAuthor}>{comment.is_anonymous ? '익명' : comment.user ? comment.user.name : '알 수 없음'}</Text>
@@ -262,159 +339,5 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    paddingTop: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollViewContent: {
-    paddingHorizontal: 15,
-    paddingBottom: 20,
-  },
-  postTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  postMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 10,
-  },
-  postAuthor: {
-    fontSize: 14,
-    color: '#666',
-  },
-  postDate: {
-    fontSize: 14,
-    color: '#666',
-  },
-  postLikeButton: {
-    fontSize: 14,
-    color: '#007bff',
-    fontWeight: 'bold',
-  },
-  postContent: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#333',
-    marginBottom: 20,
-  },
-  commentsSection: {
-    marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 20,
-  },
-  commentsHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-  },
-  commentItem: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  replyCommentItem: {
-    marginLeft: 20,
-    backgroundColor: '#f9f9f9',
-    borderLeftWidth: 3,
-    borderLeftColor: '#ddd',
-  },
-  commentAuthor: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#555',
-  },
-  commentDate: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 5,
-  },
-  commentContent: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#333',
-    marginBottom: 10,
-  },
-  commentActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 15,
-  },
-  commentLikeButton: {
-    fontSize: 13,
-    color: '#007bff',
-  },
-  commentReplyButton: {
-    fontSize: 13,
-    color: '#28a745',
-  },
-  commentInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 15,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  commentInput: {
-    flex: 1,
-    padding: 10,
-    fontSize: 16,
-  },
-  commentSubmitButton: {
-    backgroundColor: '#007bff',
-    padding: 10,
-    borderRadius: 8,
-    marginLeft: 10,
-  },
-  commentSubmitButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  replyInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    paddingRight: 5,
-  },
-  emptyCommentText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 14,
-    color: '#666',
-  },
-});
 
 export default PostDetailScreen;
