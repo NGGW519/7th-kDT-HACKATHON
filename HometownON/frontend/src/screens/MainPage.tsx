@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 추가
+import axios from 'axios'; // axios 추가
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   ScrollView,
   StatusBar,
@@ -7,12 +10,9 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert, // Alert 추가
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RadarChart from '../components/RadarChart';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 추가
-import axios from 'axios'; // axios 추가
 
 interface MainDashboardProps {
   route?: {
@@ -117,7 +117,8 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
           <View style={{ flex: 1 }}>
             <Text style={styles.missionText}>금일의 미션추천</Text>
             <Text>오늘은 주민센터와 함께하는 운동데이입니다!</Text>
-            <TouchableOpacity style={styles.missionButton}>
+           {/* 바로가기 버튼 페이지 이동 */}
+            <TouchableOpacity style={styles.missionButton} onPress={() => navigation?.navigate('MissionScreen')}>
               <Text style={styles.buttonText}>바로가기</Text>
             </TouchableOpacity>
           </View>

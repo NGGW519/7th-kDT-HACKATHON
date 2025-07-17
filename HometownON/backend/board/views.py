@@ -31,14 +31,22 @@ class PostViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        category_id = self.request.data.get('category')
+        print(f"[DEBUG] Received category_id: {category_id} (type: {type(category_id)})")
+        if not category_id:
+            raise serializers.ValidationError({"category": "카테고리가 선택되지 않았습니다."})
+
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            raise serializers.ValidationError({"category": "존재하지 않는 카테고리입니다."})
+
         if serializer.validated_data.get('is_anonymous'):
-            serializer.save(user=None) # 익명 게시글은 user를 None으로 설정
+            serializer.save(user=None, category=category)
         else:
             if self.request.user.is_authenticated:
-                serializer.save(user=self.request.user)
+                serializer.save(user=self.request.user, category=category)
             else:
-                # 로그인하지 않은 사용자가 익명으로 작성하지 않은 경우
-                # 여기서는 에러를 발생시키도록 합니다.
                 raise serializers.ValidationError("로그인하지 않은 사용자는 익명으로만 게시글을 작성할 수 있습니다.")
 
     def retrieve(self, request, *args, **kwargs):

@@ -1,19 +1,35 @@
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
+
 from board.models import Category
 
-# ID가 1인 카테고리가 없으면 '자유게시판'이라는 이름으로 생성
-# 이미 존재하면 해당 객체를 가져옴
-category, created = Category.objects.get_or_create(
-    id=1, # 특정 ID를 지정
-    defaults={'name': '자유게시판'}
-)
+def add_categories():
+    categories_to_add = [
+        ('자유 게시판', 1),
+        ('만남/매칭 게시판', 2),
+        ('정보 공유 게시판', 3),
+        ('질문 답변 게시판', 4),
+        ('건의사항 / 버그 제보', 5),
+    ]
 
-if created:
-    print(f"카테고리 '{category.name}' (ID: {category.id})가 성공적으로 생성되었습니다.")
-else:
-    print(f"카테고리 '{category.name}' (ID: {category.id})가 이미 존재합니다.")
+    for name, pk in categories_to_add:
+        try:
+            category, created = Category.objects.get_or_create(pk=pk, defaults={'name': name})
+            if created:
+                print(f"카테고리 '{name}' (ID: {pk}) 생성됨.")
+            else:
+                # 이미 존재하는 경우 이름 업데이트 (선택 사항)
+                if category.name != name:
+                    category.name = name
+                    category.save()
+                    print(f"카테고리 '{name}' (ID: {pk}) 이름 업데이트됨.")
+                else:
+                    print(f"카테고리 '{name}' (ID: {pk}) 이미 존재함.")
+        except Exception as e:
+            print(f"카테고리 '{name}' (ID: {pk}) 추가 중 오류 발생: {e}")
 
-# 현재 모든 카테고리 목록 확인 (선택 사항)
-print("\n현재 모든 카테고리:")
-for cat in Category.objects.all():
-    print(f"- ID: {cat.id}, Name: {cat.name}")
-
+if __name__ == '__main__':
+    add_categories()

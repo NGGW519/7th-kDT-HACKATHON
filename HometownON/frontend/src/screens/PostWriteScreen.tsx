@@ -39,7 +39,7 @@ const PostWriteScreen: React.FC<PostWriteScreenProps> = ({ route, navigation }) 
       const userToken = await AsyncStorage.getItem('userToken'); // 토큰 가져오기
 
       const response = await axios.post(`${API_BASE_URL}/posts/`, {
-        category: categoryId,
+        category: Number(categoryId),
         title,
         content,
         is_anonymous: isAnonymous,
