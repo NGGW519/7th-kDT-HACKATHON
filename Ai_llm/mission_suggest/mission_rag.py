@@ -8,6 +8,7 @@ import os
 from typing import List, Dict, Any
 from dotenv import load_dotenv  # type: ignore
 load_dotenv()
+from db_config import get_db_config
 
 MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
 MYSQL_USER = os.getenv('MYSQL_USER', 'root')
@@ -20,9 +21,15 @@ chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_PATH))
 collection = chroma_client.get_or_create_collection('missions')
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
+# DB 연결 함수 예시
+
+def get_connection():
+    config = get_db_config()
+    return pymysql.connect(**config)
+
 # MySQL에서 미션/미션파트 id, description만 불러오기
 def fetch_mission_descriptions() -> List[Dict[str, Any]]:
-    conn = pymysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DB, charset='utf8')
+    conn = get_connection()
     cursor = conn.cursor(DictCursor)
     cursor.execute('SELECT id, description FROM missions')
     missions = [{'type': 'mission', 'id': row['id'], 'description': row['description']} for row in cursor.fetchall()]
@@ -63,7 +70,7 @@ def search_similar_mission_ids(user_id: int, top_k: int = 5) -> List[str]:
 
 # id 리스트로 MySQL에서 미션/파트 원본 정보 조회
 def get_mission_details_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
-    conn = pymysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DB, charset='utf8')
+    conn = get_connection()
     cursor = conn.cursor(DictCursor)
     details = []
     for id_str in ids:

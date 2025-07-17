@@ -7,6 +7,7 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.document import Document
 from langchain.schema.runnable import RunnablePassthrough, RunnableParallel
+from db_config import get_db_config
 
 # .env 파일 로드
 load_dotenv(dotenv_path=r'C:\Aicamp\7th-kDT-HACKATHON\.env')
@@ -16,21 +17,9 @@ print(f"DB_PASSWORD: {os.getenv('DB_PASSWORD')}")
 print(f"OPENAI_API_KEY: {os.getenv('OPENAI_API_KEY')[:5]}...") # 보안을 위해 일부만 출력
 
 # --- 1. 데이터베이스 설정 및 데이터 로드 ---
-def get_db_connection():
-    """MySQL 데이터베이스 연결을 생성합니다."""
-    try:
-        conn = pymysql.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            db="hometown_on",
-            charset="utf8"
-        )
-        return conn
-    except pymysql.OperationalError as e:
-        print(f"데이터베이스 연결 오류: {e}")
-        print("DB 연결 정보를 확인하거나, hometown_on 데이터베이스가 실행 중인지 확인하세요.")
-        return None
+def get_connection():
+    config = get_db_config()
+    return pymysql.connect(**config)
 
 def load_data_from_db(conn):
     """데이터베이스에서 필요한 테이블들을 pandas DataFrame으로 로드합니다."""
@@ -121,7 +110,7 @@ def create_rag_pipeline(mission_docs, user_profiles):
 # --- 4. 메인 실행 로직 ---
 if __name__ == "__main__":
     # 데이터베이스 연결 및 데이터 로드
-    conn = get_db_connection()
+    conn = get_connection()
     if conn:
         users_df, skills_df, missions_df, user_missions_df = load_data_from_db(conn)
         conn.close()
