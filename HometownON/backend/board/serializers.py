@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from .models import Category, Post, Comment, User # User 모델 임포트 추가
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'name', 'birth_year', 'region', 'adapt_score', 'created_at', 'updated_at']
+
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category

@@ -35,7 +35,7 @@ const BoardScreen: React.FC = () => {
       <Text style={styles.header}>게시판 카테고리</Text>
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
         <CategoryCard title="자유 게시판" onPress={() => handleCategoryPress(1, '자유 게시판')} />
-        <CategoryCard title="만남/매칭 게시판" onPress={() => handleCategoryPress(2, '만남/매칭 게시판')} />
+        <CategoryCard title="의뢰 게시판" onPress={() => handleCategoryPress(2, '의뢰 게시판')} />
         <CategoryCard title="정보 공유 게시판" onPress={() => handleCategoryPress(3, '정보 공유 게시판')} />
         <CategoryCard title="질문 답변 게시판" onPress={() => handleCategoryPress(4, '질문 답변 게시판')} />
         <CategoryCard title="건의사항 / 버그 제보" onPress={() => handleCategoryPress(5, '건의사항 / 버그 제보')} />

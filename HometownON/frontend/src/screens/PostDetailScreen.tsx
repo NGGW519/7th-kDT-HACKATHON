@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 추가
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Define types for navigation
 type RootStackParamList = {
@@ -56,6 +57,16 @@ const PostDetailScreen: React.FC<PostDetailScreenProps> = ({ route, navigation }
   const [loading, setLoading] = useState<boolean>(true);
   const [newCommentContent, setNewCommentContent] = useState('');
   const [replyToCommentId, setReplyToCommentId] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   const fetchPostDetail = useCallback(async () => {
     try {

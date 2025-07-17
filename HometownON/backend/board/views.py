@@ -5,15 +5,23 @@ from .models import Post, Comment, Category, PostLike, PostView, CommentLike
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from .serializers import PostSerializer, CommentSerializer, CategorySerializer
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from .serializers import PostSerializer, CommentSerializer, CategorySerializer, UserSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
+from rest_framework.views import APIView
 import logging
+
+class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.all()

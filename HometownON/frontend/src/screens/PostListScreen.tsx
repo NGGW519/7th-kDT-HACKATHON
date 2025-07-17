@@ -69,7 +69,7 @@ const PostListScreen: React.FC<PostListScreenProps> = ({ route, navigation }) =>
   const renderPostItem = ({ item }: { item: Post }) => (
     <TouchableOpacity
       style={styles.postItem}
-      onPress={() => navigation.navigate('PostDetailScreen', { postId: item.id })}
+      onPress={() => navigation.navigate('게시판', { screen: 'PostDetailScreen', params: { postId: item.id } })}
     >
       <Text style={styles.postTitle}>{item.title}</Text>
       <View style={styles.postMeta}>

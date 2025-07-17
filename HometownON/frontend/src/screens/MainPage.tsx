@@ -160,6 +160,14 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
             <Text style={{ color: '#fff', fontWeight: 'bold' }}>임의 점수 생성</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 지역 주민 페이지 이동 버튼 추가 */}
+        <TouchableOpacity
+          style={styles.residentButton}
+          onPress={() => navigation?.navigate('ResidentScreen')}
+        >
+          <Text style={styles.residentButtonText}>지역 주민 페이지로 이동</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -167,7 +175,7 @@ export default function MainDashboard({ route, navigation }: MainDashboardProps)
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  contentContainer: { padding: 16 },
+  contentContainer: { padding: 16, paddingBottom: 100 }, // 버튼 공간 확보
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -259,5 +267,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  residentButton: {
+    backgroundColor: '#28a745', // 녹색 계열
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 30,
+    marginBottom: 20,
+    width: '100%',
+  },
+  residentButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
