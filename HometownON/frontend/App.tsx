@@ -1,21 +1,22 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack'; // Import createStackNavigator
+import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text, StyleSheet } from 'react-native';
 
 import MainPage from './src/screens/MainPage';
 import TemporaryScreen from './src/screens/TemporaryScreen';
 import MissionScreen from './src/screens/MissionScreen';
 import BoardScreen from './src/screens/BoardScreen';
-import PostListScreen from './src/screens/PostListScreen'; // Import PostListScreen
-import PostDetailScreen from './src/screens/PostDetailScreen'; // Import PostDetailScreen
-import PostWriteScreen from './src/screens/PostWriteScreen'; // Import PostWriteScreen
+import PostListScreen from './src/screens/PostListScreen';
+import PostDetailScreen from './src/screens/PostDetailScreen';
+import PostWriteScreen from './src/screens/PostWriteScreen';
+import SplashScreen from './src/screens/SplashScreen';
 
 const Tab = createBottomTabNavigator();
-const BoardStack = createStackNavigator(); // Create a stack navigator for Board
+const BoardStack = createStackNavigator();
+const RootStack = createStackNavigator();
 
-// Stack Navigator for Board related screens
 function BoardStackScreen() {
   return (
     <BoardStack.Navigator>
@@ -27,23 +28,31 @@ function BoardStackScreen() {
   );
 }
 
-// Placeholder components for other screens
 const MyPageScreen = () => (
   <View style={styles.center}>
     <Text>마이페이지</Text>
   </View>
 );
 
+function MainTabs() {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen name="미션" component={MissionScreen} />
+      <Tab.Screen name="게시판" component={BoardStackScreen} />
+      <Tab.Screen name="홈" component={MainPage} />
+      <Tab.Screen name="임시" component={TemporaryScreen} />
+      <Tab.Screen name="마이페이지" component={MyPageScreen} />
+    </Tab.Navigator>
+  );
+}
+
 function App() {
   return (
     <NavigationContainer>
-      <Tab.Navigator>
-        <Tab.Screen name="미션" component={MissionScreen} />
-        <Tab.Screen name="게시판" component={BoardStackScreen} />
-        <Tab.Screen name="홈" component={MainPage} />
-        <Tab.Screen name="임시" component={TemporaryScreen} />
-        <Tab.Screen name="마이페이지" component={MyPageScreen} />
-      </Tab.Navigator>
+      <RootStack.Navigator initialRouteName="Splash">
+        <RootStack.Screen name="Splash" component={SplashScreen} options={{ headerShown: false }} />
+        <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 }
