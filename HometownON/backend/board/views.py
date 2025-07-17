@@ -23,6 +23,13 @@ class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
 
+    def get_queryset(self):
+        queryset = Post.objects.all()
+        category_id = self.request.query_params.get('category')
+        if category_id:
+            queryset = queryset.filter(category__id=category_id)
+        return queryset
+
     def perform_create(self, serializer):
         if serializer.validated_data.get('is_anonymous'):
             serializer.save(user=None) # 익명 게시글은 user를 None으로 설정
