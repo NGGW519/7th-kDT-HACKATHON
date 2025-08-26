@@ -1,29 +1,39 @@
-# Django 백엔드용 Dockerfile
+# Stage 1: Build dependencies to leverage Docker layer caching
+FROM python:3.11-slim as builder
+
+WORKDIR /usr/src/app
+
+# Install build dependencies if needed
+# RUN apt-get update && apt-get install -y build-essential
+
+# Install poetry
+RUN pip install --upgrade pip
+COPY requirements.txt .
+# Using wheel to build dependencies, which can be faster
+RUN pip wheel --no-cache-dir --wheel-dir /usr/src/app/wheels -r requirements.txt
+
+
+# Stage 2: Final application image
 FROM python:3.11-slim
 
-# 작업 디렉토리 설정
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# 시스템 패키지 업데이트 및 필요한 패키지 설치
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    default-libmysqlclient-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+# Create a non-root user
+RUN addgroup --system app && adduser --system --group app
 
-# Python 의존성 파일 복사 및 설치
+# Copy built wheels and install them
+COPY --from=builder /usr/src/app/wheels /wheels
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache /wheels/*
 
-# Django 프로젝트 파일 복사
-COPY . .
+# Copy the application code
+COPY ./app /usr/src/app/app
 
-# 정적 파일 수집
-RUN python manage.py collectstatic --noinput
+# Change ownership to the non-root user
+RUN chown -R app:app /usr/src/app
+USER app
 
-# 포트 노출
 EXPOSE 8000
 
-# Django 서버 실행
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Command to run the app using uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
