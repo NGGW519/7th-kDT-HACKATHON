@@ -221,3 +221,4 @@ Thumbs.db
 *.bak
 node_modules
 HometownON/android/.gradle/
+Crawling_Haman/.vscode/settings.json
