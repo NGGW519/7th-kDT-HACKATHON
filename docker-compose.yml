@@ -19,30 +19,25 @@ services:
     networks:
       - hometown_network
 
-  # Django 백엔드
+  # FastAPI 백엔드
   backend:
     build:
       context: ./HometownON/backend
       dockerfile: Dockerfile
     container_name: hometown_backend
     restart: always
+    env_file:
+      - ./.env # 루트의 .env 파일을 사용
     ports:
       - "8000:8000"
     volumes:
-      - ./HometownON/backend:/app
-      - static_volume:/app/staticfiles
-    environment:
-      - DEBUG=True
-      - DJANGO_SETTINGS_MODULE=config.settings
-      - DATABASE_URL=mysql://hometown_user:hometown_pass@db:3306/hometown_on
+      - ./HometownON/backend/app:/usr/src/app/app # 코드 변경 시 자동 리로드
     depends_on:
       - db
     networks:
       - hometown_network
-    command: >
-      sh -c "python manage.py migrate &&
-              python manage.py collectstatic --noinput &&
-              python manage.py runserver 0.0.0.0:8000"
+    # uvicorn으로 앱을 실행하고, 코드 변경 시 자동으로 리로드합니다.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # React Native 프론트엔드 (Metro 번들러)
   frontend:
@@ -73,7 +68,6 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - static_volume:/app/staticfiles
     depends_on:
       - backend
       - frontend
