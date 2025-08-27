@@ -1,125 +1,243 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Step 1 (SRID fix): ensures WKT points are saved with SRID 4326.
+"""
 
 import csv
 import pymysql
-import os
+import sys
+from pathlib import Path
+from typing import Dict, Tuple, Optional
 
-# --- 설정 ---
-DB_HOST = 'localhost'
-DB_USER = 'root'
-DB_PASSWORD = '1111'  # 실제 비밀번호를 입력하세요.
-DB_NAME = 'haman_db'
-BASE_DIR = r"C:\Aicamp\7th-kDT-HACKATHON\Crawling_Haman"
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "1111",
+    "database": "hometown_on",
+    "charset": "utf8mb4",
+    "cursorclass": pymysql.cursors.DictCursor,
+}
 
-def get_db_connection():
-    """데이터베이스 연결을 생성하고 반환합니다."""
-    return pymysql.connect(
-        host=DB_HOST, user=DB_USER, password=DB_PASSWORD,
-        db=DB_NAME, charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor
-    )
+BASE_DIR = Path(__file__).parent
 
-def load_locations_data(cursor, file_name, category_main, category_sub, col_map):
-    """공통 장소 데이터를 locations 테이블에 적재하는 함수"""
-    file_path = os.path.join(BASE_DIR, file_name)
-    print(f"\n--- '{file_name}' 파일 처리 시작 ---")
-    
+def get_conn():
     try:
-        with open(file_path, mode='r', encoding='utf-8-sig') as csvfile:
-            reader = csv.DictReader(csvfile)
-            insert_count = 0
-            for row in reader:
-                try:
-                    name = row[col_map['name']]
-                    address = row[col_map['address']]
-                    phone = row.get(col_map.get('phone')) # 전화번호는 없을 수 있음
+        return pymysql.connect(**DB_CONFIG)
+    except Exception as e:
+        print(f"❌ DB connection failed: {e}")
+        sys.exit(1)
 
-                    # 위도, 경도 처리 (없는 경우 NULL로 처리)
-                    lat = row.get(col_map.get('lat'))
-                    lon = row.get(col_map.get('lon'))
-                    
-                    if lat and lon:
-                        point_wkt = f"POINT({lon} {lat})"
-                    else:
-                        # TODO: 향후 주소를 기반으로 지오코딩하여 좌표를 얻는 로직 추가 필요
-                        # 일단은 (0,0)으로 저장하거나, NULL로 처리할 수 있습니다.
-                        # 여기서는 예시로 (0,0)을 사용합니다.
-                        point_wkt = "POINT(0 0)"
+def table_has_column(cursor, table: str, column: str) -> bool:
+    cursor.execute("SHOW COLUMNS FROM `{}` LIKE %s".format(table), (column,))
+    return cursor.fetchone() is not None
 
-                    sql = """
-                        INSERT INTO locations (name, category_main, category_sub, address, phone, geom)
-                        VALUES (%s, %s, %s, %s, %s, ST_PointFromText(%s))
-                    """
-                    cursor.execute(sql, (name, category_main, category_sub, address, phone, point_wkt))
-                    insert_count += 1
-                except (KeyError, ValueError) as e:
-                    print(f"  경고: 행 처리 중 오류 발생 (건너뜁니다). 행: {row}, 오류: {e}")
-            print(f"성공: {insert_count}개의 데이터를 '{category_sub}'로 추가했습니다.")
-            return insert_count
-    except FileNotFoundError:
-        print(f"  오류: 파일을 찾을 수 없습니다 - {file_path}")
+def ensure_location_categories_seed(conn):
+    seeds = [
+        ("식음료", "맛집"),
+        ("식음료", "카페"),
+        ("의료", "병원/의원"),
+        ("공공시설", "경로당"),
+        ("공공시설", "마을회관"),
+    ]
+    with conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) AS c FROM location_categories")
+        if cur.fetchone()["c"] == 0:
+            cur.executemany(
+                "INSERT INTO location_categories (main, sub) VALUES (%s, %s)",
+                seeds,
+            )
+            print(f"🌱 Seeded location_categories: {len(seeds)} rows")
+
+def build_category_map(conn) -> Dict[Tuple[str, str], int]:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, main, sub FROM location_categories")
+        rows = cur.fetchall()
+    return {(r["main"], r["sub"]): r["id"] for r in rows}
+
+def file_exists(path: Path) -> bool:
+    if not path.exists():
+        print(f"⚠️  File not found: {path}")
+        return False
+    return True
+
+def to_point_wkt(lat: Optional[str], lon: Optional[str]) -> str:
+    DEFAULT_WKT = "POINT(35.5 128.4)"
+    if not lat or not lon:
+        return DEFAULT_WKT
+    try:
+        lat_f = float(lat)
+        lon_f = float(lon)
+        if 33 <= lat_f <= 39 and 124 <= lon_f <= 132:
+            return f"POINT({lat_f} {lon_f})"
+        else:
+            print("   ⚠️  coord outside KR bounds → using default center")
+            return DEFAULT_WKT
+    except Exception:
+        print("   ⚠️  invalid coord → using default center")
+        return DEFAULT_WKT
+
+def load_locations_csv(
+    conn,
+    file_name: str,
+    main_cat: str,
+    sub_cat: str,
+    colmap: dict,
+    use_category_id: bool,
+    cat_map: Dict[Tuple[str, str], int],
+):
+    path = BASE_DIR / file_name
+    if not file_exists(path):
         return 0
 
-def load_culture_data(cursor, file_name, category, col_map):
-    """문화 데이터를 culture 테이블에 적재하는 함수"""
-    file_path = os.path.join(BASE_DIR, file_name)
-    print(f"\n--- '{file_name}' 파일 처리 시작 ---")
-    
-    try:
-        with open(file_path, mode='r', encoding='utf-8-sig') as csvfile:
-            reader = csv.DictReader(csvfile)
-            insert_count = 0
-            for row in reader:
-                try:
-                    title = row[col_map['title']]
-                    story = row[col_map['story']]
-                    haman_url = row.get(col_map.get('url'))
+    print(f"\n📍 Loading: {file_name}  ({main_cat} / {sub_cat})")
+    inserted = 0
+    errors = 0
+    category_id = cat_map.get((main_cat, sub_cat))
+    if category_id is None and use_category_id:
+        raise RuntimeError(f"Category not found in location_categories: ({main_cat}, {sub_cat})")
 
-                    sql = """
-                        INSERT INTO culture (title, category, story, haman_url)
-                        VALUES (%s, %s, %s, %s)
-                    """
-                    cursor.execute(sql, (title, category, story, haman_url))
-                    insert_count += 1
-                except (KeyError, ValueError) as e:
-                    print(f"  경고: 행 처리 중 오류 발생 (건너뜁니다). 행: {row}, 오류: {e}")
-            print(f"성공: {insert_count}개의 데이터를 '{category}'로 추가했습니다.")
-            return insert_count
-    except FileNotFoundError:
-        print(f"  오류: 파일을 찾을 수 없습니다 - {file_path}")
+    with conn.cursor() as cur, open(path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for i, row in enumerate(reader, 1):
+            try:
+                name = (row.get(colmap["name"]) or "").strip()
+                address = (row.get(colmap["address"]) or "").strip()
+                if not name or not address:
+                    print(f"   ⚠️ row {i}: name/address missing → skip")
+                    errors += 1
+                    continue
+
+                phone = (row.get(colmap.get("phone", "")) or "").strip() or None
+                lat = (row.get(colmap.get("lat", "")) or "").strip()
+                lon = (row.get(colmap.get("lon", "")) or "").strip()
+                wkt = to_point_wkt(lon, lat)  # 'POINT(lon lat)'
+
+                if use_category_id:
+                    sql = (
+                        "INSERT INTO locations (name, category_id, address, phone, geom) "
+                        "VALUES (%s, %s, %s, %s, ST_GeomFromText(%s, 4326))"
+                    )
+                    cur.execute(sql, (name, category_id, address, phone, wkt))
+                else:
+                    sql = (
+                        "INSERT INTO locations (name, category_main, category_sub, address, phone, geom) "
+                        "VALUES (%s, %s, %s, %s, %s, ST_GeomFromText(%s, 4326))"
+                    )
+                    cur.execute(sql, (name, main_cat, sub_cat, address, phone, wkt))
+
+                inserted += 1
+            except Exception as e:
+                print(f"   ❌ row {i} failed: {e}")
+                errors += 1
+
+    print(f"   ✅ inserted: {inserted}, errors: {errors}")
+    return inserted
+
+def load_culture_csv(conn, file_name: str, category: str, colmap: dict):
+    path = BASE_DIR / file_name
+    if not file_exists(path):
         return 0
+
+    print(f"\n📚 Loading: {file_name}  (category={category})")
+    inserted = 0
+    errors = 0
+
+    with conn.cursor() as cur, open(path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for i, row in enumerate(reader, 1):
+            try:
+                title = (row.get(colmap["title"]) or "").strip()
+                story = (row.get(colmap["story"]) or "").strip()
+                url = (row.get(colmap.get("url", "")) or "").strip() or None
+                if not title or not story:
+                    print(f"   ⚠️ row {i}: title/story missing → skip")
+                    errors += 1
+                    continue
+                sql = "INSERT INTO culture (title, category, story, haman_url) VALUES (%s, %s, %s, %s)"
+                cur.execute(sql, (title, category, story, url))
+                inserted += 1
+            except Exception as e:
+                print(f"   ❌ row {i} failed: {e}")
+                errors += 1
+
+    print(f"   ✅ inserted: {inserted}, errors: {errors}")
+    return inserted
 
 def main():
-    """메인 실행 함수"""
-    db_conn = None
-    total_inserted = 0
+    print("🚀 Step 1 (SRID fix): Load Haman CSVs")
+    conn = get_conn()
+    total = 0
     try:
-        db_conn = get_db_connection()
-        print("MySQL 데이터베이스에 성공적으로 연결되었습니다.")
-        
-        with db_conn.cursor() as cursor:
-            # --- locations 테이블 데이터 적재 ---
-            total_inserted += load_locations_data(cursor, '경상남도_함안군_맛집리스트.csv', '식음료', '맛집', 
-                                                {'name': '음식점명', 'address': '주소', 'lat': '위도', 'lon': '경도'})
-            total_inserted += load_locations_data(cursor, '경상남도_함안군_병의원정보.csv', '의료', '병원/의원', 
-                                                {'name': '의료기관명', 'address': '의료기관주소(도로명)', 'phone': '의료기관전화번호'})
-            total_inserted += load_locations_data(cursor, '경상남도_함안군_경로당 현황.csv', '공공시설', '경로당', 
-                                                {'name': '경로당명', 'address': '주 소'})
-            
-            # --- culture 테이블 데이터 적재 ---
-            total_inserted += load_culture_data(cursor, '경상남도_함안군_인물.csv', '인물', 
-                                              {'title': '이름', 'story': '설명', 'url': '링크'})
-            total_inserted += load_culture_data(cursor, '경상남도_함안군_전설.csv', '전설', 
-                                              {'title': '제목', 'story': '상세정보', 'url': '링크'})
+        with conn.cursor() as cur:
+            has_cat_id = table_has_column(cur, "locations", "category_id")
+            print(f"🔎 locations.category_id present? {has_cat_id}")
 
-        db_conn.commit()
-        print(f"\n--- 작업 완료 ---")
-        print(f"총 {total_inserted}개의 레코드를 데이터베이스에 성공적으로 추가했습니다.")
+        cat_map = {}
+        if has_cat_id:
+            ensure_location_categories_seed(conn)
+            cat_map = build_category_map(conn)
 
-    except pymysql.MySQLError as e:
-        print(f"데이터베이스 처리 중 오류 발생: {e}")
+        print("\n📍 Loading location datasets...")
+        total += load_locations_csv(
+            conn,
+            "경상남도_함안군_맛집리스트.csv",
+            "식음료", "맛집",
+            {"name": "음식점명", "address": "주소", "lat":"위도", "lon": "경도"},
+            has_cat_id, cat_map
+        )
+        total += load_locations_csv(
+            conn,
+            "경상남도_함안군_카페리스트.csv",
+            "식음료", "카페",
+            {"name": "카페명", "address": "주소", "lat": "경도", "lon": "위도"},
+            has_cat_id, cat_map
+        )
+        total += load_locations_csv(
+            conn,
+            "경상남도_함안군_병의원정보.csv",
+            "의료", "병원/의원",
+            {"name": "의료기관명", "address": "의료기관주소(도로명)", "phone": "의료기관전화번호"},
+            has_cat_id, cat_map
+        )
+        total += load_locations_csv(
+            conn,
+            "경상남도_함안군_경로당 현황.csv",
+            "공공시설", "경로당",
+            {"name": "경로당명", "address": "주 소"},
+            has_cat_id, cat_map
+        )
+        total += load_locations_csv(
+            conn,
+            "경상남도_함안군_마을회관 현황.csv",
+            "공공시설", "마을회관",
+            {"name": "마을회관명", "address": "주 소"},
+            has_cat_id, cat_map
+        )
+
+        print("\n📚 Loading culture datasets...")
+        total += load_culture_csv(
+            conn,
+            "경상남도_함안군_인물.csv",
+            "인물",
+            {"title": "이름", "story": "설명", "url": "링크"}
+        )
+        total += load_culture_csv(
+            conn,
+            "경상남도_함안군_전설.csv",
+            "전설",
+            {"title": "제목", "story": "상세정보", "url": "링크"}
+        )
+
+        conn.commit()
+        print("\n🎉 Done. Inserted total rows:", total)
+    except Exception as e:
+        conn.rollback()
+        print("❌ Error:", e)
+        sys.exit(1)
     finally:
-        if db_conn:
-            db_conn.close()
-            print("데이터베이스 연결을 닫았습니다.")
+        conn.close()
+        print("🔌 MySQL connection closed.")
 
 if __name__ == "__main__":
     main()

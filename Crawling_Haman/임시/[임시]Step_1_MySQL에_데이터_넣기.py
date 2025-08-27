@@ -12,7 +12,7 @@ DB_PASSWORD = 'your_password'  # 실제 비밀번호를 입력하세요.
 DB_NAME = 'haman_db'
 
 # 처리할 CSV 파일 경로
-CSV_FILE_PATH = 'C:\Users\Playdata\SKN\해커톤\7th-kDT-HACKATHON\Crawling_Haman\경상남도_함안군_맛집리스트.csv'
+# CSV_FILE_PATH = 'C:\Users\Playdata\SKN\해커톤\7th-kDT-HACKATHON\Crawling_Haman\경상남도_함안군_맛집리스트.csv'
 
 def load_restaurants_to_mysql():
     """
