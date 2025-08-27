@@ -1,8 +1,27 @@
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// 페이지 갇힘 방지
+import { useNavigation } from '@react-navigation/native';
+
 
 export default function MainScreen() {
+  // 페이지 갇힘 방지
+  const navigation = useNavigation();
+  
+  // 매칭 성공 or 실패 데이터
+  const matchingData = [
+  { name: '귀도 판 로썸', detail: 'Python 전문가', isMatched: true },
+  { name: '귀뚜라미', detail: '보일러 수리공', isMatched: true },
+  { name: '우삐삐', detail: '여행 가이드', isMatched: false },
+];
+
+
+
+const { mentoringData } = useMentoring();
+
+
   return (
+    
     <ScrollView contentContainerStyle={styles.container}>
       {/* 상단 인사말 */}
       <View style={styles.header}>
@@ -19,47 +38,42 @@ export default function MainScreen() {
         <View style={styles.bannerTextArea}>
           <Text style={styles.bannerTitle}>의뢰자 게시판</Text>
           <Text style={styles.bannerDesc}>의뢰하신 일에 대해 많은 전문가들이 관심을 가지고 있습니다!</Text>
-          <TouchableOpacity style={styles.bannerButton}>
+          <TouchableOpacity style={styles.bannerButton}  onPress={() => navigation.navigate('게시판', {screen :'BoardStackScreen'})}>
             <Text style={styles.buttonText}>바로가기</Text>
           </TouchableOpacity>
         </View>
 
       {/* 오른쪽: 강아지 이미지 */}
-      <Image source={require('../images/미션추천_안내자.png')} style={styles.dogImg} /></View>
+      <Image source={require('../images/mission_assistant.png')} style={styles.dogImg} /></View>
 
 
       {/* 과거 의뢰내역 */}
       <Text style={styles.historyTitle}>과거의뢰내역</Text>
 
-      <View style={styles.card}>
-        {/* <Image source={require('./assets/user1.png')} style={styles.avatar} /> */}
+      {matchingData.map((person, index) => (
+      <View key={index} style={styles.card}>
         <View style={styles.info}>
-          <Text style={styles.name}>귀도 판 로썸</Text>
-          <Text style={styles.detail}>Python 전문가</Text>
+          <Text style={styles.name}>{person.name}</Text>
+          <Text style={styles.detail}>{person.detail}</Text>
         </View>
-        <Image source={require('../images/매칭성공_체크표시.png')} style={styles.statusIcon} />
-        <Text style={styles.statusText}>매칭 완료</Text>
-      </View>
 
-      <View style={styles.card}>
-        {/* <Image source={require('./assets/user2.png')} style={styles.avatar} /> */}
-        <View style={styles.info}>
-          <Text style={styles.name}>귀뚜라미</Text>
-          <Text style={styles.detail}>보일러 수리공</Text>
-        </View>
-        <Image source={require('../images/매칭성공_체크표시.png')} style={styles.statusIcon} />
-        <Text style={styles.statusText}>매칭 완료</Text>
+        <Image
+          source={
+            person.isMatched
+              ? require('../images/매칭성공_체크표시.png')
+              : require('../images/매칭실패_x표시.png')
+              }
+              style={styles.statusIcon}/>
+        <Text style={[styles.statusText, !person.isMatched && { color: 'red' }]}> {person.isMatched ? '매칭 완료' : '매칭 실패'}
+        </Text>
       </View>
+      ))}
 
-      <View style={styles.card}>
-        {/* <Image source={require('./assets/user3.png')} style={styles.avatar} /> */}
-        <View style={styles.info}>
-          <Text style={styles.name}>우삐삐</Text>
-          <Text style={styles.detail}>여행 가이드</Text>
-        </View>
-        <Image source={require('../images/매칭실패_x표시.png')} style={styles.statusIcon} />
-        <Text style={[styles.statusText, { color: 'red' }]}>매칭 실패</Text>
-      </View>
+      
+      {/* 페이지 갇힘 방지ㅠ*/}
+       <TouchableOpacity onPress={() => navigation.navigate('홈', { screen: 'MainPage'})} style={styles.moveButton}>
+                  <Text style={styles.moveButtonText}>👉 메인페이지로 이동</Text>
+                </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -178,5 +192,18 @@ bannerTextArea: {
   },
   statusText: {
     fontWeight: 'bold',
+  },
+
+      moveButton: {
+    marginTop: 24,
+    padding: 12,
+    backgroundColor: '#6A5ACD',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  moveButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
