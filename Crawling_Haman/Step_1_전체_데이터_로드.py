@@ -6,9 +6,9 @@ import os
 # --- 설정 ---
 DB_HOST = 'localhost'
 DB_USER = 'root'
-DB_PASSWORD = 'your_password'  # 실제 비밀번호를 입력하세요.
+DB_PASSWORD = '1111'  # 실제 비밀번호를 입력하세요.
 DB_NAME = 'haman_db'
-BASE_DIR = "C:\\Users\\Playdata\\SKN\\해커톤\\7th-kDT-HACKATHON\\Crawling_Haman"
+BASE_DIR = r"C:\Aicamp\7th-kDT-HACKATHON\Crawling_Haman"
 
 def get_db_connection():
     """데이터베이스 연결을 생성하고 반환합니다."""

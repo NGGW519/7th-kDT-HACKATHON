@@ -23,3 +23,6 @@ DB_NAME = os.getenv("DB_NAME", "hometown")
 # SQLAlchemy 데이터베이스 URL을 구성합니다.
 DATABASE_URL = f"mysql+mysqlclient://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+# OpenAI API Key
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MySQL 데이터베이스
   db:
@@ -12,7 +10,7 @@ services:
       MYSQL_USER: hometown_user
       MYSQL_PASSWORD: hometown_pass
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./DummyDB:/docker-entrypoint-initdb.d

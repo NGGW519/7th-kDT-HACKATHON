@@ -51,7 +51,7 @@ function MainTabs() {
       <Tab.Screen name="미션" component={MissionScreen} />
       <Tab.Screen name="게시판" component={BoardStackScreen} />
       <Tab.Screen name="홈" component={HomeStackScreen} />
-      <Tab.Screen name="임시" component={TemporaryScreen} />
+      <Tab.Screen name="AI챗봇" component={ChatScreen} />
       <Tab.Screen name="마이페이지" component={MyPageScreen} />
     </Tab.Navigator>
   );

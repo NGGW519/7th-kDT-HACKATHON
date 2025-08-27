@@ -3,8 +3,8 @@ FROM python:3.11-slim as builder
 
 WORKDIR /usr/src/app
 
-# Install build dependencies if needed
-# RUN apt-get update && apt-get install -y build-essential
+# Install system dependencies needed for building mysqlclient
+RUN apt-get update && apt-get install -y pkg-config default-libmysqlclient-dev build-essential && rm -rf /var/lib/apt/lists/*
 
 # Install poetry
 RUN pip install --upgrade pip
