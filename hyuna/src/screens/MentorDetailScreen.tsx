@@ -215,7 +215,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.orange,
     borderTopWidth: 0, // 헤더와 맞물리게
-    // Added for overlap
   },
 
   avatarHolder: {

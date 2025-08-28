@@ -2,6 +2,7 @@
 import { useNavigation } from "@react-navigation/native";
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   FlatList,
   Image,
   Pressable,
@@ -9,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -153,9 +155,9 @@ export default function MentorBoardScreen() {
 
           <View style={styles.actionRow}>
             <Text style={styles.rating}>{`⭐ ${item.rating ?? "0.0"}`}</Text>
-            <Pressable style={styles.applyBtn}>
+            <TouchableOpacity style={styles.applyBtn} onPress={() => Alert.alert('신청되었습니다')}>
               <Text style={styles.applyBtnText}>신청하기</Text>
-            </Pressable>
+            </TouchableOpacity>
           </View>
           
         </View>

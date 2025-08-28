@@ -60,7 +60,7 @@ export default function MessengerScreen() {
   );
 
   const renderItem = ({ item }: { item: Chat }) => (
-    <TouchableOpacity style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('MessengerChatScreen', { chat: { name: item.name, subtitle: item.subtitle } })}>
       <View style={styles.avatar} />
       <View style={styles.cardTextBox}>
         <Text style={styles.cardTitle}>{item.name}</Text>
@@ -117,7 +117,7 @@ export default function MessengerScreen() {
           contentContainerStyle={{ paddingVertical: 12, gap: 12 }}
           showsVerticalScrollIndicator={false}
         />
-      </View>
+      </View>      
 
       {/* 하단 탭바 */}
       

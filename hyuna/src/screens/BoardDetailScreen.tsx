@@ -77,7 +77,10 @@ export default function BoardDetailScreen() {
           />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
-        <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('ChatDetail' as never)}>
+        <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate("Board", {screen: "ChatDetail", params: { chat: { name: authorName, subtitle: category } },
+})
+  }
+>
           <Image
             source={require("../images/chat.png")}
             style={styles.messageIcon}

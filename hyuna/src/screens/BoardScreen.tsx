@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import {
   FlatList,
   Image,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
