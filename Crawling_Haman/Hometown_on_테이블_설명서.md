@@ -1,14 +1,14 @@
-# Hometown_on µ¥ÀÌÅÍº£ÀÌ½º Å×ÀÌºí ¼³¸í¼­
+# Hometown_on ë°ì´í„°ë² ì´ìŠ¤ í…Œì´ë¸” ì„¤ëª…ì„œ
 
-## ? °³¿ä
+## ğŸ“‹ ê°œìš”
 
-ÀÌ ¹®¼­´Â ÇÔ¾È±º ±ÍÇâÀÚ Á¤Âø Áö¿ø ÇÃ·§Æû **Hometown_on**ÀÇ MySQL µ¥ÀÌÅÍº£ÀÌ½º ½ºÅ°¸¶¿¡ ´ëÇÑ »ó¼¼ ¼³¸í¼­ÀÔ´Ï´Ù. ÃÑ 26°³ÀÇ Å×ÀÌºí·Î ±¸¼ºµÇ¾î ÀÖÀ¸¸ç, »ç¿ëÀÚ °ü¸®ºÎÅÍ AI ±â¹İ °Ë»ö±îÁö ¸ğµç ¼­ºñ½º ±â´ÉÀ» Áö¿øÇÕ´Ï´Ù.
+ì´ ë¬¸ì„œëŠ” í•¨ì•ˆêµ° ê·€í–¥ì ì •ì°© ì§€ì› í”Œë«í¼ **Hometown_on**ì˜ MySQL ë°ì´í„°ë² ì´ìŠ¤ ìŠ¤í‚¤ë§ˆì— ëŒ€í•œ ìƒì„¸ ì„¤ëª…ì„œì…ë‹ˆë‹¤. ì´ 26ê°œì˜ í…Œì´ë¸”ë¡œ êµ¬ì„±ë˜ì–´ ìˆìœ¼ë©°, ì‚¬ìš©ì ê´€ë¦¬ë¶€í„° AI ê¸°ë°˜ ê²€ìƒ‰ê¹Œì§€ ëª¨ë“  ì„œë¹„ìŠ¤ ê¸°ëŠ¥ì„ ì§€ì›í•©ë‹ˆë‹¤.
 
-## ?? Å×ÀÌºí ºĞ·ù ¹× ±¸Á¶
+## ğŸ—‚ï¸ í…Œì´ë¸” ë¶„ë¥˜ ë° êµ¬ì¡°
 
-### ? 1. »ç¿ëÀÚ °ü¸® (User Management)
+### ğŸ”¹ 1. ì‚¬ìš©ì ê´€ë¦¬ (User Management)
 
-#### `users` - ±âº» »ç¿ëÀÚ °èÁ¤
+#### `users` - ê¸°ë³¸ ì‚¬ìš©ì ê³„ì •
 ```sql
 CREATE TABLE users (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -19,10 +19,10 @@ CREATE TABLE users (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )
 ```
-- **¿ªÇÒ**: ÇÃ·§ÆûÀÇ ±âº» »ç¿ëÀÚ °èÁ¤ Á¤º¸
-- **ÇÙ½É ÇÊµå**: ÀÌ¸ŞÀÏ, ºñ¹Ğ¹øÈ£ ÇØ½Ã, ÀüÈ­¹øÈ£
+- **ì—­í• **: í”Œë«í¼ì˜ ê¸°ë³¸ ì‚¬ìš©ì ê³„ì • ì •ë³´
+- **í•µì‹¬ í•„ë“œ**: ì´ë©”ì¼, ë¹„ë°€ë²ˆí˜¸ í•´ì‹œ, ì „í™”ë²ˆí˜¸
 
-#### `user_profiles` - »ç¿ëÀÚ »ó¼¼ ÇÁ·ÎÇÊ
+#### `user_profiles` - ì‚¬ìš©ì ìƒì„¸ í”„ë¡œí•„
 ```sql
 CREATE TABLE user_profiles (
   user_id BIGINT PRIMARY KEY,
@@ -30,19 +30,19 @@ CREATE TABLE user_profiles (
   profile_image VARCHAR(500) NULL,
   birth_year SMALLINT,
   gender ENUM('male','female','other') NULL,
-  home_region VARCHAR(120),      -- °íÇâ/±ÍÇâ Áö¿ª
-  target_region VARCHAR(120),    -- Á¤Âø Èñ¸Á Áö¿ª
-  preferences JSON NULL,         -- °ü½ÉºĞ¾ß/¼±È£ Ä«Å×°í¸®
-  bio TEXT NULL,                 -- ÀÚ±â¼Ò°³
+  home_region VARCHAR(120),      -- ê³ í–¥/ê·€í–¥ ì§€ì—­
+  target_region VARCHAR(120),    -- ì •ì°© í¬ë§ ì§€ì—­
+  preferences JSON NULL,         -- ê´€ì‹¬ë¶„ì•¼/ì„ í˜¸ ì¹´í…Œê³ ë¦¬
+  bio TEXT NULL,                 -- ìê¸°ì†Œê°œ
   mentor_available BOOLEAN DEFAULT FALSE,
   mentor_hourly_rate INT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id)
 )
 ```
-- **¿ªÇÒ**: »ç¿ëÀÚÀÇ »ó¼¼ Á¤º¸ ¹× ¸àÅä °ü·Ã ¼³Á¤
-- **Æ¯Â¡**: °íÇâ/Á¤ÂøÈñ¸ÁÁö¿ªÀ¸·Î ±ÍÇâÀÚ Æ¯¼º ¹İ¿µ
+- **ì—­í• **: ì‚¬ìš©ìì˜ ìƒì„¸ ì •ë³´ ë° ë©˜í†  ê´€ë ¨ ì„¤ì •
+- **íŠ¹ì§•**: ê³ í–¥/ì •ì°©í¬ë§ì§€ì—­ìœ¼ë¡œ ê·€í–¥ì íŠ¹ì„± ë°˜ì˜
 
-#### `social_accounts` - ¼Ò¼È ·Î±×ÀÎ ¿¬µ¿
+#### `social_accounts` - ì†Œì…œ ë¡œê·¸ì¸ ì—°ë™
 ```sql
 CREATE TABLE social_accounts (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -53,32 +53,32 @@ CREATE TABLE social_accounts (
   FOREIGN KEY (user_id) REFERENCES users(id)
 )
 ```
-- **¿ªÇÒ**: ±¸±Û, Ä«Ä«¿À, ³×ÀÌ¹ö¿Í °°Àº ¼Ò¼È ·Î±×ÀÎ Áö¿ø
+- **ì—­í• **: êµ¬ê¸€, ì¹´ì¹´ì˜¤, ë„¤ì´ë²„ì™€ ê°™ì€ ì†Œì…œ ë¡œê·¸ì¸ ì§€ì›
 
-### ? 2. ½ºÅ³ ¹× ¹èÁö ½Ã½ºÅÛ
+### ğŸ”¹ 2. ìŠ¤í‚¬ ë° ë°°ì§€ ì‹œìŠ¤í…œ
 
-#### `skills` - ½ºÅ³ ¸¶½ºÅÍ Å×ÀÌºí
+#### `skills` - ìŠ¤í‚¬ ë§ˆìŠ¤í„° í…Œì´ë¸”
 ```sql
 CREATE TABLE skills (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) UNIQUE,
   name VARCHAR(120),
-  category VARCHAR(80)  -- ¿¹: IT, ³ó¾÷, µ¹º½, ±³À° µî
+  category VARCHAR(80)  -- ì˜ˆ: IT, ë†ì—…, ëŒë´„, êµìœ¡ ë“±
 )
 ```
 
-#### `user_skills` - »ç¿ëÀÚº° º¸À¯ ½ºÅ³
+#### `user_skills` - ì‚¬ìš©ìë³„ ë³´ìœ  ìŠ¤í‚¬
 ```sql
 CREATE TABLE user_skills (
   user_id BIGINT,
   skill_id BIGINT,
-  level TINYINT,         -- 1~5 µî±Ş
+  level TINYINT,         -- 1~5 ë“±ê¸‰
   certified BOOLEAN DEFAULT FALSE,
   PRIMARY KEY (user_id, skill_id)
 )
 ```
 
-#### `badges` - ¹èÁö ¸¶½ºÅÍ Å×ÀÌºí
+#### `badges` - ë°°ì§€ ë§ˆìŠ¤í„° í…Œì´ë¸”
 ```sql
 CREATE TABLE badges (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -88,7 +88,7 @@ CREATE TABLE badges (
 )
 ```
 
-#### `user_badges` - »ç¿ëÀÚº° È¹µæ ¹èÁö
+#### `user_badges` - ì‚¬ìš©ìë³„ íšë“ ë°°ì§€
 ```sql
 CREATE TABLE user_badges (
   user_id BIGINT,
@@ -98,37 +98,37 @@ CREATE TABLE user_badges (
 )
 ```
 
-### ? 3. ¹Ì¼Ç ½Ã½ºÅÛ (Gamification)
+### ğŸ”¹ 3. ë¯¸ì…˜ ì‹œìŠ¤í…œ (Gamification)
 
-#### `missions` - ¹Ì¼Ç Á¤ÀÇ
+#### `missions` - ë¯¸ì…˜ ì •ì˜
 ```sql
 CREATE TABLE missions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) UNIQUE,
   title VARCHAR(200),
-  mission_type ENUM('Å½»öÇü','»çÈ¸À¯´ëÇü','Ä¿¸®¾îÇü') NOT NULL,
+  mission_type ENUM('íƒìƒ‰í˜•','ì‚¬íšŒìœ ëŒ€í˜•','ì»¤ë¦¬ì–´í˜•') NOT NULL,
   difficulty TINYINT DEFAULT 1,
   expected_minutes SMALLINT,
-  tags JSON NULL,                 -- ["°æ·Î´ç","¸¶À»È¸°ü","¹®È­Ã¼Çè"] µî
+  tags JSON NULL,                 -- ["ê²½ë¡œë‹¹","ë§ˆì„íšŒê´€","ë¬¸í™”ì²´í—˜"] ë“±
   description TEXT,
   thumbnail_image VARCHAR(500) NULL
 )
 ```
-- **Æ¯Â¡**: 3°¡Áö ¹Ì¼Ç À¯ÇüÀ¸·Î ´Ù¾çÇÑ Âü¿© ¹æ½Ä Á¦°ø
+- **íŠ¹ì§•**: 3ê°€ì§€ ë¯¸ì…˜ ìœ í˜•ìœ¼ë¡œ ë‹¤ì–‘í•œ ì°¸ì—¬ ë°©ì‹ ì œê³µ
 
-#### `mission_parts` - ¹Ì¼Ç ¼¼ºÎ ´Ü°è
+#### `mission_parts` - ë¯¸ì…˜ ì„¸ë¶€ ë‹¨ê³„
 ```sql
 CREATE TABLE mission_parts (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   mission_id BIGINT NOT NULL,
   step_no TINYINT NOT NULL,
-  instruction TEXT,               -- ¼¼ºÎ ´Ü°è ¾È³»
-  checklist JSON NULL,            -- Ã¼Å©¸®½ºÆ®(¼±ÅÃ)
+  instruction TEXT,               -- ì„¸ë¶€ ë‹¨ê³„ ì•ˆë‚´
+  checklist JSON NULL,            -- ì²´í¬ë¦¬ìŠ¤íŠ¸(ì„ íƒ)
   UNIQUE KEY uq_mission_step(mission_id, step_no)
 )
 ```
 
-#### `mission_assignments` - »ç¿ëÀÚº° ¹Ì¼Ç ¹èÁ¤
+#### `mission_assignments` - ì‚¬ìš©ìë³„ ë¯¸ì…˜ ë°°ì •
 ```sql
 CREATE TABLE mission_assignments (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -137,11 +137,11 @@ CREATE TABLE mission_assignments (
   assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   due_date DATE NULL,
   status ENUM('assigned','in_progress','completed','skipped','canceled') DEFAULT 'assigned',
-  context JSON NULL              -- ÃßÃµ ±Ù°Å
+  context JSON NULL              -- ì¶”ì²œ ê·¼ê±°
 )
 ```
 
-#### `mission_progress` - ¹Ì¼Ç ÁøÇà »óÈ²
+#### `mission_progress` - ë¯¸ì…˜ ì§„í–‰ ìƒí™©
 ```sql
 CREATE TABLE mission_progress (
   assignment_id BIGINT PRIMARY KEY,
@@ -152,7 +152,7 @@ CREATE TABLE mission_progress (
 )
 ```
 
-#### `mission_part_progress` - ¼¼ºÎ ´Ü°èº° ÁøÇà »óÈ²
+#### `mission_part_progress` - ì„¸ë¶€ ë‹¨ê³„ë³„ ì§„í–‰ ìƒí™©
 ```sql
 CREATE TABLE mission_part_progress (
   assignment_id BIGINT,
@@ -164,19 +164,19 @@ CREATE TABLE mission_part_progress (
 )
 ```
 
-### ? 4. Áö¿ª µ¥ÀÌÅÍ (Location & Culture)
+### ğŸ”¹ 4. ì§€ì—­ ë°ì´í„° (Location & Culture)
 
-#### `location_categories` - Àå¼Ò ºĞ·ù Ã¼°è
+#### `location_categories` - ì¥ì†Œ ë¶„ë¥˜ ì²´ê³„
 ```sql
 CREATE TABLE location_categories (
   id INT PRIMARY KEY AUTO_INCREMENT,
-  main VARCHAR(50),           -- ¿¹: '½ÄÀ½·á','ÀÇ·á','°ø°ø½Ã¼³'
-  sub  VARCHAR(80),           -- ¿¹: '¸ÀÁı','Ä«Æä','º´¿ø/ÀÇ¿ø','°æ·Î´ç'
+  main VARCHAR(50),           -- ì˜ˆ: 'ì‹ìŒë£Œ','ì˜ë£Œ','ê³µê³µì‹œì„¤'
+  sub  VARCHAR(80),           -- ì˜ˆ: 'ë§›ì§‘','ì¹´í˜','ë³‘ì›/ì˜ì›','ê²½ë¡œë‹¹'
   UNIQUE KEY uq_main_sub(main, sub)
 )
 ```
 
-#### `locations` - Áö¿ª Àå¼Ò Á¤º¸
+#### `locations` - ì§€ì—­ ì¥ì†Œ ì •ë³´
 ```sql
 CREATE TABLE locations (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -184,18 +184,18 @@ CREATE TABLE locations (
   category_id INT NOT NULL,
   address VARCHAR(300) NOT NULL,
   phone VARCHAR(40) NULL,
-  geom POINT NOT NULL SRID 4326,     -- WGS84 ÁÂÇ¥
-  extra JSON NULL,                   -- ¿ø½ÃÄ®·³ º¸°ü
+  geom POINT NOT NULL SRID 4326,     -- WGS84 ì¢Œí‘œ
+  extra JSON NULL,                   -- ì›ì‹œì¹¼ëŸ¼ ë³´ê´€
   SPATIAL INDEX sidx_geom (geom)
 )
 ```
-- **Æ¯Â¡**: MySQLÀÇ °ø°£ µ¥ÀÌÅÍ Å¸ÀÔ(POINT) »ç¿ëÀ¸·Î Áöµµ ±â¹İ °Ë»ö Áö¿ø
+- **íŠ¹ì§•**: MySQLì˜ ê³µê°„ ë°ì´í„° íƒ€ì…(POINT) ì‚¬ìš©ìœ¼ë¡œ ì§€ë„ ê¸°ë°˜ ê²€ìƒ‰ ì§€ì›
 
-#### `location_hours` - ¿î¿µ½Ã°£ Á¤º¸
+#### `location_hours` - ìš´ì˜ì‹œê°„ ì •ë³´
 ```sql
 CREATE TABLE location_hours (
   location_id BIGINT,
-  weekday TINYINT,                   -- 0(ÀÏ)~6(Åä)
+  weekday TINYINT,                   -- 0(ì¼)~6(í† )
   open_time TIME NULL,
   close_time TIME NULL,
   is_24h BOOLEAN DEFAULT FALSE,
@@ -203,59 +203,59 @@ CREATE TABLE location_hours (
 )
 ```
 
-#### `location_tags` - Àå¼Ò ÅÂ±× ½Ã½ºÅÛ
+#### `location_tags` - ì¥ì†Œ íƒœê·¸ ì‹œìŠ¤í…œ
 ```sql
 CREATE TABLE location_tags (
   location_id BIGINT,
-  tag VARCHAR(60),                   -- "Ã»³âÄ£È­", "ÇÒÀÎ", "ÀüÅë½ÃÀå" µî
+  tag VARCHAR(60),                   -- "ì²­ë…„ì¹œí™”", "í• ì¸", "ì „í†µì‹œì¥" ë“±
   PRIMARY KEY (location_id, tag)
 )
 ```
 
-#### `culture` - ¹®È­ ÀÚ»ê µ¥ÀÌÅÍ
+#### `culture` - ë¬¸í™” ìì‚° ë°ì´í„°
 ```sql
 CREATE TABLE culture (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  category ENUM('ÀÎ¹°','Àü¼³','À¯·¡','¿ª»ç','¹®È­Àç') NOT NULL,
+  category ENUM('ì¸ë¬¼','ì „ì„¤','ìœ ë˜','ì—­ì‚¬','ë¬¸í™”ì¬') NOT NULL,
   title VARCHAR(300) NOT NULL,
-  story MEDIUMTEXT NOT NULL,         -- ½ºÅä¸®ÅÚ¸µ ÄÜÅÙÃ÷
+  story MEDIUMTEXT NOT NULL,         -- ìŠ¤í† ë¦¬í…”ë§ ì½˜í…ì¸ 
   haman_url VARCHAR(500) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 ```
-- **¿ªÇÒ**: AI °Ë»öÀÇ ÇÙ½É µ¥ÀÌÅÍ, ChromaDB·Î ÀÓº£µùµÇ¾î ÀÇ¹Ì ±â¹İ °Ë»ö Áö¿ø
+- **ì—­í• **: AI ê²€ìƒ‰ì˜ í•µì‹¬ ë°ì´í„°, ChromaDBë¡œ ì„ë² ë”©ë˜ì–´ ì˜ë¯¸ ê¸°ë°˜ ê²€ìƒ‰ ì§€ì›
 
-### ? 5. Ä¿¹Â´ÏÆ¼ ½Ã½ºÅÛ
+### ğŸ”¹ 5. ì»¤ë®¤ë‹ˆí‹° ì‹œìŠ¤í…œ
 
-#### `board_posts` - ÀÚÀ¯°Ô½ÃÆÇ
+#### `board_posts` - ììœ ê²Œì‹œíŒ
 ```sql
 CREATE TABLE board_posts (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   author_user_id BIGINT NOT NULL,
-  category ENUM('ÀÏ»ó','¸ÀÁı','Ãß¾ï','±âÅ¸') NOT NULL,
+  category ENUM('ì¼ìƒ','ë§›ì§‘','ì¶”ì–µ','ê¸°íƒ€') NOT NULL,
   title VARCHAR(200) NOT NULL,
   content MEDIUMTEXT NOT NULL,
-  images JSON NULL,                  -- Ã·ºÎ ÀÌ¹ÌÁö URL ¹è¿­
+  images JSON NULL,                  -- ì²¨ë¶€ ì´ë¯¸ì§€ URL ë°°ì—´
   likes_count INT DEFAULT 0,
   comments_count INT DEFAULT 0,
   status ENUM('active','hidden','deleted') DEFAULT 'active'
 )
 ```
 
-#### `board_comments` - ´ñ±Û ½Ã½ºÅÛ
+#### `board_comments` - ëŒ“ê¸€ ì‹œìŠ¤í…œ
 ```sql
 CREATE TABLE board_comments (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   post_id BIGINT NOT NULL,
   author_user_id BIGINT NOT NULL,
   content TEXT NOT NULL,
-  parent_comment_id BIGINT NULL,     -- ´ë´ñ±Û Áö¿ø
+  parent_comment_id BIGINT NULL,     -- ëŒ€ëŒ“ê¸€ ì§€ì›
   likes_count INT DEFAULT 0,
   status ENUM('active','hidden','deleted') DEFAULT 'active'
 )
 ```
 
-#### `likes` - ÁÁ¾Æ¿ä ½Ã½ºÅÛ
+#### `likes` - ì¢‹ì•„ìš” ì‹œìŠ¤í…œ
 ```sql
 CREATE TABLE likes (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -266,24 +266,24 @@ CREATE TABLE likes (
 )
 ```
 
-### ? 6. ¸àÅä¸µ ¹× ÀÇ·Ú ¸ÅÄª
+### ğŸ”¹ 6. ë©˜í† ë§ ë° ì˜ë¢° ë§¤ì¹­
 
-#### `community_requests` - Áö¿ª ÀÇ·Ú ¿äÃ»
+#### `community_requests` - ì§€ì—­ ì˜ë¢° ìš”ì²­
 ```sql
 CREATE TABLE community_requests (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  author_user_id BIGINT NULL,        -- ºñÈ¸¿øµµ °¡´É
+  author_user_id BIGINT NULL,        -- ë¹„íšŒì›ë„ ê°€ëŠ¥
   title VARCHAR(200) NOT NULL,
   detail TEXT NOT NULL,
   region VARCHAR(120),
-  required_skills JSON NULL,         -- ["³ó¾÷","°£´Ü ¼ö¸®"] µî
+  required_skills JSON NULL,         -- ["ë†ì—…","ê°„ë‹¨ ìˆ˜ë¦¬"] ë“±
   budget INT NULL,
   deadline DATE NULL,
   status ENUM('open','matched','closed','canceled') DEFAULT 'open'
 )
 ```
 
-#### `mentoring_offers` - ¸àÅä¸µ Á¦¾È
+#### `mentoring_offers` - ë©˜í† ë§ ì œì•ˆ
 ```sql
 CREATE TABLE mentoring_offers (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -295,7 +295,7 @@ CREATE TABLE mentoring_offers (
 )
 ```
 
-#### `matches` - ¸ÅÄª °á°ú
+#### `matches` - ë§¤ì¹­ ê²°ê³¼
 ```sql
 CREATE TABLE matches (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -306,21 +306,21 @@ CREATE TABLE matches (
 )
 ```
 
-#### `mentor_reviews` - ¸àÅä Æò°¡ ½Ã½ºÅÛ
+#### `mentor_reviews` - ë©˜í†  í‰ê°€ ì‹œìŠ¤í…œ
 ```sql
 CREATE TABLE mentor_reviews (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   mentor_user_id BIGINT NOT NULL,
   reviewer_user_id BIGINT NOT NULL,
   match_id BIGINT NULL,
-  rating TINYINT NOT NULL,           -- 1-5Á¡
+  rating TINYINT NOT NULL,           -- 1-5ì 
   comment TEXT NULL
 )
 ```
 
-### ? 7. ¸Ş½ÅÀú ½Ã½ºÅÛ
+### ğŸ”¹ 7. ë©”ì‹ ì € ì‹œìŠ¤í…œ
 
-#### `conversations` - 1:1 ´ëÈ­¹æ
+#### `conversations` - 1:1 ëŒ€í™”ë°©
 ```sql
 CREATE TABLE conversations (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -334,7 +334,7 @@ CREATE TABLE conversations (
 )
 ```
 
-#### `conversation_messages` - ¸Ş½ÃÁö ³»¿ë
+#### `conversation_messages` - ë©”ì‹œì§€ ë‚´ìš©
 ```sql
 CREATE TABLE conversation_messages (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -346,9 +346,9 @@ CREATE TABLE conversation_messages (
 )
 ```
 
-### ? 8. ¾Ë¸² ½Ã½ºÅÛ
+### ğŸ”¹ 8. ì•Œë¦¼ ì‹œìŠ¤í…œ
 
-#### `notifications` - ÅëÇÕ ¾Ë¸² °ü¸®
+#### `notifications` - í†µí•© ì•Œë¦¼ ê´€ë¦¬
 ```sql
 CREATE TABLE notifications (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -356,14 +356,14 @@ CREATE TABLE notifications (
   type ENUM('mission_complete','badge_earned','mentor_match','request_match','comment','like','weather','system') NOT NULL,
   title VARCHAR(200) NOT NULL,
   message TEXT NOT NULL,
-  data JSON NULL,                    -- °ü·Ã µ¥ÀÌÅÍ (ID, URL µî)
+  data JSON NULL,                    -- ê´€ë ¨ ë°ì´í„° (ID, URL ë“±)
   is_read BOOLEAN DEFAULT FALSE
 )
 ```
 
-### ? 9. ¸ñÇ¥ °ü¸®
+### ğŸ”¹ 9. ëª©í‘œ ê´€ë¦¬
 
-#### `user_goals` - »ç¿ëÀÚº° ¸ñÇ¥ ¼³Á¤
+#### `user_goals` - ì‚¬ìš©ìë³„ ëª©í‘œ ì„¤ì •
 ```sql
 CREATE TABLE user_goals (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -378,9 +378,9 @@ CREATE TABLE user_goals (
 )
 ```
 
-### ? 10. AI Ãªº¿ ½Ã½ºÅÛ
+### ğŸ”¹ 10. AI ì±—ë´‡ ì‹œìŠ¤í…œ
 
-#### `chat_sessions` - Ãªº¿ ´ëÈ­ ¼¼¼Ç
+#### `chat_sessions` - ì±—ë´‡ ëŒ€í™” ì„¸ì…˜
 ```sql
 CREATE TABLE chat_sessions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -390,7 +390,7 @@ CREATE TABLE chat_sessions (
 )
 ```
 
-#### `chat_messages` - Ãªº¿ ´ëÈ­ ³»¿ë
+#### `chat_messages` - ì±—ë´‡ ëŒ€í™” ë‚´ìš©
 ```sql
 CREATE TABLE chat_messages (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -402,9 +402,9 @@ CREATE TABLE chat_messages (
 )
 ```
 
-### ? 11. È°µ¿ ·Î±× ¹× ÃßÀû
+### ğŸ”¹ 11. í™œë™ ë¡œê·¸ ë° ì¶”ì 
 
-#### `activity_logs` - ÀüÃ¼ È°µ¿ ·Î±×
+#### `activity_logs` - ì „ì²´ í™œë™ ë¡œê·¸
 ```sql
 CREATE TABLE activity_logs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -415,7 +415,7 @@ CREATE TABLE activity_logs (
 )
 ```
 
-#### `location_logs` - À§Ä¡ ±â·Ï
+#### `location_logs` - ìœ„ì¹˜ ê¸°ë¡
 ```sql
 CREATE TABLE location_logs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -426,9 +426,9 @@ CREATE TABLE location_logs (
 )
 ```
 
-### ? 12. RAG ¹× AI °Ë»ö
+### ğŸ”¹ 12. RAG ë° AI ê²€ìƒ‰
 
-#### `data_sources` - µ¥ÀÌÅÍ ÃâÃ³ °ü¸®
+#### `data_sources` - ë°ì´í„° ì¶œì²˜ ê´€ë¦¬
 ```sql
 CREATE TABLE data_sources (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -437,12 +437,12 @@ CREATE TABLE data_sources (
 )
 ```
 
-#### `rag_documents` - ChromaDB ¿¬µ¿ ¸ÅÇÎ
+#### `rag_documents` - ChromaDB ì—°ë™ ë§¤í•‘
 ```sql
 CREATE TABLE rag_documents (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   source_table ENUM('culture','locations') NOT NULL,
-  source_id BIGINT NOT NULL,         -- ÇØ´ç Å×ÀÌºíÀÇ PK
+  source_id BIGINT NOT NULL,         -- í•´ë‹¹ í…Œì´ë¸”ì˜ PK
   collection_name VARCHAR(120) NOT NULL,
   chroma_doc_id VARCHAR(120) NOT NULL,
   embedding_model VARCHAR(160) NOT NULL,
@@ -450,9 +450,9 @@ CREATE TABLE rag_documents (
 )
 ```
 
-### ? 13. ±âÅ¸ ¼­ºñ½º ±â´É
+### ğŸ”¹ 13. ê¸°íƒ€ ì„œë¹„ìŠ¤ ê¸°ëŠ¥
 
-#### `weather_cache` - ³¯¾¾ Á¤º¸ Ä³½Ã
+#### `weather_cache` - ë‚ ì”¨ ì •ë³´ ìºì‹œ
 ```sql
 CREATE TABLE weather_cache (
   id INT PRIMARY KEY AUTO_INCREMENT,
@@ -466,7 +466,7 @@ CREATE TABLE weather_cache (
 )
 ```
 
-#### `announcements` - ¾Û °øÁö»çÇ×
+#### `announcements` - ì•± ê³µì§€ì‚¬í•­
 ```sql
 CREATE TABLE announcements (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -480,68 +480,68 @@ CREATE TABLE announcements (
 )
 ```
 
-## ? ÁÖ¿ä °ü°èµµ
+## ğŸ”— ì£¼ìš” ê´€ê³„ë„
 
-### »ç¿ëÀÚ Áß½É °ü°è
+### ì‚¬ìš©ì ì¤‘ì‹¬ ê´€ê³„
 ```
-users (1) ¡ç¡æ (1) user_profiles
-users (1) ¡ç¡æ (N) user_skills
-users (1) ¡ç¡æ (N) user_badges
-users (1) ¡ç¡æ (N) mission_assignments
-```
-
-### ¹Ì¼Ç ½Ã½ºÅÛ °ü°è
-```
-missions (1) ¡ç¡æ (N) mission_parts
-missions (1) ¡ç¡æ (N) mission_assignments
-mission_assignments (1) ¡ç¡æ (1) mission_progress
-mission_assignments (1) ¡ç¡æ (N) mission_part_progress
+users (1) â†â†’ (1) user_profiles
+users (1) â†â†’ (N) user_skills
+users (1) â†â†’ (N) user_badges
+users (1) â†â†’ (N) mission_assignments
 ```
 
-### Áö¿ª µ¥ÀÌÅÍ °ü°è
+### ë¯¸ì…˜ ì‹œìŠ¤í…œ ê´€ê³„
 ```
-location_categories (1) ¡ç¡æ (N) locations
-locations (1) ¡ç¡æ (N) location_hours
-locations (1) ¡ç¡æ (N) location_tags
-```
-
-### Ä¿¹Â´ÏÆ¼ °ü°è
-```
-board_posts (1) ¡ç¡æ (N) board_comments
-users (1) ¡ç¡æ (N) likes
-community_requests (1) ¡ç¡æ (N) matches
-mentoring_offers (1) ¡ç¡æ (N) matches
+missions (1) â†â†’ (N) mission_parts
+missions (1) â†â†’ (N) mission_assignments
+mission_assignments (1) â†â†’ (1) mission_progress
+mission_assignments (1) â†â†’ (N) mission_part_progress
 ```
 
-## ? ÇÙ½É Æ¯Â¡
+### ì§€ì—­ ë°ì´í„° ê´€ê³„
+```
+location_categories (1) â†â†’ (N) locations
+locations (1) â†â†’ (N) location_hours
+locations (1) â†â†’ (N) location_tags
+```
 
-### 1. **ÇÏÀÌºê¸®µå DB ¾ÆÅ°ÅØÃ³**
-- **MySQL**: ±¸Á¶È­µÈ µ¥ÀÌÅÍÀÇ ¸¶½ºÅÍ ÀúÀå¼Ò
-- **ChromaDB**: ÀÇ¹Ì ±â¹İ °Ë»öÀ» À§ÇÑ º¤ÅÍ ÀÎµ¦½º
-- **¿¬µ¿**: `rag_documents` Å×ÀÌºí·Î µÎ DB °£ ¸ÅÇÎ
+### ì»¤ë®¤ë‹ˆí‹° ê´€ê³„
+```
+board_posts (1) â†â†’ (N) board_comments
+users (1) â†â†’ (N) likes
+community_requests (1) â†â†’ (N) matches
+mentoring_offers (1) â†â†’ (N) matches
+```
 
-### 2. **°ø°£ µ¥ÀÌÅÍ Áö¿ø**
-- MySQLÀÇ SPATIAL ÀÎµ¦½º È°¿ë
-- WGS84 ÁÂÇ¥°è(SRID 4326) »ç¿ë
-- Áöµµ ±â¹İ °Ë»ö ¹× À§Ä¡ ¼­ºñ½º Áö¿ø
+## ğŸ¯ í•µì‹¬ íŠ¹ì§•
 
-### 3. **À¯¿¬ÇÑ È®Àå¼º**
-- JSON ÇÊµå È°¿ëÀ¸·Î ½ºÅ°¸¶ º¯°æ ÃÖ¼ÒÈ­
-- ENUM Å¸ÀÔÀ¸·Î µ¥ÀÌÅÍ ¹«°á¼º º¸Àå
-- ¸ğµâÈ­µÈ Å×ÀÌºí ±¸Á¶·Î ±â´Éº° µ¶¸³¼º
+### 1. **í•˜ì´ë¸Œë¦¬ë“œ DB ì•„í‚¤í…ì²˜**
+- **MySQL**: êµ¬ì¡°í™”ëœ ë°ì´í„°ì˜ ë§ˆìŠ¤í„° ì €ì¥ì†Œ
+- **ChromaDB**: ì˜ë¯¸ ê¸°ë°˜ ê²€ìƒ‰ì„ ìœ„í•œ ë²¡í„° ì¸ë±ìŠ¤
+- **ì—°ë™**: `rag_documents` í…Œì´ë¸”ë¡œ ë‘ DB ê°„ ë§¤í•‘
 
-### 4. **¼º´É ÃÖÀûÈ­**
-- ÀûÀıÇÑ ÀÎµ¦½º ¼³°è
-- ¿Ü·¡Å° Á¦¾àÁ¶°ÇÀ¸·Î µ¥ÀÌÅÍ ¹«°á¼º
-- º¹ÇÕ ÀÎµ¦½º·Î Äõ¸® ¼º´É Çâ»ó
+### 2. **ê³µê°„ ë°ì´í„° ì§€ì›**
+- MySQLì˜ SPATIAL ì¸ë±ìŠ¤ í™œìš©
+- WGS84 ì¢Œí‘œê³„(SRID 4326) ì‚¬ìš©
+- ì§€ë„ ê¸°ë°˜ ê²€ìƒ‰ ë° ìœ„ì¹˜ ì„œë¹„ìŠ¤ ì§€ì›
 
-## ? Åë°è
+### 3. **ìœ ì—°í•œ í™•ì¥ì„±**
+- JSON í•„ë“œ í™œìš©ìœ¼ë¡œ ìŠ¤í‚¤ë§ˆ ë³€ê²½ ìµœì†Œí™”
+- ENUM íƒ€ì…ìœ¼ë¡œ ë°ì´í„° ë¬´ê²°ì„± ë³´ì¥
+- ëª¨ë“ˆí™”ëœ í…Œì´ë¸” êµ¬ì¡°ë¡œ ê¸°ëŠ¥ë³„ ë…ë¦½ì„±
 
-- **ÃÑ Å×ÀÌºí ¼ö**: 26°³
-- **»ç¿ëÀÚ °ü·Ã**: 6°³ Å×ÀÌºí
-- **¹Ì¼Ç ½Ã½ºÅÛ**: 5°³ Å×ÀÌºí  
-- **Áö¿ª µ¥ÀÌÅÍ**: 5°³ Å×ÀÌºí
-- **Ä¿¹Â´ÏÆ¼**: 4°³ Å×ÀÌºí
-- **±âÅ¸ ¼­ºñ½º**: 6°³ Å×ÀÌºí
+### 4. **ì„±ëŠ¥ ìµœì í™”**
+- ì ì ˆí•œ ì¸ë±ìŠ¤ ì„¤ê³„
+- ì™¸ë˜í‚¤ ì œì•½ì¡°ê±´ìœ¼ë¡œ ë°ì´í„° ë¬´ê²°ì„±
+- ë³µí•© ì¸ë±ìŠ¤ë¡œ ì¿¼ë¦¬ ì„±ëŠ¥ í–¥ìƒ
 
-ÀÌ µ¥ÀÌÅÍº£ÀÌ½º ±¸Á¶´Â ÇÔ¾È±º ±ÍÇâÀÚ Á¤Âø Áö¿ø ÇÃ·§ÆûÀÇ ¸ğµç ±â´ÉÀ» ¿Ïº®ÇÏ°Ô Áö¿øÇÏ¸ç, ÇâÈÄ È®Àå¿¡µµ À¯¿¬ÇÏ°Ô ´ëÀÀÇÒ ¼ö ÀÖµµ·Ï ¼³°èµÇ¾ú½À´Ï´Ù.
+## ğŸ“Š í†µê³„
+
+- **ì´ í…Œì´ë¸” ìˆ˜**: 26ê°œ
+- **ì‚¬ìš©ì ê´€ë ¨**: 6ê°œ í…Œì´ë¸”
+- **ë¯¸ì…˜ ì‹œìŠ¤í…œ**: 5ê°œ í…Œì´ë¸”  
+- **ì§€ì—­ ë°ì´í„°**: 5ê°œ í…Œì´ë¸”
+- **ì»¤ë®¤ë‹ˆí‹°**: 4ê°œ í…Œì´ë¸”
+- **ê¸°íƒ€ ì„œë¹„ìŠ¤**: 6ê°œ í…Œì´ë¸”
+
+ì´ ë°ì´í„°ë² ì´ìŠ¤ êµ¬ì¡°ëŠ” í•¨ì•ˆêµ° ê·€í–¥ì ì •ì°© ì§€ì› í”Œë«í¼ì˜ ëª¨ë“  ê¸°ëŠ¥ì„ ì™„ë²½í•˜ê²Œ ì§€ì›í•˜ë©°, í–¥í›„ í™•ì¥ì—ë„ ìœ ì—°í•˜ê²Œ ëŒ€ì‘í•  ìˆ˜ ìˆë„ë¡ ì„¤ê³„ë˜ì—ˆìŠµë‹ˆë‹¤.
