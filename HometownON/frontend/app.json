@@ -1,4 +1,32 @@
 {
-  "name": "HometownON",
-  "displayName": "HometownON"
+  "expo": {
+    "name": "고향으로 ON",
+    "slug": "hometownon",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "hometownon",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jiyun.hometownon"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.jiyun.hometownon"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
 }

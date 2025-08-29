@@ -1,39 +1,32 @@
-# Stage 1: Build dependencies to leverage Docker layer caching
-FROM python:3.11-slim as builder
+# 1. Build Stage: Install dependencies
+FROM python:3.12-slim as builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Install system dependencies needed for building mysqlclient
-RUN apt-get update && apt-get install -y pkg-config default-libmysqlclient-dev build-essential && rm -rf /var/lib/apt/lists/*
+# Install poetry for dependency management if needed, or just use pip
+# For now, using pip as per requirements.txt
 
-# Install poetry
-RUN pip install --upgrade pip
+# Copy and install requirements
 COPY requirements.txt .
-# Using wheel to build dependencies, which can be faster
-RUN pip wheel --no-cache-dir --wheel-dir /usr/src/app/wheels -r requirements.txt
+RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
+# 2. Final Stage: Setup the runtime environment
+FROM python:3.12-slim
 
-# Stage 2: Final application image
-FROM python:3.11-slim
+WORKDIR /app
 
-WORKDIR /usr/src/app
+# Copy installed wheels from the builder stage
+COPY --from=builder /app/wheels /wheels
 
-# Create a non-root user
-RUN addgroup --system app && adduser --system --group app
-
-# Copy built wheels and install them
-COPY --from=builder /usr/src/app/wheels /wheels
-COPY requirements.txt .
+# Install the dependencies from the wheels
 RUN pip install --no-cache /wheels/*
 
 # Copy the application code
-COPY ./app /usr/src/app/app
+COPY ./app /app/app
 
-# Change ownership to the non-root user
-RUN chown -R app:app /usr/src/app
-USER app
-
+# Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the app using uvicorn
+# Command to run the application
+# Use --host 0.0.0.0 to make it accessible from outside the container
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

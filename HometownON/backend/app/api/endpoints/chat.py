@@ -1,42 +1,74 @@
-import asyncio
-import openai
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
+from openai import OpenAI
+import asyncio
 
-from app.core.config import OPENAI_API_KEY
-from app.schemas.chat_schema import ChatRequest
+from ... import crud
+from ...schemas import schemas
+from ...core.database import get_db
+from ...core.config import settings
 
 router = APIRouter()
 
-# OpenAI API 키가 설정되지 않았을 경우를 대비
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY가 .env 파일에 설정되지 않았습니다.")
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+class ChatRequest(schemas.BaseModel):
+    session_id: int | None = None
+    message: str
 
-async def sse_openai_stream(messages: list):
-    """OpenAI 스트리밍 응답을 Server-Sent Events (SSE) 형식으로 변환하는 비동기 제너레이터"""
-    try:
-        stream = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            stream=True,
-        )
-        async for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                # SSE 형식: "data: <json_string>\n\n"
-                yield f"data: {content}\n\n"
-                await asyncio.sleep(0.01)  # 클라이언트 부하 방지를 위한 약간의 딜레이
-    except Exception as e:
-        print(f"OpenAI 스트림 중 오류 발생: {e}")
-        yield f"data: [INTERNAL_SERVER_ERROR] {str(e)}\n\n"
+async def stream_openai_response(session_id: int, history: list, db: Session):
+    """Async generator to stream responses from OpenAI and save the full response."""
+    stream = client.chat.completions.create(
+        model="gpt-4o",
+        messages=history,
+        stream=True,
+    )
+    
+    full_response = ""
+    for chunk in stream:
+        content = chunk.choices[0].delta.content or ""
+        full_response += content
+        yield content
+        await asyncio.sleep(0) # Yield control to the event loop
 
-@router.post("/chat/stream")
-async def chat_stream_endpoint(chat_request: ChatRequest):
-    """
-    클라이언트로부터 대화 내역을 받아 OpenAI의 GPT-4o 모델로부터의 스트리밍 응답을 SSE로 전송합니다.
-    """
-    # Pydantic 모델을 dictionary 리스트로 변환
-    message_dicts = [message.dict() for message in chat_request.messages]
-    return StreamingResponse(sse_openai_stream(message_dicts), media_type="text/event-stream")
+    # Save the assistant's full response to the database
+    crud.crud_chat.add_chat_message(
+        db=db, session_id=session_id, role="assistant", content=full_response
+    )
+
+@router.post("/chat", response_class=StreamingResponse)
+async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
+    session_id = request.session_id
+
+    # If a session_id is provided, verify it exists.
+    if session_id is not None:
+        chat_session = crud.crud_chat.get_chat_session(db=db, session_id=session_id)
+        if not chat_session:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Chat session with id {session_id} not found."
+            )
+    # If no session_id is provided, create a new session.
+    else:
+        # In a real app, you'd associate the session with the logged-in user
+        chat_session = crud.crud_chat.create_chat_session(db=db)
+        session_id = chat_session.id
+
+    # Save user message
+    crud.crud_chat.add_chat_message(
+        db=db, session_id=session_id, role="user", content=request.message
+    )
+
+    # Get conversation history
+    db_messages = crud.crud_chat.get_chat_messages(db=db, session_id=session_id)
+    
+    # Format for OpenAI API
+    history = [
+        {"role": msg.role, "content": msg.content} for msg in db_messages
+    ]
+
+    return StreamingResponse(
+        stream_openai_response(session_id, history, db),
+        media_type="text/event-stream"
+    )

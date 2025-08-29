@@ -1,28 +1,30 @@
-import os
-from pathlib import Path
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# 현 파일(config.py)의 위치를 기준으로 프로젝트 루트 디렉토리 경로를 계산합니다.
-# (backend/app/core/ -> backend/app/ -> backend/ -> project root)
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-ENV_PATH = BASE_DIR / ".env"
+class Settings(BaseSettings):
+    # .env 파일에 정의된 변수명과 일치시킵니다.
+    OPENAI_API_KEY: str
 
-# .env 파일이 존재하면 로드합니다.
-if ENV_PATH.exists():
-    load_dotenv(dotenv_path=ENV_PATH)
-else:
-    print(f"Warning: .env file not found at {ENV_PATH}")
+    # DB 관련 변수명 변경
+    mysql_host: str
+    mysql_port: int
+    mysql_user: str
+    mysql_password: str
+    mysql_database: str
 
-# 환경 변수에서 데이터베이스 연결 정보를 가져옵니다.
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
-DB_NAME = os.getenv("DB_NAME", "hometown")
+    # ChromaDB
+    CHROMA_HOST: str = "localhost"
+    CHROMA_PORT: int = 8000
 
-# SQLAlchemy 데이터베이스 URL을 구성합니다.
-DATABASE_URL = f"mysql+mysqlclient://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    # JWT Settings
+    SECRET_KEY: str = "a_very_secret_key_for_jwt"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # One week
 
-# OpenAI API Key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    # model_config를 사용하여 추가 설정을 정의합니다 (Pydantic v2 스타일).
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        env_file_encoding="utf-8",
+        extra='ignore'  # .env 파일에 정의된 추가 변수들을 무시합니다.
+    )
 
+settings = Settings()

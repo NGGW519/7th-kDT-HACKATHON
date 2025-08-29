@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app  # Mount the app directory for development
+    env_file:
+      - .env
+    depends_on:
+      - mysql-db
+      - chroma-db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80" # Expose Nginx port 80 to host port 3000
+    restart: unless-stopped
+
+  mysql-db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${mysql_password} # from .env
+      MYSQL_DATABASE: ${mysql_database} # from .env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  chroma-db:
+    image: chromadb/chroma
+    ports:
+      - "8001:8000" # Expose ChromaDB port 8000 to host port 8001
+    volumes:
+      - chroma_data:/chroma/.chroma/index
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  chroma_data:
