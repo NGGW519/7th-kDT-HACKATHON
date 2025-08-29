@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8000
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID_WEB: str = "862639857753-qits698ij6a301r8af5p6f1u9bloucic.apps.googleusercontent.com"
+
     # JWT Settings
     SECRET_KEY: str = "a_very_secret_key_for_jwt"
     ALGORITHM: str = "HS256"

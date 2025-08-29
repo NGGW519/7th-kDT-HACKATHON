@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 from ... import crud, models, schemas
 from ...core import security
 from ...core.database import get_db
+from ...core.config import settings
 
 router = APIRouter()
 
@@ -47,5 +50,35 @@ def login_for_access_token(form_data: schemas.UserCreate, db: Session = Depends(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    access_token = security.create_access_token(subject=user.email)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/google-login", response_model=schemas.Token)
+async def google_login(
+    request: schemas.GoogleLoginRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verify the Google ID token
+        idinfo = id_token.verify_oauth2_token(
+            request.id_token, requests.Request(), settings.GOOGLE_CLIENT_ID_WEB
+        )
+        google_user_id = idinfo['sub']
+        email = idinfo['email']
+        display_name = idinfo.get('name')
+
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google ID token")
+
+    # Check if social account already exists
+    social_account = crud.crud_user.get_social_account_by_provider_uid(db, "google", google_user_id)
+
+    if social_account:
+        user = social_account.user # Assuming relationship is set up
+    else:
+        # If social account doesn't exist, create a new user and social account
+        user = crud.crud_user.create_user_with_social_account(db, "google", google_user_id, email, display_name)
+
+    # Generate and return backend JWT token
     access_token = security.create_access_token(subject=user.email)
     return {"access_token": access_token, "token_type": "bearer"}

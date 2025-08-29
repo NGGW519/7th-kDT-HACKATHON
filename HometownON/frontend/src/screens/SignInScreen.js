@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { authenticateUser, saveCurrentUser } from '../utils/storage';
-import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
+
 
 const SignInScreen = ({ navigation }) => {
   const [googleUser, setGoogleUser] = useState(null);
@@ -25,44 +25,55 @@ const SignInScreen = ({ navigation }) => {
   useEffect(() => {
     // Google Sign-In 초기화
     GoogleSignin.configure({
-      webClientId: GOOGLE_CLIENT_ID_WEB,
-      iosClientId: GOOGLE_CLIENT_ID_IOS,
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
       offlineAccess: true,
     });
   }, []);
 
   const handleGoogleLogin = async () => {
+    setIsLoading(true); // 로딩 상태 시작
     try {
+      await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
-      console.log("✅ 로그인 성공:", userInfo);
-      
-      // Google Sign-in 응답 구조 확인 (data.user에 사용자 정보가 있음)
-      if (!userInfo || !userInfo.data || !userInfo.data.user) {
-        console.error("❌ Google 사용자 정보가 없습니다:", userInfo);
-        Alert.alert('오류', 'Google 사용자 정보를 가져올 수 없습니다.');
+      console.log("✅ Google 로그인 성공:", userInfo);
+
+      const idToken = userInfo.idToken; // Google ID Token 추출
+      if (!idToken) {
+        Alert.alert('오류', 'Google ID 토큰을 가져올 수 없습니다.');
+        setIsLoading(false);
         return;
       }
-      
-      // 사용자 정보를 저장하고 메인 화면으로 이동
-      const user = {
-        id: userInfo.data.user.id,
-        name: userInfo.data.user.name,
-        email: userInfo.data.user.email,
-        photo: userInfo.data.user.photo,
-        userType: 'returnee', // 기본값으로 귀향자 설정
-      };
-      
-      await saveCurrentUser(user);
-      Alert.alert('성공', 'Google 로그인이 완료되었습니다!', [
-        {
-          text: '확인',
-          onPress: () => navigation.navigate('ReturneeMain'),
+
+      // 백엔드 API 호출
+      const backendApiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'; // .env에서 API URL 가져오기
+      const response = await fetch(`${backendApiUrl}/api/users/google-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      ]);
+        body: JSON.stringify({ id_token: idToken }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await saveCurrentUser({ token: data.access_token }); // 백엔드에서 받은 토큰 저장
+        Alert.alert('성공', 'Google 로그인이 완료되었습니다!', [
+          {
+            text: '확인',
+            onPress: () => navigation.navigate('ReturneeMain'), // 메인 화면으로 이동
+          },
+        ]);
+      } else {
+        Alert.alert('오류', `백엔드 로그인 실패: ${data.detail || response.statusText}`);
+      }
     } catch (error) {
-      console.error("❌ 로그인 실패:", error);
-      Alert.alert('오류', 'Google 로그인에 실패했습니다.');
+      console.error("❌ Google 로그인 또는 백엔드 통신 실패:", error);
+      Alert.alert('오류', 'Google 로그인 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false); // 로딩 상태 종료
     }
   };
 

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { saveUser, isEmailExists, saveCurrentUser } from '../utils/storage';
-import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
+
 
 const ReturneeSignUpScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -39,8 +39,8 @@ const ReturneeSignUpScreen = ({ navigation }) => {
   useEffect(() => {
     // Google Sign-In 초기화
     GoogleSignin.configure({
-      webClientId: GOOGLE_CLIENT_ID_WEB,
-      iosClientId: GOOGLE_CLIENT_ID_IOS,
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
       offlineAccess: true,
     });

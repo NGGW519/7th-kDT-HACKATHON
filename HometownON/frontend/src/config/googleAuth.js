@@ -1,11 +1,11 @@
 import { Platform } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 
-// Google OAuth Client IDs for different platforms
+// Google OAuth Client IDs from environment variables
 export const GOOGLE_CLIENT_IDS = {
-  web: '862639857753-qits698ij6a301r8af5p6f1u9bloucic.apps.googleusercontent.com',
-  android: '862639857753-hfhui2b0mkjsqjivvbub1m9euec6la5i.apps.googleusercontent.com', // Android 클라이언트 ID로 교체 필요
-  ios: '862639857753-7g71imbcg3j27gu2modk8ldjnm0580bo.apps.googleusercontent.com', // iOS 클라이언트 ID로 교체 필요
+  web: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
+  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+  ios: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
 };
 
 // Platform-specific client ID

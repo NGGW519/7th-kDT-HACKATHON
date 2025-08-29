@@ -76,6 +76,9 @@ class UserProfile(UserProfileBase):
 class UserWithProfile(User):
     profile: Optional[UserProfile] = None
 
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+
 
 # =======================================
 # 2. Mission Schemas
