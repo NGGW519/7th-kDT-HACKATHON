@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # model_config를 사용하여 추가 설정을 정의합니다 (Pydantic v2 스타일).
     model_config = SettingsConfigDict(
-        env_file="../.env",
+        env_file="../../../.env",
         env_file_encoding="utf-8",
         extra='ignore'  # .env 파일에 정의된 추가 변수들을 무시합니다.
     )

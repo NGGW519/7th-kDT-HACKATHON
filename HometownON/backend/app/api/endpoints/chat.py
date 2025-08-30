@@ -70,5 +70,6 @@ async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
 
     return StreamingResponse(
         stream_openai_response(session_id, history, db),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={"X-Session-Id": str(session_id)}
     )

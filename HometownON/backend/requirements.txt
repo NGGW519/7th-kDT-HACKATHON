@@ -1,2 +1,4 @@
 
-google-auth-library
+google-auth
+openai
+python-dotenv
