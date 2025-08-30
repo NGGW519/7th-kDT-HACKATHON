@@ -15,6 +15,8 @@ import WeatherInfo from '../components/WeatherInfo';
 import MissionCard from '../components/MissionCard';
 import MyMenu from '../components/MyMenu';
 import { getCurrentUser } from '../utils/storage';
+import LocationService from '../services/LocationService';
+import WeatherService from '../services/WeatherService';
 
 const ReturneeMainScreen = ({ navigation }) => {
   const [currentTime, setCurrentTime] = useState('');
@@ -22,6 +24,15 @@ const ReturneeMainScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [userName, setUserName] = useState('고향에왓고님');
   const [isLoading, setIsLoading] = useState(true);
+
+  // 날씨 관련 상태
+  const [weatherData, setWeatherData] = useState({
+    weather: '맑음',
+    temperature: 20,
+    airQuality: '대기 최고',
+    location: '함안군 가야읍'
+  });
+  const [isWeatherLoading, setIsWeatherLoading] = useState(false);
 
   // 미션 데이터 (실제로는 API에서 가져올 데이터)
   const [missionData, setMissionData] = useState({
@@ -48,15 +59,58 @@ const ReturneeMainScreen = ({ navigation }) => {
         day: 'numeric',
         weekday: 'long',
       });
-      
+
       setCurrentDate(dateString);
     };
 
     updateDateTime();
     const interval = setInterval(updateDateTime, 60000); // 1분마다 업데이트
 
+    // 앱 시작시 날씨 정보 로드
+    loadWeatherData();
+
     return () => clearInterval(interval);
   }, []);
+
+  // 날씨 데이터 로드
+  const loadWeatherData = async () => {
+    try {
+      setIsWeatherLoading(true);
+      console.log('🌤️ 날씨 데이터 로드 시작...');
+
+      // 권한 상태 디버깅
+      await LocationService.debugPermissionStatus();
+
+      // 위치 권한 요청 및 현재 위치 가져오기
+      const location = await LocationService.getLocationWithPermission();
+
+      if (location) {
+        console.log('📍 위치 정보 획득:', location);
+
+        // 백엔드에서 날씨 정보 가져오기
+        const weather = await WeatherService.getCurrentWeather(
+          location.latitude,
+          location.longitude
+        );
+
+        setWeatherData({
+          weather: weather.weather,
+          temperature: weather.temperature,
+          airQuality: weather.airQuality,
+          location: weather.location
+        });
+
+        console.log('✅ 날씨 정보 로드 완료:', weather);
+      } else {
+        console.log('⚠️ 위치 정보를 가져올 수 없어 기본 날씨 정보 사용');
+        // 기본값 유지
+      }
+    } catch (error) {
+      console.error('❌ 날씨 정보 로드 오류:', error);
+    } finally {
+      setIsWeatherLoading(false);
+    }
+  };
 
   // 화면이 포커스될 때마다 사용자 정보 새로고침
   useFocusEffect(
@@ -131,17 +185,17 @@ const ReturneeMainScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#6956E5" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.dateRow}>
             <Text style={styles.date}>{currentDate}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.notificationButton}
               onPress={() => navigation.navigate('Notification')}
             >
-              <Image 
+              <Image
                 source={require('../assets/images/notification.png')}
                 style={styles.notificationIcon}
                 resizeMode="contain"
@@ -150,11 +204,12 @@ const ReturneeMainScreen = ({ navigation }) => {
           </View>
           <Text style={styles.greeting}>고향에서의 오늘은{'\n'}어떤 하루일까요?</Text>
           <View style={styles.locationContainer}>
-            <Text style={styles.location}>함안군 가야읍</Text>
-            <WeatherInfo 
-              weather="맑음"
-              temperature="20"
-              airQuality="대기 최고"
+            <Text style={styles.location}>{weatherData.location}</Text>
+            <WeatherInfo
+              weather={weatherData.weather}
+              temperature={weatherData.temperature}
+              airQuality={weatherData.airQuality}
+              isLoading={isWeatherLoading}
             />
           </View>
         </View>
@@ -169,7 +224,7 @@ const ReturneeMainScreen = ({ navigation }) => {
           <Text style={styles.userNameText}>
             {userName}님
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.accountSwitchButton}
             onPress={handleAccountSwitch}
           >

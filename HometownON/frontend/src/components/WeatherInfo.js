@@ -1,15 +1,30 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import WeatherService from '../services/WeatherService';
 
-const WeatherInfo = ({ weather, temperature, airQuality }) => {
+const WeatherInfo = ({ weather, temperature, airQuality, isLoading }) => {
+  const weatherIcon = WeatherService.getWeatherIcon(weather);
+  const airQualityColor = WeatherService.getAirQualityColor(airQuality);
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="small" color="#FFF" />
+        <Text style={styles.loadingText}>날씨 로딩중...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.weatherContainer}>
-        <Text style={styles.weatherIcon}>☀️</Text>
+        <Text style={styles.weatherIcon}>{weatherIcon}</Text>
         <Text style={styles.weatherText}>{weather}</Text>
         <Text style={styles.temperature}>{temperature}°C</Text>
       </View>
-      <Text style={styles.airQuality}>{airQuality}</Text>
+      <Text style={[styles.airQuality, { color: airQualityColor }]}>
+        {airQuality}
+      </Text>
     </View>
   );
 };
@@ -43,6 +58,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FFF',
     fontWeight: '500',
+  },
+  loadingText: {
+    fontSize: 12,
+    color: '#FFF',
+    marginTop: 4,
   },
 });
 
