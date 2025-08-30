@@ -3,9 +3,9 @@ import * as AuthSession from 'expo-auth-session';
 
 // Google OAuth Client IDs from environment variables
 export const GOOGLE_CLIENT_IDS = {
-  web: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
-  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
-  ios: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+  web: process.env.GOOGLE_CLIENT_ID_WEB,
+  android: process.env.GOOGLE_CLIENT_ID_ANDROID,
+  ios: process.env.GOOGLE_CLIENT_ID_IOS,
 };
 
 // Platform-specific client ID

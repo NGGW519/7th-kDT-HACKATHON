@@ -4,25 +4,25 @@ import MapView, { Marker } from 'react-native-maps';
 
 const TestMap = () => {
   const testRegion = {
-    latitude: 35.2722,   // ÇÔ¾È±º
-    longitude: 128.4061, // ÇÔ¾È±º
+    latitude: 35.2722,   // í•¨ì•ˆêµ°
+    longitude: 128.4061, // í•¨ì•ˆêµ°
     latitudeDelta: 0.02,
     longitudeDelta: 0.02,
   };
 
   const handleMapReady = () => {
-    console.log('? Áöµµ ·Îµå ¿Ï·á!');
-    Alert.alert('¼º°ø', 'Áöµµ°¡ Á¤»óÀûÀ¸·Î ·ÎµåµÇ¾ú½À´Ï´Ù!');
+    console.log('âœ… ì§€ë„ ë¡œë“œ ì™„ë£Œ!');
+    Alert.alert('ì„±ê³µ', 'ì§€ë„ê°€ ì •ìƒì ìœ¼ë¡œ ë¡œë“œë˜ì—ˆìŠµë‹ˆë‹¤!');
   };
 
   const handleMapError = (error) => {
-    console.error('? Áöµµ ·Îµå ½ÇÆĞ:', error);
-    Alert.alert('¿À·ù', `Áöµµ ·Îµå ½ÇÆĞ: ${error.message}`);
+    console.error('âŒ ì§€ë„ ë¡œë“œ ì‹¤íŒ¨:', error);
+    Alert.alert('ì˜¤ë¥˜', `ì§€ë„ ë¡œë“œ ì‹¤íŒ¨: ${error.message}`);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>?? Áöµµ Å×½ºÆ®</Text>
+      <Text style={styles.title}>ğŸ—ºï¸ ì§€ë„ í…ŒìŠ¤íŠ¸</Text>
       <MapView
         style={styles.map}
         initialRegion={testRegion}
@@ -36,8 +36,8 @@ const TestMap = () => {
             latitude: 35.2722,
             longitude: 128.4061,
           }}
-          title="ÇÔ¾È±º"
-          description="Å×½ºÆ® ¸¶Ä¿"
+          title="í•¨ì•ˆêµ°"
+          description="í…ŒìŠ¤íŠ¸ ë§ˆì»¤"
           pinColor="red"
         />
       </MapView>

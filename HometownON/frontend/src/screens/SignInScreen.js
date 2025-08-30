@@ -25,8 +25,8 @@ const SignInScreen = ({ navigation }) => {
   useEffect(() => {
     // Google Sign-In 초기화
     GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+      webClientId: process.env.GOOGLE_CLIENT_ID_WEB,
+      iosClientId: process.env.GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
       offlineAccess: true,
     });

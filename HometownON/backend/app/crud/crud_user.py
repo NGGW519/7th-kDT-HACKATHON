@@ -55,3 +55,9 @@ def create_user_with_social_account(db: Session, provider: str, provider_uid: st
         db.refresh(db_profile)
 
     return db_user
+
+def get_user_profile(db: Session, user_id: int):
+    return db.query(models.UserProfile).filter(models.UserProfile.user_id == user_id).first()
+
+def get_user_by_id(db: Session, user_id: int):
+    return db.query(models.User).filter(models.User.id == user_id).first()

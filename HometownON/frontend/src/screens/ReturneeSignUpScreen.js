@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { saveUser, isEmailExists, saveCurrentUser } from '../utils/storage';
+import AuthService from '../services/AuthService';
 
 
 const ReturneeSignUpScreen = ({ navigation }) => {
@@ -39,8 +40,8 @@ const ReturneeSignUpScreen = ({ navigation }) => {
   useEffect(() => {
     // Google Sign-In 초기화
     GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+      webClientId: process.env.GOOGLE_CLIENT_ID_WEB,
+      iosClientId: process.env.GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
       offlineAccess: true,
     });
@@ -138,60 +139,45 @@ const ReturneeSignUpScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      if (useGoogleSignUp) {
-        if (!googleUser) {
-          Alert.alert('오류', 'Google 로그인 정보가 없습니다.');
-          return;
-        }
+      // API 호출용 사용자 데이터 준비
+      const userData = {
+        email: formData.email.trim(),
+        password: formData.password,
+        phone: null, // 전화번호 필드가 없으므로 null
+        name: formData.returnName,
+        userType: 'returnee',
+        hometown: formData.hometown,
+        targetRegion: formData.hometown, // 고향으로 돌아가는 것이므로 같게 설정
+        careerType: formData.careerType,
+        careerPlan: formData.careerPlan,
+        previousCareer: formData.previousCareer,
+        personality: formData.personality,
+        hometownSchool: formData.hometownSchool,
+        picture: googleUser?.photo || null,
+      };
 
-        const userData = {
-          id: googleUser.id || Date.now().toString(),
-          email: googleUser.email || formData.email,
-          name: formData.returnName, // 사용자가 입력한 귀향 이름 사용
-          picture: googleUser.photo || null,
-          userType: 'returnee',
-          googleUser,
-          ...formData,
-          createdAt: new Date().toISOString(),
-        };
-
-        const success = await saveUser(userData);
-        if (success) {
-          // 현재 사용자로 저장
-          await saveCurrentUser(userData);
-          Alert.alert('성공', '귀향자 회원가입이 완료되었습니다!', [
-            { text: '확인', onPress: () => navigation.navigate('ReturneeMain') },
-          ]);
-        } else {
-          Alert.alert('오류', '회원가입 중 오류가 발생했습니다.');
-        }
-      } else {
-        const emailExists = await isEmailExists(formData.email.trim());
-        if (emailExists) {
-          Alert.alert('오류', '이미 가입된 이메일입니다.');
-          return;
-        }
-
-        const userData = {
-          id: Date.now().toString(),
-          email: formData.email.trim(),
-          password: formData.password,
+      // 실제 API 호출
+      const result = await AuthService.signUp(userData);
+      
+      if (result.success) {
+        // 로컬 스토리지에도 저장 (기존 로직 유지)
+        const localUserData = {
+          id: result.data.id,
+          email: result.data.email,
           name: formData.returnName,
           userType: 'returnee',
           ...formData,
           createdAt: new Date().toISOString(),
         };
-
-        const success = await saveUser(userData);
-        if (success) {
-          // 현재 사용자로 저장
-          await saveCurrentUser(userData);
-          Alert.alert('성공', '귀향자 회원가입이 완료되었습니다!', [
-            { text: '확인', onPress: () => navigation.navigate('ReturneeMain') },
-          ]);
-        } else {
-          Alert.alert('오류', '회원가입 중 오류가 발생했습니다.');
-        }
+        
+        await saveUser(localUserData);
+        await saveCurrentUser(localUserData);
+        
+        Alert.alert('성공', '귀향자 회원가입이 완료되었습니다!', [
+          { text: '확인', onPress: () => navigation.navigate('ReturneeMain') },
+        ]);
+      } else {
+        Alert.alert('오류', result.error || '회원가입 중 오류가 발생했습니다.');
       }
     } catch (error) {
       console.error('회원가입 오류:', error);

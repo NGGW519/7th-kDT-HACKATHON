@@ -40,6 +40,8 @@ import MentorDetailScreen from '../screens/MentorDetailScreen';
 import FreeBoardWriteScreen from '../screens/FreeBoardWriteScreen';
 import MentorSeekingWriteScreen from '../screens/MentorSeekingWriteScreen';
 import NotificationScreen from '../screens/NotificationScreen';
+import ExplorationMission from '../components/ExplorationMission';
+import TestMap from '../components/TestMap';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -436,6 +438,36 @@ const AppNavigator = () => {
         <Stack.Screen
           name="EducationMentor"
           component={ReturneeMainScreen} // 임시로 같은 화면 사용
+        />
+        <Stack.Screen
+          name="ExplorationMission"
+          component={ExplorationMission}
+          options={{
+            headerShown: true,
+            title: '탐색형 미션',
+            headerStyle: {
+              backgroundColor: '#007AFF',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
+        <Stack.Screen
+          name="TestMap"
+          component={TestMap}
+          options={{
+            headerShown: true,
+            title: '지도 테스트',
+            headerStyle: {
+              backgroundColor: '#007AFF',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

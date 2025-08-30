@@ -287,8 +287,8 @@ const ExplorationMission = ({ navigation, route }) => {
                             latitudeDelta: 0.02,
                             longitudeDelta: 0.02,
                         }}
-                        showsUserLocation={false}
-                        showsMyLocationButton={false}
+                        showsUserLocation={true}
+                        showsMyLocationButton={true}
                         onMapReady={() => {
                             console.log('✅ 지도 준비 완료!');
                         }}
@@ -297,7 +297,20 @@ const ExplorationMission = ({ navigation, route }) => {
                             Alert.alert('지도 오류', `오류: ${error.message}`);
                         }}
                     >
-                        {/* 기본 테스트 마커 - 함안 초등학교 */}
+                        {/* 사용자 위치 주변 반경 표시 */}
+                        {userLocation && (
+                            <Circle
+                                center={{
+                                    latitude: userLocation.latitude,
+                                    longitude: userLocation.longitude,
+                                }}
+                                radius={5000} // 5km
+                                strokeColor="rgba(0, 122, 255, 0.3)"
+                                fillColor="rgba(0, 122, 255, 0.1)"
+                            />
+                        )}
+
+                        {/* 기본 목표 마커 - 함안 초등학교 */}
                         <Marker
                             coordinate={{
                                 latitude: 35.2722,
@@ -308,7 +321,7 @@ const ExplorationMission = ({ navigation, route }) => {
                             pinColor="red"
                         />
 
-                        {/* 추가 마커들 */}
+                        {/* 데이터베이스에서 가져온 근처 위치들 */}
                         {nearbyLocations.map((location) => (
                             location.coordinates && (
                                 <Marker
@@ -427,6 +440,96 @@ const styles = StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    mapPlaceholder: {
+        flex: 1,
+        backgroundColor: '#f8f9fa',
+        padding: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    mapPlaceholderTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 10,
+    },
+    mapPlaceholderSubtitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#007AFF',
+        marginBottom: 5,
+    },
+    mapPlaceholderAddress: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    coordinatesContainer: {
+        backgroundColor: 'white',
+        padding: 15,
+        borderRadius: 10,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    coordinatesText: {
+        fontSize: 14,
+        color: '#333',
+        marginBottom: 5,
+    },
+    nearbyContainer: {
+        width: '100%',
+        backgroundColor: 'white',
+        padding: 15,
+        borderRadius: 10,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    nearbyTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 10,
+    },
+    nearbyItem: {
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    nearbyName: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    nearbyAddress: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 2,
+    },
+    mapButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    mapButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     locationList: {
         flex: 1,

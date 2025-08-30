@@ -33,7 +33,11 @@ def create_user_with_profile(request: UserSignupRequest, db: Session = Depends(g
     
     # Combine and return
     user_with_profile = schemas.UserWithProfile(
-        **user.__dict__,
+        id=user.id,
+        email=user.email,
+        phone=user.phone,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
         profile=profile
     )
     return user_with_profile
@@ -82,3 +86,24 @@ async def google_login(
     # Generate and return backend JWT token
     access_token = security.create_access_token(subject=user.email)
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/me", response_model=schemas.UserWithProfile)
+def get_current_user(
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get current user information with profile.
+    """
+    # Get user profile
+    profile = crud.crud_user.get_user_profile(db, current_user.id)
+    
+    user_with_profile = schemas.UserWithProfile(
+        id=current_user.id,
+        email=current_user.email,
+        phone=current_user.phone,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+        profile=profile
+    )
+    return user_with_profile

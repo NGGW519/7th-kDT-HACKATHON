@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 
 const MissionDetailScreen = ({ navigation, route }) => {
   const { type } = route.params;
@@ -34,6 +35,10 @@ const MissionDetailScreen = ({ navigation, route }) => {
           address: '경남 함안군 가야읍 함안대로 585-1 585-2',
           instruction: '탐색형 미션은 1분 동안 머무르면 미션 완료 버튼이 활성화됩니다',
           icon: '🎲',
+          coordinates: {
+            latitude: 35.2722,   // 함안 초등학교 위도
+            longitude: 128.4061, // 함안 초등학교 경도
+          },
         };
       case 'bonding':
         return {
@@ -41,6 +46,10 @@ const MissionDetailScreen = ({ navigation, route }) => {
           address: '경남 함안군 가야읍 시장로 123',
           instruction: '유대형 미션은 지역 주민과 대화를 나누면 미션 완료 버튼이 활성화됩니다',
           icon: '🤝',
+          coordinates: {
+            latitude: 35.2700,   // 함안 시장 위도
+            longitude: 128.4050, // 함안 시장 경도
+          },
         };
       case 'career':
         return {
@@ -48,6 +57,10 @@ const MissionDetailScreen = ({ navigation, route }) => {
           address: '경남 함안군 가야읍 교육로 456',
           instruction: '커리어형 미션은 새로운 기술을 배우면 미션 완료 버튼이 활성화됩니다',
           icon: '💼',
+          coordinates: {
+            latitude: 35.2750,   // 함안 교육센터 위도
+            longitude: 128.4080, // 함안 교육센터 경도
+          },
         };
       default:
         return {
@@ -55,6 +68,10 @@ const MissionDetailScreen = ({ navigation, route }) => {
           address: '경남 함안군 가야읍',
           instruction: '미션을 수행하면 완료 버튼이 활성화됩니다',
           icon: '🎯',
+          coordinates: {
+            latitude: 35.2722,   // 기본 함안군 위도
+            longitude: 128.4061, // 기본 함안군 경도
+          },
         };
     }
   };
@@ -85,20 +102,20 @@ const MissionDetailScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#6956E5" />
-      
+
       {/* Header */}
       <SafeAreaView style={styles.headerSafeArea}>
         <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {type === 'exploration' ? '탐색형' : type === 'bonding' ? '유대형' : '커리어형'} 미션
-        </Text>
-        <View style={styles.headerRight} />
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            {type === 'exploration' ? '탐색형' : type === 'bonding' ? '유대형' : '커리어형'} 미션
+          </Text>
+          <View style={styles.headerRight} />
         </View>
       </SafeAreaView>
 
@@ -114,15 +131,35 @@ const MissionDetailScreen = ({ navigation, route }) => {
             </View>
           </View>
 
-          {/* Map Placeholder */}
+          {/* Map */}
           <View style={styles.mapContainer}>
-            <View style={styles.mapPlaceholder}>
-              <Text style={styles.mapText}>지도 영역</Text>
-              <Text style={styles.mapSubText}>실제 구현 시 지도 API 연동</Text>
-            </View>
-            <View style={styles.locationPin}>
-              <Text style={styles.pinText}>📍</Text>
-            </View>
+            <MapView
+              style={styles.map}
+              initialRegion={{
+                latitude: missionData.coordinates.latitude,
+                longitude: missionData.coordinates.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+              showsUserLocation={true}
+              showsMyLocationButton={true}
+              onMapReady={() => {
+                console.log('✅ 미션 상세 지도 로드 완료!');
+              }}
+              onError={(error) => {
+                console.error('❌ 미션 상세 지도 오류:', error);
+              }}
+            >
+              <Marker
+                coordinate={{
+                  latitude: missionData.coordinates.latitude,
+                  longitude: missionData.coordinates.longitude,
+                }}
+                title={missionData.title}
+                description={missionData.address}
+                pinColor="red"
+              />
+            </MapView>
           </View>
 
           {/* Address */}
@@ -140,7 +177,7 @@ const MissionDetailScreen = ({ navigation, route }) => {
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.startButton, missionStarted && styles.disabledButton]}
               onPress={handleStartMission}
               disabled={missionStarted}
@@ -149,10 +186,10 @@ const MissionDetailScreen = ({ navigation, route }) => {
                 {missionStarted ? '미션 진행 중...' : '미션 시작'}
               </Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[
-                styles.completeButton, 
+                styles.completeButton,
                 (!missionStarted || timeElapsed < 60) && styles.disabledButton
               ]}
               onPress={handleCompleteMission}
@@ -268,34 +305,14 @@ const styles = StyleSheet.create({
   mapContainer: {
     marginHorizontal: 20,
     marginBottom: 15,
-    position: 'relative',
-  },
-  mapPlaceholder: {
-    backgroundColor: '#F5F5F5',
     height: 200,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-  mapText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 5,
-  },
-  mapSubText: {
-    fontSize: 12,
-    color: '#999',
-  },
-  locationPin: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -15 }, { translateY: -15 }],
-  },
-  pinText: {
-    fontSize: 30,
+  map: {
+    flex: 1,
   },
   addressContainer: {
     flexDirection: 'row',
