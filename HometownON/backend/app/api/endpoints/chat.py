@@ -1,75 +1,85 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from openai import OpenAI
-import asyncio
+from pydantic import BaseModel
+from langchain_core.messages import HumanMessage, AIMessage
 
 from ... import crud
-from ...schemas import schemas
 from ...core.database import get_db
-from ...core.config import settings
+from ...chatbot.graph import app # Import the compiled LangGraph app
 
 router = APIRouter()
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-class ChatRequest(schemas.BaseModel):
+class ChatRequest(BaseModel):
     session_id: int | None = None
     message: str
 
-async def stream_openai_response(session_id: int, history: list, db: Session):
-    """Async generator to stream responses from OpenAI and save the full response."""
-    stream = client.chat.completions.create(
-        model="gpt-4o",
-        messages=history,
-        stream=True,
-    )
+async def event_stream(request: ChatRequest, db: Session):
+    """The main async generator that streams the agent's response."""
     
-    full_response = ""
-    for chunk in stream:
-        content = chunk.choices[0].delta.content or ""
-        full_response += content
-        yield content
-        await asyncio.sleep(0) # Yield control to the event loop
+    # In a real app, you would get the user_id from the auth token
+    user_id = None 
 
-    # Save the assistant's full response to the database
-    crud.crud_chat.add_chat_message(
-        db=db, session_id=session_id, role="assistant", content=full_response
-    )
-
-@router.post("/chat", response_class=StreamingResponse)
-async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
+    # 1. Get or create a chat session
     session_id = request.session_id
-
-    # If a session_id is provided, verify it exists.
-    if session_id is not None:
+    if session_id:
         chat_session = crud.crud_chat.get_chat_session(db=db, session_id=session_id)
         if not chat_session:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Chat session with id {session_id} not found."
-            )
-    # If no session_id is provided, create a new session.
+            raise HTTPException(status_code=404, detail="Chat session not found.")
     else:
-        # In a real app, you'd associate the session with the logged-in user
-        chat_session = crud.crud_chat.create_chat_session(db=db)
+        chat_session = crud.crud_chat.create_chat_session(db=db, user_id=user_id)
         session_id = chat_session.id
-
-    # Save user message
+    
+    # 2. Save the user's message
     crud.crud_chat.add_chat_message(
         db=db, session_id=session_id, role="user", content=request.message
     )
+    db.commit()
 
-    # Get conversation history
-    db_messages = crud.crud_chat.get_chat_messages(db=db, session_id=session_id)
+    # 3. Prepare the initial state for the graph
+    # Fetch chat history for the session
+    chat_history = crud.crud_chat.get_chat_messages(db=db, session_id=session_id)
     
-    # Format for OpenAI API
-    history = [
-        {"role": msg.role, "content": msg.content} for msg in db_messages
-    ]
+    # Format history for LangGraph
+    formatted_messages = []
+    for msg in chat_history:
+        if msg.role == "user":
+            formatted_messages.append(HumanMessage(content=msg.content))
+        elif msg.role == "assistant":
+            formatted_messages.append(AIMessage(content=msg.content))
+    
+    # Add the current message to the history
+    formatted_messages.append(HumanMessage(content=request.message))
 
-    return StreamingResponse(
-        stream_openai_response(session_id, history, db),
-        media_type="text/event-stream",
-        headers={"X-Session-Id": str(session_id)}
-    )
+    initial_state = {
+        "prompt": request.message,
+        "messages": formatted_messages,
+    }
+
+    # 4. Stream the graph execution
+    # astream() returns an async iterator of all state changes
+    full_response = ""
+    async for event in app.astream(initial_state):
+        print(f"LangGraph Event: {event}") # Debugging line
+        if "GeneralChatAgent" in event:
+            # Get the full AI message from the GeneralChatAgent's output
+            ai_message = event["GeneralChatAgent"]["messages"][-1]
+            if hasattr(ai_message, 'content') and ai_message.content:
+                # Simulate streaming by yielding character by character
+                for char in ai_message.content:
+                    yield char
+                    full_response += char
+
+    # 5. Save the final assistant response after the stream is complete
+    if full_response:
+        crud.crud_chat.add_chat_message(
+            db=db, session_id=session_id, role="assistant", content=full_response
+        )
+        db.commit()
+
+
+@router.post("/chat")
+async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
+    """Receives a user message, runs the agent graph, and streams the response."""
+    generator = event_stream(request, db)
+    return StreamingResponse(generator, media_type="text/event-stream")

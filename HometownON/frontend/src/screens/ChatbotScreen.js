@@ -11,12 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
-  Animated,
-  Dimensions
 } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { REACT_APP_API_URL } from '@env';
 
 const ChatbotScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([
@@ -31,7 +27,11 @@ const ChatbotScreen = ({ navigation }) => {
   const [sessionId, setSessionId] = useState(null);
   const scrollViewRef = useRef();
 
-  const handleSendMessage = async () => {
+  useEffect(() => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
+
+  const handleSendMessage = () => { // Removed async as we are using callbacks
     if (inputText.trim() === '') return;
 
     const userMessage = {
@@ -41,61 +41,90 @@ const ChatbotScreen = ({ navigation }) => {
       timestamp: new Date(),
     };
 
-    // Add user message and a bot placeholder
-    setMessages(prev => [...prev, userMessage, { id: Date.now() + 1, type: 'bot', text: '', timestamp: new Date() }]);
+    const botMessagePlaceholder = { 
+      id: Date.now() + 1, 
+      type: 'bot', 
+      text: '', 
+      timestamp: new Date() 
+    };
+
+    setMessages(prev => [...prev, userMessage, botMessagePlaceholder]);
     const currentInput = inputText;
     setInputText('');
 
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
-      const response = await fetch(`${apiUrl}/api/chatbot/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message: currentInput,
-          session_id: sessionId 
-        }),
-      });
+    const apiUrl = REACT_APP_API_URL || 'http://10.0.2.2:8000';
+    const url = `${apiUrl}/api/chatbot/chat`;
+    const body = JSON.stringify({
+      message: currentInput,
+      session_id: sessionId,
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    const xhr = new XMLHttpRequest();
+    let processedLength = 0;
 
-      // Handle session ID from header
-      const newSessionId = response.headers.get('X-Session-Id');
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    
+    // This event fires as chunks of data are received
+    xhr.onprogress = () => {
+      const newSessionId = xhr.getResponseHeader('X-Session-Id');
       if (newSessionId && !sessionId) {
         setSessionId(parseInt(newSessionId, 10));
       }
 
-      // Handle streaming response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let streaming = true;
-
-      while (streaming) {
-        const { done, value } = await reader.read();
-        if (done) {
-          streaming = false;
-          break;
-        }
-        const chunk = decoder.decode(value, { stream: true });
+      const currentText = xhr.responseText;
+      const newChunk = currentText.substring(processedLength);
+      
+      if (newChunk) {
         setMessages(prev => {
-          const lastMessage = prev[prev.length - 1];
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
           if (lastMessage && lastMessage.type === 'bot') {
-            lastMessage.text += chunk;
-            return [...prev.slice(0, -1), lastMessage];
+            lastMessage.text += newChunk;
           }
-          return prev;
+          return newMessages;
         });
       }
+      processedLength = currentText.length;
+    };
 
-    } catch (error) {
-      console.error("Chat API error:", error);
+    // This event fires when the request is fully complete
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        // Handle HTTP errors that might not be caught by onerror
+        let errorDetail = '알 수 없는 오류가 발생했습니다.';
+        try {
+            const errorData = JSON.parse(xhr.responseText);
+            errorDetail = errorData.detail || xhr.responseText;
+        } catch (e) {
+            errorDetail = xhr.responseText;
+        }
+        Alert.alert('오류', `HTTP ${xhr.status}: ${errorDetail}`);
+        setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== botMessagePlaceholder.id));
+      }
+      // Final update in case onprogress didn't catch the last bit
+      const finalText = xhr.responseText;
+      const finalChunk = finalText.substring(processedLength);
+       if (finalChunk) {
+         setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage && lastMessage.type === 'bot') {
+            lastMessage.text += finalChunk;
+          }
+          return newMessages;
+        });
+       }
+    };
+
+    // This event fires on network errors
+    xhr.onerror = () => {
+      console.error("Chat API error (XHR):", xhr.status, xhr.responseText);
       Alert.alert('오류', '챗봇 서비스에 연결할 수 없습니다.');
-      setMessages(prev => prev.slice(0, -1)); // Remove bot placeholder on error
-    }
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== botMessagePlaceholder.id));
+    };
+
+    xhr.send(body);
   };
 
   const formatTime = (timestamp) => {
@@ -120,7 +149,7 @@ const ChatbotScreen = ({ navigation }) => {
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.messagesContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
