@@ -156,7 +156,7 @@ export default function ResMessengerChatScreen() {
       {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.goBack()}>
-          <Image source={require("../images/back.png")} />
+          <Image source={require("../assets/images/back.png")} />
         </TouchableOpacity>
 
         <View style={styles.headerAvatar} />
@@ -166,7 +166,7 @@ export default function ResMessengerChatScreen() {
         </View>
 
         <Pressable style={[styles.headerBtn, { backgroundColor: "#FFFFFF33" }]}>
-          <Image source={require("../images/bell.png")} />
+          <Image source={require("../assets/images/bell.png")} />
         </Pressable>
 
         {/* 라운드 오버레이 (상단 패널 곡률 유지) */}
@@ -200,7 +200,7 @@ export default function ResMessengerChatScreen() {
             returnKeyType="send"
           />
           <TouchableOpacity style={styles.sendBtn} onPress={send}>
-            <Image source={require("../images/chat_message.png")} />
+            <Image source={require("../assets/images/chat_message.png")} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

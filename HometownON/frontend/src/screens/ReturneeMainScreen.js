@@ -17,7 +17,7 @@ import MyMenu from '../components/MyMenu';
 import { getCurrentUser } from '../utils/storage';
 import LocationService from '../services/LocationService';
 import WeatherService from '../services/WeatherService';
-import { testAPIConnection, testSignUpAPI } from '../utils/testAPI';
+
 import { Alert } from 'react-native';
 
 const ReturneeMainScreen = ({ navigation }) => {
@@ -184,35 +184,9 @@ const ReturneeMainScreen = ({ navigation }) => {
     console.log('계정 전환');
   };
 
-  const handleExplorationMission = () => {
-    // 탐색형 미션 화면으로 이동
-    navigation.navigate('ExplorationMission');
-  };
+  
 
-  const handleTestMap = () => {
-    // 지도 테스트 화면으로 이동
-    navigation.navigate('TestMap');
-  };
-
-  const handleTestAPI = async () => {
-    // API 연결 테스트
-    const result = await testAPIConnection();
-    if (result.success) {
-      Alert.alert('성공', 'API 연결이 성공했습니다!');
-    } else {
-      Alert.alert('실패', `API 연결 실패: ${result.error}`);
-    }
-  };
-
-  const handleTestSignUp = async () => {
-    // 회원가입 API 테스트
-    const result = await testSignUpAPI();
-    if (result.success) {
-      Alert.alert('성공', '회원가입 API 테스트 성공!');
-    } else {
-      Alert.alert('실패', `회원가입 API 테스트 실패: ${result.error}`);
-    }
-  };
+  
 
   return (
     <SafeAreaView style={styles.container}>
@@ -282,10 +256,8 @@ const ReturneeMainScreen = ({ navigation }) => {
             onMissionDashboard={handleMissionDashboard}
             onFindEducation={handleFindEducation}
             onBoard={handleBoard}
-            onExplorationMission={handleExplorationMission}
-            onTestMap={handleTestMap}
-            onTestAPI={handleTestAPI}
-            onTestSignUp={handleTestSignUp}
+            
+            
           />
         </ScrollView>
       </View>

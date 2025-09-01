@@ -64,7 +64,7 @@ import BoardScreen from "../screens/BoardScreen";
 import BoardWriteScreen from "../screens/BoardWriteScreen";
 import ChatDetailScreen from "../screens/ChatDetailScreen";
 import FreeBoardScreen from "../screens/FreeBoardScreen";
-import FreeBoardWriteScreen from "../screens/FreeBoardWrite";
+import FreeBoardWriteScreen from "../screens/FreeBoardWriteScreen";
 import MentorBoardScreen from "../screens/MentorBoardScreen";
 import MentorBoardWriteScreen from "../screens/MentorBoardWriteScreen";
 import MentorDetailScreen from "../screens/MentorDetailScreen";

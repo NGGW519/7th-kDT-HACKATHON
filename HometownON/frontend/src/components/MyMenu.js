@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const MyMenu = ({ onAIChatbot, onMissionDashboard, onFindEducation, onBoard, onExplorationMission, onTestMap, onTestAPI, onTestSignUp }) => {
+const MyMenu = ({ onAIChatbot, onMissionDashboard, onFindEducation, onBoard }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [selectedMenus, setSelectedMenus] = useState(['ai', 'mission', 'education']);
   const [availableMenus, setAvailableMenus] = useState([
@@ -10,10 +10,8 @@ const MyMenu = ({ onAIChatbot, onMissionDashboard, onFindEducation, onBoard, onE
     { key: 'mission', title: '미션 대시보드', icon: '📊', handler: onMissionDashboard },
     { key: 'education', title: '교육/멘토 찾기', icon: '💡', handler: onFindEducation },
     { key: 'board', title: '게시판', icon: '📋', handler: onBoard },
-    { key: 'exploration', title: '탐색형 미션', icon: '🗺️', handler: onExplorationMission, subLabel: '지도로 탐색하기' },
-    { key: 'testmap', title: '지도 테스트', icon: '🧪', handler: onTestMap, subLabel: '지도 기능 테스트' },
-    { key: 'testapi', title: 'API 연결 테스트', icon: '🔗', handler: onTestAPI, subLabel: '백엔드 연결 확인' },
-    { key: 'testsignup', title: '회원가입 API 테스트', icon: '👤', handler: onTestSignUp, subLabel: '회원가입 API 확인' },
+    
+    
   ]);
 
   useEffect(() => {
