@@ -70,15 +70,16 @@ CREATE TABLE user_badges (
 #########################################################
 --  미션(추천/수행)
 CREATE TABLE missions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  code VARCHAR(64) UNIQUE,
-  title VARCHAR(200),
-  mission_type ENUM('탐색형','사회유대형','커리어형') NOT NULL,
-  difficulty TINYINT DEFAULT 1,
-  expected_minutes SMALLINT,
-  tags JSON NULL,                 -- ["경로당","마을회관","문화체험"] 등
-  description TEXT,
-  thumbnail_image VARCHAR(500) NULL
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(64) UNIQUE,
+    title VARCHAR(200),
+    mission_type ENUM('exploration', 'bonding', 'career') NOT NULL,
+    difficulty ENUM('easy','medium','hard') DEFAULT 'easy',
+    expected_minutes SMALLINT,
+    tags TEXT,
+    description TEXT,
+    thumbnail_image VARCHAR(500),
+    status ENUM('locked','today','completed') DEFAULT 'today' COMMENT '미션 상태: locked(잠금), today(사용가능), completed(완료)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE mission_parts (
