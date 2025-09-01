@@ -111,6 +111,23 @@ const Tab = createBottomTabNavigator();
 
 
 // 귀향자 탭 네비게이터
+function ReturneeBoardStackScreen() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="BoardHome" component={BoardScreen} />
+      <Stack.Screen name="BoardDetail" component={BoardDetailScreen} />
+      <Stack.Screen name="MentorBoard" component={MentorBoardScreen} />
+      <Stack.Screen name="MentorDetail" component={MentorDetailScreen} />
+      <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
+      <Stack.Screen name="FreeBoard" component={FreeBoardScreen} />
+      <Stack.Screen name="FreeBoardWriteScreen" component={FreeBoardWriteScreen} />
+      <Stack.Screen name="MessengerChatScreen" component={MessengerChatScreen} />
+      <Stack.Screen name="MentorBoardWriteScreen" component={MentorBoardWriteScreen} />
+      <Stack.Screen name="BoardWriteScreen" component={BoardWriteScreen} />
+    </Stack.Navigator>
+  );
+}
+
 const ReturneeTabNavigator = () => {
   return (
     <Tab.Navigator
@@ -160,16 +177,28 @@ const ReturneeTabNavigator = () => {
 
       <Tab.Screen
         name="Board"
-        component={BoardScreen}
-        options={{
-          tabBarLabel: '게시판',
-          tabBarIcon: ({ color, size }) => (
-            <Image 
-              source={require('../assets/images/board.png')} 
-              style={{ width: size, height: size, tintColor: color }}
-              resizeMode="contain"
-            />
-          ),
+        component={ReturneeBoardStackScreen}
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? "BoardHome";
+          const shouldHide =
+            routeName === "ChatDetail" ||
+            routeName === "BoardDetail" ||
+            routeName === "MentorDetail" ||
+            routeName === "RegistrationForm" ||
+            routeName === "FreeBoardWriteScreen" ||
+            routeName === "BoardWriteScreen" ||
+            routeName === "MentorBoardWriteScreen";
+          return {
+            tabBarLabel: "게시판",
+            tabBarIcon: ({ color, size }) => (
+              <Image
+                source={require("../assets/images/board.png")}
+                style={{ width: size, height: size, tintColor: color }}
+                resizeMode="contain"
+              />
+            ),
+            tabBarStyle: shouldHide ? { display: "none" } : defaultTabBarStyle,
+          };
         }}
       />
       <Tab.Screen

@@ -233,12 +233,13 @@ export default function BoardScreen() {
 
   // ✅ 탭별로 연필(작성) 버튼 라우팅
   const handlePressWrite = () => {
+    console.log("Active Tab:", activeTab); // Added for debugging
     if (activeTab === "의뢰 게시판") {
-      navigation.navigate("BoardWriteScreen");        // 의뢰글 작성
+      navigation.navigate("Board", { screen: "BoardWriteScreen", params: { boardType: activeTab } });        // 의뢰글 작성
     } else if (activeTab === "멘토 게시판") {
-      navigation.navigate("MentorBoardWriteScreen");  // 멘토글 작성
+      navigation.navigate("Board", { screen: "MentorBoardWriteScreen", params: { boardType: activeTab } });  // 멘토글 작성
     } else {
-      navigation.navigate("FreeBoardWriteScreen");    // 자유글 작성
+      navigation.navigate("Board", { screen: "FreeBoardWriteScreen", params: { boardType: activeTab } });    // 자유글 작성
     }
   };
 

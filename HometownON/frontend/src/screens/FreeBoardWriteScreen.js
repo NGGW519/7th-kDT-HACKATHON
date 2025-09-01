@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { getCurrentUser } from '../utils/storage';
 
-const FreeBoardWriteScreen = ({ navigation }) => {
+const FreeBoardWriteScreen = ({ navigation, route }) => { // Add route prop
+  const { boardType } = route.params || {}; // Extract boardType from params
   const [currentUser, setCurrentUser] = useState(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -83,7 +84,11 @@ const FreeBoardWriteScreen = ({ navigation }) => {
           >
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>자유게시판 작성</Text>
+          <Text style={styles.headerTitle}>
+            {boardType === "의뢰 게시판" ? "의뢰 게시글 작성" :
+             boardType === "멘토 게시판" ? "멘토 게시글 작성" :
+             "자유 게시글 작성"}
+          </Text>
           <TouchableOpacity 
             style={[styles.submitButton, (!title.trim() || !content.trim()) && styles.submitButtonDisabled]}
             onPress={handleSubmit}

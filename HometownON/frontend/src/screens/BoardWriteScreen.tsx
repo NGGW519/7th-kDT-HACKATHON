@@ -34,8 +34,9 @@ const CATEGORIES = [
   { key: "installation", title: "설치", icon: "🔨" },
 ];
 
-export default function BoardWriteScreen() {
+export default function BoardWriteScreen({ route }) { // Add route prop
   const navigation = useNavigation();
+  const { boardType } = route.params || {}; // Extract boardType from params
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [title, setTitle] = useState("");
@@ -113,7 +114,11 @@ export default function BoardWriteScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>의뢰 게시글 작성</Text>
+          <Text style={styles.headerTitle}>
+            {boardType === "멘토 게시판" ? "멘토 게시글 작성" :
+             boardType === "자유 게시판" ? "자유 게시글 작성" :
+             "의뢰 게시글 작성"}
+          </Text>
         </View>
 
         <TouchableOpacity

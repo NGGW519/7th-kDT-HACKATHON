@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { getCurrentUser } from '../utils/storage';
 
-const MentorBoardWriteScreen = ({ navigation }) => {
+const MentorBoardWriteScreen = ({ navigation, route }) => { // Add route prop
+  const { boardType } = route.params || {}; // Extract boardType from params
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -86,7 +87,11 @@ const MentorBoardWriteScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>게시글 작성</Text>
+          <Text style={styles.headerTitle}>
+            {boardType === "의뢰 게시판" ? "의뢰 게시글 작성" :
+             boardType === "자유 게시판" ? "자유 게시글 작성" :
+             "멘토 게시글 작성"}
+          </Text>
           <TouchableOpacity
             style={[styles.submitButton, (!title.trim() || !content.trim()) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
