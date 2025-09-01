@@ -105,14 +105,6 @@ import ResMyPageScreen from "../screens/ResMyPageScreen";
 import ResSettingsScreen from "../screens/ResSettingsScreen";
 
 
-export type BoardStackParamList = {
-  BoardHome: undefined;
-  BoardDetail: undefined;
-  RegistrationForm: undefined;
-  MentorBoard: undefined;
-  MentorDetail: undefined;
-  ChatDetail: { chat: { name: string; subtitle: string } };
-};
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -215,7 +207,7 @@ const ReturneeTabNavigator = () => {
 // -- 박현아 -- //
 
 const ResMessengerStack = createNativeStackNavigator();
-const ResBoardStack = createNativeStackNavigator<BoardStackParamList>();
+const ResBoardStack = createNativeStackNavigator();
 const ResMypageStack = createNativeStackNavigator();
 const ResJobsStack = createNativeStackNavigator();
 const ResHomeStack = createNativeStackNavigator();
@@ -425,7 +417,7 @@ const ResidentTabNavigator = () => {
 // 멘토 
 
 const MentorMessengerStack = createNativeStackNavigator();
-const MentorBoardStack = createNativeStackNavigator<BoardStackParamList>();
+const MentorBoardStack = createNativeStackNavigator();
 const MentorMypageStack = createNativeStackNavigator();
 const MentorJobsStack = createNativeStackNavigator();
 const MentorHomeStack = createNativeStackNavigator();
