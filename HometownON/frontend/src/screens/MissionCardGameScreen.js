@@ -16,68 +16,62 @@ const { width } = Dimensions.get('window');
 const MissionCardGameScreen = ({ navigation, route }) => {
   const { type } = route.params;
   const [completedMissions, setCompletedMissions] = useState([]);
-    const [cards, setCards] = useState([
-    {
-      id: 5,
-      title: '공원 산책하기',
-      description: '지역 공원을 산책하며 자연을 느껴보세요',
-      type: 'exploration',
-      status: 'completed',
-      image: require('../assets/images/mission2.png'),
-      todayImage: require('../assets/images/mission1.png'),
-      completedImage: require('../assets/images/mission_complete.png'),
-    },
-    {
-      id: 1,
-      title: '모교 방문하기',
-      description: '초등학교를 방문하여 추억을 되새겨보세요',
-      type: 'exploration',
-      status: 'today', // locked, today, completed
-      image: require('../assets/images/mission2.png'),
-      todayImage: require('../assets/images/mission1.png'),
-      completedImage: require('../assets/images/mission_complete.png'),
-    },
-    {
-      id: 2,
-      title: '시장 탐방하기',
-      description: '지역 시장을 둘러보고 특산품을 찾아보세요',
-      type: 'exploration',
-      status: 'locked',
-      image: require('../assets/images/mission2.png'),
-      todayImage: require('../assets/images/mission1.png'),
-      completedImage: require('../assets/images/mission_complete.png'),
-    },
-    {
-      id: 3,
-      title: '주민과 대화하기',
-      description: '이웃과 인사를 나누고 대화를 시작해보세요',
-      type: 'bonding',
-      status: 'locked',
-      image: require('../assets/images/mission2.png'),
-      todayImage: require('../assets/images/mission1.png'),
-      completedImage: require('../assets/images/mission_complete.png'),
-    },
-    {
-      id: 4,
-      title: '도서관 방문하기',
-      description: '지역 도서관에서 책을 읽어보세요',
-      type: 'career',
-      status: 'locked',
-      image: require('../assets/images/mission2.png'),
-      todayImage: require('../assets/images/mission1.png'),
-      completedImage: require('../assets/images/mission_complete.png'),
-    },
-    {
-      id: 6,
-      title: '전통시장 구경하기',
-      description: '전통시장의 분위기를 느껴보세요',
-      type: 'bonding',
-      status: 'locked',
-      image: require('../assets/images/mission2.png'),
-      todayImage: require('../assets/images/mission1.png'),
-      completedImage: require('../assets/images/mission_complete.png'),
-    },
-  ]);
+  const [cards, setCards] = useState([]); // Initialize as empty, will be populated by fetch
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null); // Error state
+
+  useEffect(() => {
+    const fetchCards = async () => {
+      try {
+        const response = await fetch('http://192.168.0.42:8000/api/missions');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // Filter by type and map to frontend card structure
+        const filteredAndMappedCards = data
+          .filter(mission => {
+            let backendMissionType = '';
+            switch (type) {
+              case '탐색': backendMissionType = 'exploration'; break;
+              case '유대': backendMissionType = 'bonding'; break;
+              case '커리어': backendMissionType = 'career'; break;
+              default: backendMissionType = ''; // Should not happen if types are consistent
+            }
+            return mission.mission_type === backendMissionType;
+          }) // Filter by mission_type
+          .map((mission, index) => {
+            // Simulate frontend statuses for now
+            let status = 'locked'; // Default to locked
+            if (index === 0) { // Make the first one 'today'
+              status = 'today';
+            } else if (mission.title === '공원 산책하기') { // Example: make a specific one 'completed'
+              status = 'completed';
+            }
+
+            return {
+              id: mission.id,
+              title: mission.title,
+              description: mission.description,
+              type: mission.mission_type, // Use mission_type from backend
+              status: status, // Use simulated status
+              image: require('../assets/images/mission2.png'), // Placeholder
+              todayImage: require('../assets/images/mission1.png'), // Placeholder
+              completedImage: require('../assets/images/mission_complete.png'), // Placeholder
+            };
+          });
+        setCards(filteredAndMappedCards);
+      } catch (e) {
+        setError(e);
+        console.error("Failed to fetch cards:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCards();
+  }, [type]); // Re-fetch if type changes
 
 
 
@@ -193,10 +187,16 @@ const MissionCardGameScreen = ({ navigation, route }) => {
       </SafeAreaView>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* 카드 그리드 */}
-        <View style={styles.cardGrid}>
-          {cards.map(renderCard)}
-        </View>
+        {loading && <Text style={styles.loadingText}>미션 로딩 중...</Text>}
+        {error && <Text style={styles.errorText}>미션 로드 실패: {error.message}</Text>}
+        {!loading && !error && cards.length === 0 && (
+          <Text style={styles.noCardsText}>표시할 미션 카드가 없습니다.</Text>
+        )}
+        {!loading && !error && (
+          <View style={styles.cardGrid}>
+            {cards.map(renderCard)}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

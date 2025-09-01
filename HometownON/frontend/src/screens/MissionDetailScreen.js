@@ -7,17 +7,72 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
-  Image,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
 const MissionDetailScreen = ({ navigation, route }) => {
-  const { type } = route.params;
+  const { type, cardId } = route.params; // Get cardId from params
   const [missionStarted, setMissionStarted] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
 
+  const [missionDetails, setMissionDetails] = useState(null); // State for fetched mission details
+  const [locationDetails, setLocationDetails] = useState(null); // State for fetched location details
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null); // Error state
 
   useEffect(() => {
+  const fetchMissionDetails = async () => {
+  try {
+    const missionResponse = await fetch(`http://192.168.0.42:8000/api/missions/${cardId}`); // Fetch by ID
+    if (!missionResponse.ok) {
+      throw new Error(`HTTP error! status: ${missionResponse.status}`);
+    }
+    const missionData = await missionResponse.json();
+    setMissionDetails(missionData);
+
+    // Extract location name from mission title (temporary logic)
+    // Assuming mission title is like "장소이름 방문하기"
+    const locationNameMatch = missionData.title.match(/(.*) 방문하기/);
+    const locationName = locationNameMatch ? locationNameMatch[1] : null;
+
+    if (locationName) {
+      try {
+        const locationResponse = await fetch(
+          `http://192.168.0.42:8000/api/locations/by_name/${encodeURIComponent(locationName)}`
+        );
+        if (!locationResponse.ok) {
+          throw new Error(`HTTP error! status: ${locationResponse.status}`);
+        }
+        const locationData = await locationResponse.json();
+        // Parse POINT(lon lat) from geom
+        const geomMatch = locationData.geom.match(/POINT\(([^ ]+) ([^ ]+)\)/);
+        if (geomMatch) {
+          const latitude = parseFloat(geomMatch[1]);  // This is the latitude
+          const longitude = parseFloat(geomMatch[2]); // This is the longitude
+          setLocationDetails({
+            ...locationData,
+            coordinates: { latitude, longitude }
+          });
+        } else {
+          // console.warn("Could not parse geom:", locationData.geom); // Removed log
+        }
+      } catch (e) {
+        // console.error("Failed to fetch location details:", e); // Removed log
+        // Don't set error for main mission if location fails, just log
+      }
+    } else {
+      // console.warn("No location name extracted from mission title."); // Removed log
+    }
+  } catch (e) {
+    setError(e);
+    // console.error("Failed to fetch mission details:", e); // Removed log
+  } finally {
+    setLoading(false);
+  }
+};
+
+    fetchMissionDetails();
+
     let interval;
     if (missionStarted && timeElapsed < 60) {
       interval = setInterval(() => {
@@ -25,58 +80,17 @@ const MissionDetailScreen = ({ navigation, route }) => {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [missionStarted, timeElapsed]);
+  }, [missionStarted, timeElapsed, cardId]);
 
-  const getMissionData = () => {
-    switch (type) {
-      case 'exploration':
-        return {
-          title: '나의 모교 초등학교 방문하기',
-          address: '경남 함안군 가야읍 함안대로 585-1 585-2',
-          instruction: '탐색형 미션은 1분 동안 머무르면 미션 완료 버튼이 활성화됩니다',
-          icon: '🎲',
-          coordinates: {
-            latitude: 35.2722,   // 함안 초등학교 위도
-            longitude: 128.4061, // 함안 초등학교 경도
-          },
-        };
-      case 'bonding':
-        return {
-          title: '지역 주민과의 만남',
-          address: '경남 함안군 가야읍 시장로 123',
-          instruction: '유대형 미션은 지역 주민과 대화를 나누면 미션 완료 버튼이 활성화됩니다',
-          icon: '🤝',
-          coordinates: {
-            latitude: 35.2700,   // 함안 시장 위도
-            longitude: 128.4050, // 함안 시장 경도
-          },
-        };
-      case 'career':
-        return {
-          title: '새로운 기술 배우기',
-          address: '경남 함안군 가야읍 교육로 456',
-          instruction: '커리어형 미션은 새로운 기술을 배우면 미션 완료 버튼이 활성화됩니다',
-          icon: '💼',
-          coordinates: {
-            latitude: 35.2750,   // 함안 교육센터 위도
-            longitude: 128.4080, // 함안 교육센터 경도
-          },
-        };
-      default:
-        return {
-          title: '미션 | LV.1',
-          address: '경남 함안군 가야읍',
-          instruction: '미션을 수행하면 완료 버튼이 활성화됩니다',
-          icon: '🎯',
-          coordinates: {
-            latitude: 35.2722,   // 기본 함안군 위도
-            longitude: 128.4061, // 기본 함안군 경도
-          },
-        };
+  // md 파일에서 추가된 부분
+  const getMissionIcon = (missionType) => {
+    switch (missionType) {
+      case 'exploration': return '🎲';
+      case 'bonding': return '🤝';
+      case 'career': return '💼';
+      default: return '🎯'; // Default icon
     }
   };
-
-  const missionData = getMissionData();
 
   const handleStartMission = () => {
     setMissionStarted(true);
@@ -93,12 +107,7 @@ const MissionDetailScreen = ({ navigation, route }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-
-
-
-
-
-
+  // md 파일의 new_string 반영
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#6956E5" />
@@ -120,94 +129,109 @@ const MissionDetailScreen = ({ navigation, route }) => {
       </SafeAreaView>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Mission Card */}
-        <View style={styles.missionCard}>
-          {/* Mission Header */}
-          <View style={styles.missionHeader}>
-            <Text style={styles.missionIcon}>{missionData.icon}</Text>
-            <Text style={styles.missionTitle}>{missionData.title}</Text>
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>LV.1</Text>
+        {loading && <Text style={styles.loadingText}>미션 상세 로딩 중...</Text>}
+        {error && <Text style={styles.errorText}>미션 상세 로드 실패: {error.message}</Text>}
+        {!loading && !error && !missionDetails && (
+          <Text style={styles.noMissionDetailsText}>미션 상세 정보를 찾을 수 없습니다.</Text>
+        )}
+        {!loading && !error && missionDetails && (
+          /* Mission Card */
+          <View style={styles.missionCard}>
+            {/* Mission Header */}
+            <View style={styles.missionHeader}>
+              <Text style={styles.missionIcon}>{getMissionIcon(missionDetails.mission_type)}</Text>
+              <Text style={styles.missionTitle}>{missionDetails.title}</Text>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>난이도: {missionDetails.difficulty}</Text>
+              </View>
             </View>
-          </View>
 
-          {/* Map */}
-          <View style={styles.mapContainer}>
-            <MapView
-              style={styles.map}
-              initialRegion={{
-                latitude: missionData.coordinates.latitude,
-                longitude: missionData.coordinates.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-              showsUserLocation={true}
-              showsMyLocationButton={true}
-              onMapReady={() => {
-                console.log('✅ 미션 상세 지도 로드 완료!');
-              }}
-              onError={(error) => {
-                console.error('❌ 미션 상세 지도 오류:', error);
-              }}
-            >
-              <Marker
-                coordinate={{
-                  latitude: missionData.coordinates.latitude,
-                  longitude: missionData.coordinates.longitude,
-                }}
-                title={missionData.title}
-                description={missionData.address}
-                pinColor="red"
-              />
-            </MapView>
-          </View>
+            {/* Map */}
+            {locationDetails && locationDetails.coordinates ? (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: locationDetails.coordinates.latitude,
+                    longitude: locationDetails.coordinates.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                  showsUserLocation={true}
+                  showsMyLocationButton={true}
+                  onMapReady={() => {
+                    console.log('✅ 미션 상세 지도 로드 완료!');
+                  }}
+                  onError={(error) => {
+                    console.error('❌ 미션 상세 지도 오류:', error);
+                  }}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: locationDetails.coordinates.latitude,
+                      longitude: locationDetails.coordinates.longitude,
+                    }}
+                    title={locationDetails.name}
+                    description={locationDetails.address}
+                    pinColor="red"
+                  />
+                </MapView>
+              </View>
+            ) : (
+              <View style={styles.mapContainer}>
+                <Text style={styles.loadingText}>지도 로딩 중...</Text>
+              </View>
+            )}
 
-          {/* Address */}
-          <View style={styles.addressContainer}>
-            <Text style={styles.locationIcon}>📍</Text>
-            <Text style={styles.address}>{missionData.address}</Text>
-          </View>
+            {/* Address */}
+            {locationDetails && (
+              <View style={styles.addressContainer}>
+                <Text style={styles.locationIcon}>📍</Text>
+                <Text style={styles.address}>{locationDetails.address}</Text>
+              </View>
+            )}
 
-          {/* Timer (if mission started) */}
-          {missionStarted && (
-            <View style={styles.timerContainer}>
-              <Text style={styles.timerText}>경과 시간: {formatTime(timeElapsed)}</Text>
+            {/* Timer */}
+            {missionStarted && (
+              <View style={styles.timerContainer}>
+                <Text style={styles.timerText}>경과 시간: {formatTime(timeElapsed)}</Text>
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.startButton, missionStarted && styles.disabledButton]}
+                onPress={handleStartMission}
+                disabled={missionStarted}
+              >
+                <Text style={styles.startButtonText}>
+                  {missionStarted ? '미션 진행 중...' : '미션 시작'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[ 
+                  styles.completeButton,
+                  (!missionStarted || timeElapsed < 60) && styles.disabledButton
+                ]}
+                onPress={handleCompleteMission}
+                disabled={!missionStarted || timeElapsed < 60}
+              >
+                <Text style={styles.completeButtonText}>미션 완료</Text>
+              </TouchableOpacity>
             </View>
-          )}
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.startButton, missionStarted && styles.disabledButton]}
-              onPress={handleStartMission}
-              disabled={missionStarted}
-            >
-              <Text style={styles.startButtonText}>
-                {missionStarted ? '미션 진행 중...' : '미션 시작'}
-              </Text>
-            </TouchableOpacity>
+            {/* Instruction */}
+            <Text style={styles.instruction}>{missionDetails.description}</Text>
 
-            <TouchableOpacity
-              style={[
-                styles.completeButton,
-                (!missionStarted || timeElapsed < 60) && styles.disabledButton
-              ]}
-              onPress={handleCompleteMission}
-              disabled={!missionStarted || timeElapsed < 60}
-            >
-              <Text style={styles.completeButtonText}>미션 완료</Text>
+            {/* Mission Guide Button */}
+            <TouchableOpacity style={styles.guideButton}>
+              <Text style={styles.guideIcon}>{getMissionIcon(missionDetails.mission_type)}</Text>
+              <Text style={styles.guideText}>미션 수행 방법 안내</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Instruction */}
-          <Text style={styles.instruction}>{missionData.instruction}</Text>
-
-          {/* Mission Guide Button */}
-          <TouchableOpacity style={styles.guideButton}>
-            <Text style={styles.guideIcon}>{missionData.icon}</Text>
-            <Text style={styles.guideText}>미션 수행 방법 안내</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -330,7 +354,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   timerContainer: {
-    backgroundColor: 'linear-gradient(135deg, #FFD700, #FFA000)',
+    backgroundColor: '#FF9800',
     marginHorizontal: 20,
     marginBottom: 15,
     padding: 15,
@@ -351,9 +375,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#FFF',
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -448,4 +469,3 @@ const styles = StyleSheet.create({
 });
 
 export default MissionDetailScreen;
-

@@ -89,14 +89,15 @@ class UserBadge(Base):
 class Mission(Base):
     __tablename__ = 'missions'
     id = Column(BIGINT, primary_key=True, autoincrement=True)
-    code = Column(VARCHAR(64), unique=True)
-    title = Column(VARCHAR(200))
-    mission_type = Column(Enum('탐색형', '사회유대형', '커리어형'), nullable=False)
-    difficulty = Column(TINYINT, default=1)
-    expected_minutes = Column(SMALLINT)
-    tags = Column(JSON, nullable=True)
-    description = Column(TEXT)
+    code = Column(VARCHAR(255), unique=True, index=True, nullable=False)
+    title = Column(VARCHAR(255), nullable=False)
+    mission_type = Column(VARCHAR(50), nullable=False)
+    difficulty = Column(VARCHAR(50), nullable=False)
+    expected_minutes = Column(SMALLINT, nullable=False)
+    tags = Column(VARCHAR(255), nullable=True)
+    description = Column(TEXT, nullable=True)
     thumbnail_image = Column(VARCHAR(500), nullable=True)
+    status = Column(Enum('today','locked','completed'), default="today")
 
     parts = relationship("MissionPart", back_populates="mission")
 

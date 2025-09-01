@@ -22,46 +22,108 @@ const MissionListScreen = ({ navigation, route }) => {
   const progressPercentage = (currentExp / expForNextLevel) * 100;
   const expNeeded = expForNextLevel - currentExp;
 
-  const missionTypes = [
-    {
-      id: 1,
-      title: '탐색형 미션',
-      description: '새로운 장소를 탐험하고 발견하는 미션',
-      icon: '🎲',
-      level: 3,
-      color: '#FF6B6B',
-      completed: 8,
-      total: 12,
-      expReward: 150,
-      progress: 67,
-    },
-    {
-      id: 2,
-      title: '유대형 미션',
-      description: '지역 주민과의 관계를 돈독히 하는 미션',
-      icon: '🤝',
-      level: 2,
-      color: '#4ECDC4',
-      completed: 5,
-      total: 10,
-      expReward: 120,
-      progress: 50,
-    },
-    {
-      id: 3,
-      title: '커리어형 미션',
-      description: '새로운 기술과 경험을 쌓는 미션',
-      icon: '💼',
-      level: 1,
-      color: '#45B7D1',
-      completed: 2,
-      total: 8,
-      expReward: 100,
-      progress: 25,
-    },
-  ];
+  const [missions, setMissions] = useState([]); // State for raw fetched missions
+  const [missionTypesForDisplay, setMissionTypesForDisplay] = useState([]); // State for processed mission types
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null); // Error state
+
+  // Helper to process raw missions into missionTypes structure
+  const processMissionsForDisplay = (rawMissions) => {
+    const typesMap = {};
+
+    rawMissions.forEach(mission => {
+      const typeKey = mission.mission_type;
+      if (!typesMap[typeKey]) {
+        typesMap[typeKey] = {
+          id: typeKey, // Use type as ID
+          title: '', // Will map later
+          description: '', // Will map later
+          icon: '', // Will map later
+          level: 1, // Placeholder
+          color: '', // Will map later
+          completed: 0, // Placeholder
+          total: 0, // Placeholder
+          expReward: 0, // Placeholder
+          progress: 0, // Placeholder
+        };
+      }
+      typesMap[typeKey].total += 1; // Count total missions of this type
+      // For completed/progress, we'd need user-specific data, so keeping as placeholder for now
+    });
+
+    // Map backend types to frontend display titles, icons, colors
+    const frontendMissionTypes = Object.values(typesMap).map(typeData => {
+      let title = '';
+      let description = '';
+      let icon = '';
+      let color = '';
+
+      switch (typeData.id) {
+        case 'exploration':
+          title = '탐색형 미션';
+          description = '새로운 장소를 탐험하고 발견하는 미션';
+          icon = '🎲';
+          color = '#FF6B6B';
+          break;
+        case 'bonding':
+          title = '유대형 미션';
+          description = '지역 주민과의 관계를 돈독히 하는 미션';
+          icon = '🤝';
+          color = '#4ECDC4';
+          break;
+        case 'career':
+          title = '커리어형 미션';
+          description = '새로운 기술과 경험을 쌓는 미션';
+          icon = '💼';
+          color = '#45B7D1';
+          break;
+        default:
+          title = typeData.id; // Fallback
+          description = '미션 설명';
+          icon = '🎯';
+          color = '#6956E5';
+      }
+
+      return {
+        ...typeData,
+        title,
+        description,
+        icon,
+        color,
+        // Keep placeholders for completed, total, expReward, progress
+      };
+    });
+
+    return frontendMissionTypes;
+  };
 
   useEffect(() => {
+    // Fetch missions from backend
+    const fetchMissions = async () => {
+      console.log("Attempting to fetch missions...");
+      try {
+        const response = await fetch('http://192.168.0.42:8000/api/missions'); // Adjust URL if needed
+        console.log("Response received. response.ok:", response.ok, "status:", response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log("Missions data fetched successfully:", data);
+
+        // Process fetched missions to create missionTypes structure
+        const processedMissionTypes = processMissionsForDisplay(data);
+        setMissionTypesForDisplay(processedMissionTypes); // New state for processed data
+        setMissions(data); // Keep raw missions for other uses if needed
+      } catch (e) {
+        setError(e);
+        console.error("Failed to fetch missions:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMissions();
+
     // 진행률 애니메이션
     Animated.timing(progressAnimation, {
       toValue: progressPercentage,
@@ -69,6 +131,24 @@ const MissionListScreen = ({ navigation, route }) => {
       useNativeDriver: false,
     }).start();
   }, [progressPercentage]);
+
+  const getMissionIcon = (missionType) => {
+    switch (missionType) {
+      case 'exploration': return '🎲';
+      case 'bonding': return '🤝';
+      case 'career': return '💼';
+      default: return '🎯'; // Default icon
+    }
+  };
+
+  const getMissionColor = (missionType) => {
+    switch (missionType) {
+      case 'exploration': return '#FF6B6B';
+      case 'bonding': return '#4ECDC4';
+      case 'career': return '#45B7D1';
+      default: return '#6956E5'; // Default color
+    }
+  };
 
   const renderStars = (level) => {
     const stars = [];
@@ -158,38 +238,43 @@ const MissionListScreen = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {missionTypes.map((mission) => (
+        {loading && <Text style={styles.loadingText}>미션 로딩 중...</Text>}
+        {error && <Text style={styles.errorText}>미션 로드 실패: {error.message}</Text>}
+        {!loading && !error && missionTypesForDisplay.length === 0 && (
+          <Text style={styles.noMissionsText}>표시할 미션이 없습니다.</Text>
+        )}
+        {!loading && !error && missionTypesForDisplay.map((missionType) => (
           <TouchableOpacity
-            key={mission.id}
-            style={[styles.missionCard, { borderLeftColor: mission.color }]}
-            onPress={() => handleMissionSelect(mission)}
+            key={missionType.id}
+            style={[styles.missionCard, { borderLeftColor: missionType.color }]}
+            onPress={() => handleMissionSelect(missionType)}
           >
             <View style={styles.missionHeader}>
               <View style={styles.missionInfo}>
-                <Text style={styles.missionIcon}>{mission.icon}</Text>
+                <Text style={styles.missionIcon}>{missionType.icon}</Text>
                 <View style={styles.missionText}>
-                  <Text style={styles.missionTitle}>{mission.title}</Text>
-                  <Text style={styles.missionDescription}>{mission.description}</Text>
+                  <Text style={styles.missionTitle}>{missionType.title}</Text>
+                  <Text style={styles.missionDescription}>{missionType.description}</Text>
                   <View style={styles.missionProgress}>
                     <View style={styles.progressBarSmall}>
-                      <View 
+                      <View
                         style={[
-                          styles.progressFillSmall, 
-                          { width: `${mission.progress}%`, backgroundColor: mission.color }
-                        ]} 
+                          styles.progressFillSmall,
+                          { width: `${missionType.progress}%`, backgroundColor: missionType.color }
+                        ]}
                       />
                     </View>
                     <Text style={styles.progressTextSmall}>
-                      {mission.completed}/{mission.total} 완료 ({mission.progress}%)
+                      {missionType.completed}/{missionType.total} 완료 ({missionType.progress}%)
                     </Text>
                   </View>
                 </View>
               </View>
               <View style={styles.missionLevel}>
-                <Text style={styles.levelText}>LV.{mission.level}</Text>
-                <Text style={styles.starsText}>{renderStars(mission.level)}</Text>
+                <Text style={styles.levelText}>LV.{missionType.level}</Text>
+                <Text style={styles.starsText}>{renderStars(missionType.level)}</Text>
                 <View style={styles.expReward}>
-                  <Text style={styles.expRewardText}>+{mission.expReward} EXP</Text>
+                  <Text style={styles.expRewardText}>+{missionType.expReward} EXP</Text>
                 </View>
               </View>
             </View>
