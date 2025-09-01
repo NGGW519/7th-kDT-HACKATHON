@@ -6,7 +6,9 @@ from .GeneratePostAgent import run_generate_post_agent
 from .GenerateMissionAgent import run_generate_mission_agent
 from .DatabaseSearchAgent import run_database_search_agent
 from .AnswerGenerationAgent import run_answer_generation_agent
+from langgraph.checkpoint.memory import MemorySaver
 
+memory = MemorySaver()
 # Define the function that determines which node to route to
 def should_continue(state: AgentState):
     return state["intent"]
@@ -45,4 +47,4 @@ workflow.add_edge("GeneratePostAgent", END)
 workflow.add_edge("GenerateMissionAgent", END)
 
 # Compile the graph into a runnable object
-app = workflow.compile()
+app = workflow.compile(checkpointer=memory)
