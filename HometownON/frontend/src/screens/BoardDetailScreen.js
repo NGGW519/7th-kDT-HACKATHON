@@ -12,40 +12,40 @@ import {
   View
 } from 'react-native';
 import { getCurrentUser } from '../utils/storage';
+import API_URL from '../config/apiConfig';
+
+import AuthService from '../services/AuthService';
 
 const BoardDetailScreen = ({ navigation, route }) => {
-  const { post } = route.params;
+  const { post: initialPost } = route.params;
+  const [post, setPost] = useState(initialPost);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.likes);
+  const [likeCount, setLikeCount] = useState(initialPost.likes_count);
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState([
-    {
-      id: 1,
-      author: '김멘토',
-      content: '저도 비슷한 경험이 있어요. 처음에는 어려웠지만 지역 주민분들과 소통하면서 점점 적응하게 되었습니다. 천천히 해보세요!',
-      createdAt: '2024-01-15 14:30',
-      isAuthor: false,
-    },
-    {
-      id: 2,
-      author: '박지역',
-      content: '우리 동네에 귀향자 모임이 있어요. 함께 참여해보시는 건 어떨까요?',
-      createdAt: '2024-01-15 15:20',
-      isAuthor: false,
-    },
-    {
-      id: 3,
-      author: '이도시',
-      content: '정말 공감됩니다. 저도 도시에서 고향으로 돌아온 지 1년이 되었는데, 아직도 적응 중이에요.',
-      createdAt: '2024-01-15 16:15',
-      isAuthor: false,
-    },
-  ]);
+  const [comments, setComments] = useState([]);
 
   useEffect(() => {
     loadUserData();
+    fetchPostDetails();
   }, []);
+
+  const fetchPostDetails = async () => {
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_URL}/api/board/${initialPost.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setPost(data);
+      setComments(data.comments);
+      setLikeCount(data.likes_count);
+    } catch (error) {
+      console.error('Error fetching post details:', error);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -58,49 +58,76 @@ const BoardDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleLike = () => {
-    if (isLiked) {
-      setLikeCount(prev => prev - 1);
-    } else {
-      setLikeCount(prev => prev + 1);
+  const handleLike = async () => {
+    const url = `${API_URL}/api/board/${post.id}/${isLiked ? 'unlike' : 'like'}`;
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(url, { 
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        setIsLiked(!isLiked);
+        setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+      } else {
+        Alert.alert('오류', '좋아요 처리를 하지 못했습니다.');
+      }
+    } catch (error) {
+      console.error('Error liking post:', error);
+      Alert.alert('오류', '좋아요 처리 중 오류가 발생했습니다.');
     }
-    setIsLiked(!isLiked);
   };
 
-  const handleComment = () => {
+  const handleComment = async () => {
     if (!commentText.trim()) {
       Alert.alert('알림', '댓글을 입력해주세요.');
       return;
     }
 
-    const newComment = {
-      id: comments.length + 1,
-      author: currentUser?.returnName || currentUser?.name || '익명',
-      content: commentText.trim(),
-      createdAt: new Date().toLocaleString('ko-KR'),
-      isAuthor: true,
-    };
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_URL}/board/${post.id}/comments`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: commentText.trim() }),
+        }
+      );
 
-    setComments(prev => [newComment, ...prev]);
-    setCommentText('');
+      if (response.ok) {
+        const newComment = await response.json();
+        setComments(prev => [newComment, ...prev]);
+        setCommentText('');
+      } else {
+        Alert.alert('오류', '댓글을 작성하지 못했습니다.');
+      }
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      Alert.alert('오류', '댓글을 작성하는 중 오류가 발생했습니다.');
+    }
   };
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'community': return '👥';
-      case 'career': return '💼';
-      case 'lifestyle': return '🏠';
-      case 'question': return '❓';
+      case '일상': return '☀️';
+      case '맛집': return '🍽️';
+      case '추억': return '💭';
+      case '기타': return '🌿';
       default: return '📋';
     }
   };
 
   const getCategoryTitle = (category) => {
     switch (category) {
-      case 'community': return '커뮤니티';
-      case 'career': return '커리어';
-      case 'lifestyle': return '라이프스타일';
-      case 'question': return '질문';
+      case '일상': return '일상';
+      case '맛집': return '맛집';
+      case '추억': return '추억';
+      case '기타': return '기타';
       default: return '기타';
     }
   };
@@ -119,10 +146,9 @@ const BoardDetailScreen = ({ navigation, route }) => {
             style={styles.commentAvatar}
             resizeMode="contain"
           />
-          <Text style={styles.commentAuthorName}>{item.author}</Text>
-          {item.isAuthor && <Text style={styles.authorBadge}>작성자</Text>}
+          <Text style={styles.commentAuthorName}>{item.author?.profile?.display_name || '익명'}</Text>
         </View>
-        <Text style={styles.commentDate}>{item.createdAt}</Text>
+        <Text style={styles.commentDate}>{formatDate(item.created_at)}</Text>
       </View>
       <Text style={styles.commentContent}>{item.content}</Text>
     </View>
@@ -156,9 +182,8 @@ const BoardDetailScreen = ({ navigation, route }) => {
               <Text style={styles.categoryTag}>
                 {getCategoryIcon(post.category)} {getCategoryTitle(post.category)}
               </Text>
-              {post.isNew && <Text style={styles.newTag}>NEW</Text>}
             </View>
-            <Text style={styles.postDate}>{formatDate(post.createdAt)}</Text>
+            <Text style={styles.postDate}>{formatDate(post.created_at)}</Text>
           </View>
           
           <Text style={styles.postTitle}>{post.title}</Text>
@@ -170,7 +195,7 @@ const BoardDetailScreen = ({ navigation, route }) => {
               resizeMode="contain"
             />
             <View style={styles.authorDetails}>
-              <Text style={styles.authorName}>{post.author}</Text>
+              <Text style={styles.authorName}>{post.author?.profile?.display_name || '익명'}</Text>
               <Text style={styles.authorType}>귀향자</Text>
             </View>
           </View>
@@ -178,10 +203,6 @@ const BoardDetailScreen = ({ navigation, route }) => {
           <Text style={styles.postContent}>{post.content}</Text>
           
           <View style={styles.postStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>👁️</Text>
-              <Text style={styles.statText}>조회 {post.views}</Text>
-            </View>
             <View style={styles.statItem}>
               <Text style={styles.statIcon}>💬</Text>
               <Text style={styles.statText}>댓글 {comments.length}</Text>

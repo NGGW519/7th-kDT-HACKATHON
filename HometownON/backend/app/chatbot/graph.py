@@ -6,6 +6,7 @@ from .GeneratePostAgent import run_generate_post_agent
 # Import the new tool-based agent function
 from .GenerateMissionAgent import run_mission_generation_agent 
 from .AnswerGenerationAgent import run_answer_generation_agent
+from .DatabaseSearchAgent import run_database_search_agent
 from langgraph.checkpoint.memory import MemorySaver
 
 memory = MemorySaver()
@@ -19,9 +20,26 @@ def should_continue(state: AgentState):
         return "GeneratePostAgent"
     # Any other database search can go to a generic answer agent if needed
     elif state.get("intent") == "DatabaseSearch":
-        return "AnswerGenerationAgent" 
+        return "DatabaseSearchAgent" 
     else:
         return "GeneralChatAgent"
+
+# Check what the next task should be based on the work plan
+def get_next_task(state: AgentState):
+    """Get the next task from the work plan"""
+    work_plan = state.get("work_plan", [])
+    current_index = state.get("current_task_index", 0)
+    
+    print(f"Current state: work_plan={work_plan}, current_index={current_index}")
+    
+    # The current_index should already be the next task index after agent completion
+    if current_index < len(work_plan):
+        next_task = work_plan[current_index]
+        print(f"Next task: {next_task} (index {current_index})")
+        return next_task
+    else:
+        print("All tasks completed")
+        return "END"
 
 workflow = StateGraph(AgentState)
 
@@ -33,6 +51,8 @@ workflow.add_node("GeneratePostAgent", run_generate_post_agent)
 workflow.add_node("MissionGenerationAgent", run_mission_generation_agent)
 # This agent can handle generic DB searches that don't result in missions
 workflow.add_node("AnswerGenerationAgent", run_answer_generation_agent)
+# Database search agent for location/information queries
+workflow.add_node("DatabaseSearchAgent", run_database_search_agent)
 
 # Set the entry point
 workflow.set_entry_point("RoutingAgent")
@@ -44,16 +64,25 @@ workflow.add_conditional_edges(
     {
         "MissionGenerationAgent": "MissionGenerationAgent",
         "GeneratePostAgent": "GeneratePostAgent",
+        "DatabaseSearchAgent": "DatabaseSearchAgent",
         "AnswerGenerationAgent": "AnswerGenerationAgent",
         "GeneralChatAgent": "GeneralChatAgent",
     },
 )
 
-# All agents now lead directly to the end of the graph
-workflow.add_edge("MissionGenerationAgent", END)
-workflow.add_edge("GeneratePostAgent", END)
-workflow.add_edge("AnswerGenerationAgent", END)
-workflow.add_edge("GeneralChatAgent", END)
+# Add conditional edges for all agents to check for next tasks
+for agent in ["MissionGenerationAgent", "GeneratePostAgent", "DatabaseSearchAgent", "AnswerGenerationAgent", "GeneralChatAgent"]:
+    workflow.add_conditional_edges(
+        agent,
+        get_next_task,
+        {
+            "GenerateMission": "MissionGenerationAgent",
+            "GeneratePost": "GeneratePostAgent", 
+            "DatabaseSearch": "DatabaseSearchAgent",
+            "GeneralChat": "GeneralChatAgent",
+            "END": END,
+        },
+    )
 
 # Compile the graph
 app = workflow.compile(checkpointer=memory)

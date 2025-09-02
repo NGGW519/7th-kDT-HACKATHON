@@ -12,7 +12,8 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { REACT_APP_API_URL } from '@env';
+import API_URL from '../config/apiConfig';
+import AuthService from '../services/AuthService';
 
 const ChatbotScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([
@@ -37,7 +38,7 @@ const ChatbotScreen = ({ navigation }) => {
     console.log('🔍 Current sessionId:', sessionId);
   }, [sessionId]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputText.trim() === '' || isLoading) return;
 
     const userMessage = {
@@ -62,8 +63,7 @@ const ChatbotScreen = ({ navigation }) => {
 
     console.log('📤 Sending message with sessionId:', sessionId);
 
-    const apiUrl = REACT_APP_API_URL || 'http://10.0.2.2:8000';
-    const url = `${apiUrl}/api/chatbot/chat`;
+    const url = `${API_URL}/api/chatbot/chat`;
     
     const requestBody = {
       message: currentInput,
@@ -77,6 +77,10 @@ const ChatbotScreen = ({ navigation }) => {
 
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
+    const token = await AuthService.getToken();
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
     
     // 응답 헤더에서 세션 ID 가져오기
     xhr.onreadystatechange = () => {
@@ -170,6 +174,7 @@ const ChatbotScreen = ({ navigation }) => {
 
     xhr.send(JSON.stringify(requestBody));
   };
+
 
   const formatTime = (timestamp) => {
     return timestamp.toLocaleTimeString('ko-KR', {

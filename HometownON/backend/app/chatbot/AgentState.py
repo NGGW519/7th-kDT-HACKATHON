@@ -11,3 +11,5 @@ class AgentState(TypedDict):
     intent: Optional[str]
     intermediate_steps: list
     generation: Optional[str]
+    user_id: Optional[int]
+    token: Optional[str]

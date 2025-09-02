@@ -11,76 +11,33 @@ import {
   View,
 } from 'react-native';
 import { getCurrentUser } from '../utils/storage';
+import API_URL from '../config/apiConfig';
+import AuthService from '../services/AuthService';
 
 const FreeBoardScreen = ({ navigation }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      title: '고향에서의 첫 번째 봄',
-      content: '도시에서 고향으로 돌아온 지 3개월이 되었는데, 이번 봄이 정말 특별하게 느껴져요. 고향의 봄은 정말 아름다워요.',
-      author: '김귀향',
-      category: 'daily',
-      likes: 15,
-      comments: 12,
-      views: 78,
-      createdAt: '2024-01-15',
-      isNew: true,
-    },
-    {
-      id: 2,
-      title: '고향 맛집 추천해주세요!',
-      content: '오랜만에 고향에 왔는데, 추억의 맛집들이 많이 변했네요. 추천할 만한 맛집 있으시면 알려주세요.',
-      author: '박맛집',
-      category: 'food',
-      likes: 22,
-      comments: 18,
-      views: 95,
-      createdAt: '2024-01-14',
-      isNew: false,
-    },
-    {
-      id: 3,
-      title: '고향 친구들과의 재회',
-      content: '20년 만에 고향 친구들과 만났는데, 시간이 멈춘 것 같았어요. 여러분도 그런 경험 있으신가요?',
-      author: '이친구',
-      category: 'memory',
-      likes: 18,
-      comments: 14,
-      views: 67,
-      createdAt: '2024-01-13',
-      isNew: false,
-    },
-    {
-      id: 4,
-      title: '고향의 계절 변화',
-      content: '고향의 사계절 중 가장 아름다운 계절은 무엇인가요? 저는 가을의 단풍이 가장 좋아요.',
-      author: '최계절',
-      category: 'nature',
-      likes: 11,
-      comments: 8,
-      views: 45,
-      createdAt: '2024-01-12',
-      isNew: false,
-    },
-    {
-      id: 5,
-      title: '고향에서 새로운 취미',
-      content: '고향에 돌아와서 새로운 취미를 시작했어요. 여러분은 고향에서 어떤 취미를 가지고 계신가요?',
-      author: '함취미',
-      category: 'hobby',
-      likes: 9,
-      comments: 6,
-      views: 38,
-      createdAt: '2024-01-11',
-      isNew: false,
-    },
-  ]);
+  const [posts, setPosts] = useState([]);
 
   useEffect(() => {
     loadUserData();
+    fetchPosts();
   }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_URL}/api/board/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setPosts(data);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -95,11 +52,10 @@ const FreeBoardScreen = ({ navigation }) => {
 
   const categories = [
     { key: 'all', title: '전체', icon: '📋' },
-    { key: 'daily', title: '일상', icon: '☀️' },
-    { key: 'food', title: '맛집', icon: '🍽️' },
-    { key: 'memory', title: '추억', icon: '💭' },
-    { key: 'nature', title: '자연', icon: '🌿' },
-    { key: 'hobby', title: '취미', icon: '🎨' },
+    { key: '일상', title: '일상', icon: '☀️' },
+    { key: '맛집', title: '맛집', icon: '🍽️' },
+    { key: '추억', title: '추억', icon: '💭' },
+    { key: '기타', title: '기타', icon: '🌿' },
   ];
 
   const filteredPosts = selectedCategory === 'all' 
@@ -108,22 +64,20 @@ const FreeBoardScreen = ({ navigation }) => {
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'daily': return '☀️';
-      case 'food': return '🍽️';
-      case 'memory': return '💭';
-      case 'nature': return '🌿';
-      case 'hobby': return '🎨';
+      case '일상': return '☀️';
+      case '맛집': return '🍽️';
+      case '추억': return '💭';
+      case '기타': return '🌿';
       default: return '📋';
     }
   };
 
   const getCategoryTitle = (category) => {
     switch (category) {
-      case 'daily': return '일상';
-      case 'food': return '맛집';
-      case 'memory': return '추억';
-      case 'nature': return '자연';
-      case 'hobby': return '취미';
+      case '일상': return '일상';
+      case '맛집': return '맛집';
+      case '추억': return '추억';
+      case '기타': return '기타';
       default: return '기타';
     }
   };
@@ -142,16 +96,15 @@ const FreeBoardScreen = ({ navigation }) => {
   const renderPost = ({ item }) => (
     <TouchableOpacity 
       style={styles.postItem}
-      onPress={() => navigation.navigate('FreeBoardDetail', { post: item })}
+      onPress={() => navigation.navigate('BoardDetail', { post: item })}
     >
       <View style={styles.postHeader}>
         <View style={styles.postInfo}>
           <Text style={styles.categoryTag}>
             {getCategoryIcon(item.category)} {getCategoryTitle(item.category)}
           </Text>
-          {item.isNew && <Text style={styles.newTag}>NEW</Text>}
         </View>
-        <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
+        <Text style={styles.postDate}>{formatDate(item.created_at)}</Text>
       </View>
       
       <Text style={styles.postTitle} numberOfLines={2}>
@@ -169,21 +122,17 @@ const FreeBoardScreen = ({ navigation }) => {
             style={styles.authorAvatar}
             resizeMode="contain"
           />
-          <Text style={styles.authorName}>{item.author}</Text>
+          <Text style={styles.authorName}>{item.author?.profile?.display_name || '익명'}</Text>
         </View>
         
         <View style={styles.postStats}>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👍</Text>
-            <Text style={styles.statText}>{item.likes}</Text>
+            <Text style={styles.statText}>{item.likes_count}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>💬</Text>
-            <Text style={styles.statText}>{item.comments}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statIcon}>👁️</Text>
-            <Text style={styles.statText}>{item.views}</Text>
+            <Text style={styles.statText}>{item.comments_count}</Text>
           </View>
         </View>
       </View>

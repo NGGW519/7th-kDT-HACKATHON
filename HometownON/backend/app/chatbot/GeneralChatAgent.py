@@ -54,5 +54,9 @@ async def run_general_chat_agent(state: AgentState) -> AgentState:
 
     state["messages"].append(ai_msg_obj)
     state["generation"] = ai_msg_obj.content
+    
+    # Update task index for work plan progression
+    current_index = state.get("current_task_index", 0)
+    state["current_task_index"] = current_index + 1
 
     return state

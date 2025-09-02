@@ -13,7 +13,8 @@ import {
   Image,
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { authenticateUser, saveCurrentUser } from '../utils/storage';
+import { saveCurrentUser } from '../utils/storage';
+import AuthService from '../services/AuthService';
 
 
 const SignInScreen = ({ navigation }) => {
@@ -85,32 +86,20 @@ const SignInScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      const user = await authenticateUser(email.trim(), password);
-      if (user) {
-        await saveCurrentUser(user);
+      const result = await AuthService.signIn(email.trim(), password);
+      if (result.success) {
+        await saveCurrentUser(result.data); // Save the full user data including profile
         Alert.alert('성공', '로그인이 완료되었습니다!', [
           {
             text: '확인',
             onPress: () => {
-              // 사용자 유형에 따라 다른 화면으로 이동
-              switch (user.userType) {
-                case 'returnee':
-                  navigation.navigate('ReturneeMain');
-                  break;
-                case 'resident':
-                  navigation.navigate('ResidentMain');
-                  break;
-                case 'mentor':
-                  navigation.navigate('MentorMain');
-                  break;
-                default:
-                  navigation.navigate('ReturneeMain');
-              }
+              // For now, navigate to ReturneeMain. We can add logic to navigate based on user type later.
+              navigation.navigate('ReturneeMain');
             },
           },
         ]);
       } else {
-        Alert.alert('오류', '이메일 또는 비밀번호가 올바르지 않습니다.');
+        Alert.alert('오류', result.error || '이메일 또는 비밀번호가 올바르지 않습니다.');
       }
     } catch (error) {
       console.error('로그인 오류:', error);
