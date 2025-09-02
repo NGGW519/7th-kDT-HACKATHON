@@ -4,14 +4,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const USERS_KEY = 'users_data';
 
 // 사용자 데이터 저장
-export const saveUser = async (userData) => {
+export const updateUserAndSave = async (userData) => {
   try {
-    const existingUsers = await getUsers();
-    const updatedUsers = [...existingUsers, userData];
-    await AsyncStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+    let existingUsers = await getUsers();
+    const userIndex = existingUsers.findIndex(u => u.id === userData.id);
+
+    if (userIndex > -1) {
+      // Update existing user
+      existingUsers[userIndex] = { ...existingUsers[userIndex], ...userData };
+    } else {
+      // Add new user (if no ID or new user)
+      existingUsers.push(userData);
+    }
+
+    await AsyncStorage.setItem(USERS_KEY, JSON.stringify(existingUsers));
+    await saveCurrentUser(userData); // Update current user in AsyncStorage
     return true;
   } catch (error) {
-    console.error('사용자 저장 오류:', error);
+    console.error('사용자 업데이트 및 저장 오류:', error);
     return false;
   }
 };

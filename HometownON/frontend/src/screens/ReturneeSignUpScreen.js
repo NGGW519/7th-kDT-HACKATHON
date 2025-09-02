@@ -14,7 +14,7 @@ import {
   Image,
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { saveUser, isEmailExists, saveCurrentUser } from '../utils/storage';
+import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../utils/storage';
 import AuthService from '../services/AuthService';
 
 
@@ -170,7 +170,7 @@ const ReturneeSignUpScreen = ({ navigation }) => {
           createdAt: new Date().toISOString(),
         };
         
-        await saveUser(localUserData);
+        await updateUserAndSave(localUserData);
         await saveCurrentUser(localUserData);
         
         Alert.alert('성공', '귀향자 회원가입이 완료되었습니다!', [

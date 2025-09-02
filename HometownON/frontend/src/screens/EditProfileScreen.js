@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { getCurrentUser, saveUser } from '../utils/storage';
+import { getCurrentUser, updateUserAndSave } from '../utils/storage';
 
 const EditProfileScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -93,10 +93,11 @@ const EditProfileScreen = ({ navigation }) => {
       const updatedUser = {
         ...currentUser,
         ...formData,
+        name: formData.returnName, // Explicitly map returnName to name
         updatedAt: new Date().toISOString(),
       };
 
-      const success = await saveUser(updatedUser);
+      const success = await updateUserAndSave(updatedUser);
       if (success) {
         Alert.alert('성공', '회원정보가 수정되었습니다!', [
           {

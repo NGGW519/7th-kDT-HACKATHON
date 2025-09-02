@@ -7,6 +7,7 @@ import { Image } from 'react-native';
 
 // Import screens
 import AchievementScreen from '../screens/AchievementScreen';
+import BadgeCollectionScreen from '../screens/BadgeCollectionScreen';
 // import BoardDetailScreen from '../screens/BoardDetailScreen';
 // import BoardScreen from '../screens/BoardScreen';
 // import BoardWriteScreen from '../screens/BoardWriteScreen';
@@ -676,6 +677,10 @@ const AppNavigator = () => {
         <Stack.Screen 
           name="Achievement" 
           component={AchievementScreen}
+        />
+        <Stack.Screen 
+          name="BadgeCollection" 
+          component={BadgeCollectionScreen}
         />
         <Stack.Screen 
           name="GoalSetting" 

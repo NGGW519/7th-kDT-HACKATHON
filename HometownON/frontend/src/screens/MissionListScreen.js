@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import API_URL from '../config/apiConfig'; // API_URL import 추가
+import { getCurrentUser } from '../utils/storage'; // getCurrentUser import 추가
 
 const MissionListScreen = ({ navigation, route }) => {
   const [progressAnimation] = useState(new Animated.Value(0));
@@ -26,6 +27,7 @@ const MissionListScreen = ({ navigation, route }) => {
 
   const [missions, setMissions] = useState([]); // State for raw fetched missions
   const [missionTypesForDisplay, setMissionTypesForDisplay] = useState([]); // State for processed mission types
+  const [totalCompletedMissions, setTotalCompletedMissions] = useState(0); // State for total completed missions
   const [loading, setLoading] = useState(true); // Loading state
   const [error, setError] = useState(null); // Error state
 
@@ -43,17 +45,21 @@ const MissionListScreen = ({ navigation, route }) => {
           icon: '', // Will map later
           level: 1, // Placeholder
           color: '', // Will map later
-          completed: 0, // Placeholder
-          total: 0, // Placeholder
+          completed: 0, // Initialize completed
+          total: 0, // Initialize total
           expReward: 0, // Placeholder
-          progress: 0, // Placeholder
+          progress: 0, // Initialize progress
         };
       }
       typesMap[typeKey].total += 1; // Count total missions of this type
-      // For completed/progress, we'd need user-specific data, so keeping as placeholder for now
+
+      // If the mission is completed, increment the completed count for its type
+      if (mission.status === 'completed') { // Assuming 'status' field exists in mission object
+        typesMap[typeKey].completed += 1;
+      }
     });
 
-    // Map backend types to frontend display titles, icons, colors
+    // Map backend types to frontend display titles, icons, colors, and calculate progress
     const frontendMissionTypes = Object.values(typesMap).map(typeData => {
       let title = '';
       let description = '';
@@ -86,17 +92,19 @@ const MissionListScreen = ({ navigation, route }) => {
           color = '#6956E5';
       }
 
+      const progress = typeData.total > 0 ? (typeData.completed / typeData.total) * 100 : 0;
+
       return {
         ...typeData,
         title,
         description,
         icon,
         color,
-        // Keep placeholders for completed, total, expReward, progress
+        progress, // Set calculated progress
       };
     });
 
-        return frontendMissionTypes;
+    return frontendMissionTypes;
   };
 
   const fetchMissions = useCallback(async () => {
@@ -116,6 +124,10 @@ const MissionListScreen = ({ navigation, route }) => {
       setMissions(data); // 원본 데이터 저장
       const processedMissions = processMissionsForDisplay(data); // 데이터 가공
       setMissionTypesForDisplay(processedMissions); // 화면 표시용 상태 업데이트
+
+      // Calculate total completed missions
+      const sumCompleted = processedMissions.reduce((sum, type) => sum + type.completed, 0);
+      setTotalCompletedMissions(sumCompleted);
 
     } catch (error) {
       console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
@@ -241,15 +253,15 @@ const MissionListScreen = ({ navigation, route }) => {
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>8</Text>
+            <Text style={styles.statNumber}>4</Text>
             <Text style={styles.statLabel}>획득 배지</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>15</Text>
+            <Text style={styles.statNumber}>{totalCompletedMissions}</Text>
             <Text style={styles.statLabel}>완료 미션</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>30</Text>
+            <Text style={styles.statNumber}>{missions.length}</Text>
             <Text style={styles.statLabel}>총 미션</Text>
           </View>
         </View>
@@ -283,7 +295,7 @@ const MissionListScreen = ({ navigation, route }) => {
                       />
                     </View>
                     <Text style={styles.progressTextSmall}>
-                      {missionType.completed}/{missionType.total} 완료 ({missionType.progress}%)
+                      {missionType.completed}/{missionType.total} 완료 ({missionType.progress.toFixed(1)}%)
                     </Text>
                   </View>
                 </View>

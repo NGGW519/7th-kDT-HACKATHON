@@ -14,7 +14,7 @@ import {
   Image,
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { saveUser, isEmailExists, saveCurrentUser } from '../utils/storage';
+import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../utils/storage';
 
 
 const MentorSignUpScreen = ({ navigation }) => {
@@ -173,7 +173,7 @@ const MentorSignUpScreen = ({ navigation }) => {
           createdAt: new Date().toISOString(),
         };
         
-        const success = await saveUser(userData);
+        const success = await updateUserAndSave(userData);
         if (success) {
           // 현재 사용자로 저장
           await saveCurrentUser(userData);
@@ -204,7 +204,7 @@ const MentorSignUpScreen = ({ navigation }) => {
           createdAt: new Date().toISOString(),
         };
 
-        const success = await saveUser(userData);
+        const success = await updateUserAndSave(userData);
         if (success) {
           // 현재 사용자로 저장
           await saveCurrentUser(userData);

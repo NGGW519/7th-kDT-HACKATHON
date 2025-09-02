@@ -18,6 +18,8 @@ import { getCurrentUser } from '../utils/storage';
 import LocationService from '../services/LocationService';
 import WeatherService from '../services/WeatherService';
 
+import API_URL from '../config/apiConfig';
+
 import { Alert } from 'react-native';
 
 const ReturneeMainScreen = ({ navigation }) => {
@@ -41,13 +43,13 @@ const ReturneeMainScreen = ({ navigation }) => {
     userName: '',
     todayMission: '가야초등학교를 방문하기',
     remaining: {
-      exploration: 23,
-      bonding: 40,
-      career: 23,
+      exploration: 0,
+      bonding: 0,
+      career: 0,
     },
     completed: {
-      exploration: 10,
-      bonding: 15,
+      exploration: 0,
+      bonding: 0,
       career: 0,
     },
   });
@@ -70,6 +72,44 @@ const ReturneeMainScreen = ({ navigation }) => {
 
     // 앱 시작시 날씨 정보 로드
     loadWeatherData();
+
+    // 미션 데이터 로드 및 처리
+    const fetchAndProcessMissions = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/missions`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const allMissions = await response.json();
+
+        const remainingCounts = { exploration: 0, bonding: 0, career: 0 };
+        const completedCounts = { exploration: 0, bonding: 0, career: 0 };
+        let todayMissionText = '\n아직 미션이 없습니다. \n챗봇을 통해 미션을 \n추천받아보시는건 어떤가요? 🤔'; // Default text if no today mission found
+
+        allMissions.forEach(mission => {
+          if (mission.status === 'today') {
+            remainingCounts[mission.mission_type] = (remainingCounts[mission.mission_type] || 0) + 1;
+            if (todayMissionText === '미션이 없습니다.' && mission.title) { // Take the first 'today' mission as today's mission
+              todayMissionText = mission.title;
+            }
+          } else if (mission.status === 'completed') {
+            completedCounts[mission.mission_type] = (completedCounts[mission.mission_type] || 0) + 1;
+          }
+        });
+
+        setMissionData(prev => ({
+          ...prev,
+          todayMission: todayMissionText,
+          remaining: remainingCounts,
+          completed: completedCounts,
+        }));
+
+      } catch (error) {
+        console.error('❌ 미션 데이터 로드 및 처리 오류:', error);
+      }
+    };
+
+    fetchAndProcessMissions();
 
     return () => clearInterval(interval);
   }, []);
@@ -208,7 +248,7 @@ const ReturneeMainScreen = ({ navigation }) => {
               />
             </TouchableOpacity>
           </View>
-          <Text style={styles.greeting}>고향에서의 오늘은{'\n'}어떤 하루일까요?</Text>
+          <Text style={styles.greeting}>고향에서의 오늘은어떤 하루일까요?</Text>
           <View style={styles.locationContainer}>
             <Text style={styles.location}>{weatherData.location}</Text>
             <WeatherInfo

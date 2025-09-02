@@ -111,6 +111,15 @@ const MyPageScreen = ({ navigation }) => {
 
           <TouchableOpacity 
             style={styles.menuItem}
+            onPress={() => navigation.navigate('BadgeCollection')}
+          >
+            <Text style={styles.menuIcon}>🏅</Text>
+            <Text style={styles.menuText}>배지 모아보기</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
             onPress={() => navigation.navigate('MissionDashboard')}
           >
             <Text style={styles.menuIcon}>📊</Text>
