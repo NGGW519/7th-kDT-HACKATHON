@@ -10,6 +10,7 @@ import {
   Animated,
   Image,
 } from 'react-native';
+import API_URL from '../config/apiConfig'; // API_URL import 추가
 
 const MissionListScreen = ({ navigation, route }) => {
   const [progressAnimation] = useState(new Animated.Value(0));
@@ -100,23 +101,29 @@ const MissionListScreen = ({ navigation, route }) => {
   useEffect(() => {
     // Fetch missions from backend
     const fetchMissions = async () => {
-      console.log("Attempting to fetch missions...");
+      console.log(`[DEBUG] Fetching missions from: ${API_URL}/api/missions`);
       try {
-        const response = await fetch('http://192.168.0.42:8000/api/missions'); // Adjust URL if needed
-        console.log("Response received. response.ok:", response.ok, "status:", response.status);
+        setLoading(true);
+        setError(null);
+        const response = await fetch(`${API_URL}/api/missions`);
+        console.log(`[DEBUG] Response status: ${response.status}`);
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json();
-        console.log("Missions data fetched successfully:", data);
 
-        // Process fetched missions to create missionTypes structure
-        const processedMissionTypes = processMissionsForDisplay(data);
-        setMissionTypesForDisplay(processedMissionTypes); // New state for processed data
-        setMissions(data); // Keep raw missions for other uses if needed
-      } catch (e) {
-        setError(e);
-        console.error("Failed to fetch missions:", e);
+        const data = await response.json();
+        
+        setMissions(data); // 원본 데이터 저장
+        const processedMissions = processMissionsForDisplay(data); // 데이터 가공
+        setMissionTypesForDisplay(processedMissions); // 화면 표시용 상태 업데이트
+
+      } catch (error) {
+        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+        console.error('!!! FETCH FAILED - ERROR !!!');
+        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+        console.error(error);
+        setError(error);
       } finally {
         setLoading(false);
       }

@@ -1,3 +1,4 @@
+import API_URL from '../config/apiConfig';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -23,7 +24,7 @@ const MissionCardGameScreen = ({ navigation, route }) => {
   useEffect(() => {
     const fetchCards = async () => {
       try {
-        const response = await fetch('http://192.168.0.42:8000/api/missions');
+        const response = await fetch(`${API_URL}/api/missions`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

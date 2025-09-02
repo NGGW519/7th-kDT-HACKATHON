@@ -128,20 +128,22 @@ function ReturneeBoardStackScreen() {
   );
 }
 
+const returneeTabBarStyle = {
+  backgroundColor: '#FFF',
+  borderTopWidth: 1,
+  borderTopColor: '#E0E0E0',
+  paddingBottom: 5,
+  paddingTop: 5,
+  height: 60,
+};
+
 const ReturneeTabNavigator = () => {
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: '#FF9800',
         tabBarInactiveTintColor: '#666',
-        tabBarStyle: {
-          backgroundColor: '#FFF',
-          borderTopWidth: 1,
-          borderTopColor: '#E0E0E0',
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 60,
-        },
+        tabBarStyle: returneeTabBarStyle,
         headerShown: false,
       }}
     >
@@ -197,7 +199,7 @@ const ReturneeTabNavigator = () => {
                 resizeMode="contain"
               />
             ),
-            tabBarStyle: shouldHide ? { display: "none" } : defaultTabBarStyle,
+            tabBarStyle: shouldHide ? { display: "none" } : returneeTabBarStyle,
           };
         }}
       />

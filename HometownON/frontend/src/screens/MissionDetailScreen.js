@@ -1,3 +1,4 @@
+import API_URL from '../config/apiConfig';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -23,7 +24,7 @@ const MissionDetailScreen = ({ navigation, route }) => {
   useEffect(() => {
   const fetchMissionDetails = async () => {
   try {
-    const missionResponse = await fetch(`http://192.168.0.42:8000/api/missions/${cardId}`); // Fetch by ID
+    const missionResponse = await fetch(`${API_URL}/api/missions/${cardId}`);
     if (!missionResponse.ok) {
       throw new Error(`HTTP error! status: ${missionResponse.status}`);
     }
@@ -38,7 +39,7 @@ const MissionDetailScreen = ({ navigation, route }) => {
     if (locationName) {
       try {
         const locationResponse = await fetch(
-          `http://192.168.0.42:8000/api/locations/by_name/${encodeURIComponent(locationName)}`
+          `${API_URL}/api/locations/by_name/${encodeURIComponent(locationName)}`
         );
         if (!locationResponse.ok) {
           throw new Error(`HTTP error! status: ${locationResponse.status}`);
