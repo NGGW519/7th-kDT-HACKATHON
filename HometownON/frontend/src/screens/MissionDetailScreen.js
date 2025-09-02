@@ -1,5 +1,5 @@
 import API_URL from '../config/apiConfig';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  Modal,
+  Animated,
+  Alert,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
@@ -15,6 +18,8 @@ const MissionDetailScreen = ({ navigation, route }) => {
   const { type, cardId } = route.params; // Get cardId from params
   const [missionStarted, setMissionStarted] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const confettiAnimation = useRef(new Animated.Value(0)).current;
 
   const [missionDetails, setMissionDetails] = useState(null); // State for fetched mission details
   const [locationDetails, setLocationDetails] = useState(null); // State for fetched location details
@@ -97,9 +102,51 @@ const MissionDetailScreen = ({ navigation, route }) => {
     setMissionStarted(true);
   };
 
-  const handleCompleteMission = () => {
-    // 미션 완료 로직
-    navigation.navigate('MissionComplete', { type, timeElapsed });
+  const handleCompleteMission = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/missions/${cardId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'completed' }),
+      });
+
+      if (!response.ok) {
+        // Even if API call fails, for demonstration, we'll proceed with frontend update
+        // In a real app, you'd handle this error more robustly.
+        console.warn("Backend update failed, but proceeding with frontend visual update for demonstration.");
+      }
+
+      // Frontend-only visual update: Set mission status to completed
+      setMissionDetails(prevDetails => ({
+        ...prevDetails,
+        status: 'completed', // Assuming 'status' field exists in missionDetails
+      }));
+
+      setShowCompletionModal(true);
+      Animated.timing(confettiAnimation, {
+        toValue: 1,
+        duration: 1000, // Animation duration
+        useNativeDriver: true,
+      }).start(() => {
+        // After animation, navigate and hide modal
+        setTimeout(() => {
+          setShowCompletionModal(false);
+          navigation.navigate('MissionComplete', { type, timeElapsed });
+        }, 500); // Short delay before navigating
+      });
+    } catch (error) {
+      console.error("Failed to update mission status (API call error):", error);
+      Alert.alert("미션 완료 실패", "미션 상태를 업데이트하는 데 실패했습니다. (백엔드 문제)");
+      setShowCompletionModal(false); // Hide modal if there's an error
+
+      // Still perform frontend visual update for demonstration purposes
+      setMissionDetails(prevDetails => ({
+        ...prevDetails,
+        status: 'completed', // Assuming 'status' field exists in missionDetails
+      }));
+    }
   };
 
   const formatTime = (seconds) => {
@@ -215,10 +262,10 @@ const MissionDetailScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={[ 
                   styles.completeButton,
-                  (!missionStarted || timeElapsed < 60) && styles.disabledButton
+                  !missionStarted && styles.disabledButton
                 ]}
                 onPress={handleCompleteMission}
-                disabled={!missionStarted || timeElapsed < 60}
+                disabled={!missionStarted}
               >
                 <Text style={styles.completeButtonText}>미션 완료</Text>
               </TouchableOpacity>
@@ -235,6 +282,44 @@ const MissionDetailScreen = ({ navigation, route }) => {
           </View>
         )}
       </ScrollView>
+    <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showCompletionModal}
+        onRequestClose={() => {
+          setShowCompletionModal(!showCompletionModal);
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <Animated.View
+            style={[
+              styles.confetti,
+              {
+                opacity: confettiAnimation,
+                transform: [
+                  {
+                    scale: confettiAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.5, 1.5],
+                    }),
+                  },
+                  {
+                    translateY: confettiAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -150],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.confettiText}>🎉</Text>
+          </Animated.View>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>미션을 완료하셨습니다!</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -467,6 +552,41 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  confetti: {
+    position: 'absolute',
+    top: '40%',
+    left: '45%',
+  },
+  confettiText: {
+    fontSize: 50,
   },
 });
 

@@ -24,4 +24,13 @@ def create_mission(db: Session, mission: MissionCreate):
     db.refresh(db_mission)
     return db_mission
 
+def update_mission_status(db: Session, mission_id: int, new_status: str):
+    db_mission = db.query(Mission).filter(Mission.id == mission_id).first()
+    if db_mission and db_mission.status == "today":
+        db_mission.status = new_status
+        db.commit()
+        db.refresh(db_mission)
+        return db_mission
+    return None
+
 # You can add update and delete functions here as well

@@ -21,6 +21,9 @@ class MissionBase(BaseModel):
 class MissionCreate(MissionBase):
     pass
 
+class MissionUpdateStatus(BaseModel):
+    status: MissionStatus
+
 class Mission(MissionBase):
     id: int
 

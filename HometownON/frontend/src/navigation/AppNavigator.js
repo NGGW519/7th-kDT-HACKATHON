@@ -29,6 +29,7 @@ import MissionDashboardScreen from '../screens/MissionDashboardScreen';
 import MissionDetailScreen from '../screens/MissionDetailScreen';
 import MissionListScreen from '../screens/MissionListScreen';
 import MissionLoadingScreen from '../screens/MissionLoadingScreen';
+import MissionCompleteScreen from '../screens/MissionCompleteScreen';
 import MyPageScreen from '../screens/MyPageScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import PrivacySettingsScreen from '../screens/PrivacySettingsScreen';
@@ -665,6 +666,7 @@ const AppNavigator = () => {
         <Stack.Screen name="MissionDetail" component={MissionDetailScreen} />
         <Stack.Screen name="MissionCardGame" component={MissionCardGameScreen} />
         <Stack.Screen name="MissionDashboard" component={MissionDashboardScreen} />
+        <Stack.Screen name="MissionComplete" component={MissionCompleteScreen} />
         
         {/* MyPage Screens */}
         <Stack.Screen name="ResidentMyPage" component={ResidentMyPageScreen} />
