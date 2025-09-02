@@ -1,16 +1,22 @@
-from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
+
+# Enum for mission status
+from enum import Enum as PyEnum
+
+class MissionStatus(PyEnum):
+    TODAY = "today"
+    LOCKED = "locked"
+    COMPLETED = "completed"
 
 class MissionBase(BaseModel):
-    code: str
-    title: str
-    mission_type: str
-    difficulty: str
-    expected_minutes: int
-    tags: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_image: Optional[str] = None
-    status: Optional[str] = "active"
+    title: str = Field(..., max_length=255)
+    description: str # Changed from content
+    difficulty: str = Field(..., max_length=50) # Changed from level
+    mission_type: str = Field(..., max_length=50) # Changed from category
+    status: MissionStatus = MissionStatus.TODAY # Default status
+    created_by_user_id: Optional[int] = None
 
 class MissionCreate(MissionBase):
     pass

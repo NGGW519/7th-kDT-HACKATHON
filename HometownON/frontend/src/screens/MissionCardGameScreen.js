@@ -15,64 +15,32 @@ import {
 const { width } = Dimensions.get('window');
 
 const MissionCardGameScreen = ({ navigation, route }) => {
-  const { type } = route.params;
+  const { type, missions } = route.params; // Receive missions directly
   const [completedMissions, setCompletedMissions] = useState([]);
-  const [cards, setCards] = useState([]); // Initialize as empty, will be populated by fetch
-  const [loading, setLoading] = useState(true); // Loading state
-  const [error, setError] = useState(null); // Error state
+  const [cards, setCards] = useState([]); // Will be populated from route.params
+  const [loading, setLoading] = useState(false); // No longer loading from fetch
+  const [error, setError] = useState(null); // No longer setting error from fetch
 
   useEffect(() => {
-    const fetchCards = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/missions`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-
-        // Filter by type and map to frontend card structure
-        const filteredAndMappedCards = data
-          .filter(mission => {
-            let backendMissionType = '';
-            switch (type) {
-              case '탐색': backendMissionType = 'exploration'; break;
-              case '유대': backendMissionType = 'bonding'; break;
-              case '커리어': backendMissionType = 'career'; break;
-              default: backendMissionType = ''; // Should not happen if types are consistent
-            }
-            return mission.mission_type === backendMissionType;
-          }) // Filter by mission_type
-          .map((mission, index) => {
-            // Simulate frontend statuses for now
-            let status = 'locked'; // Default to locked
-            if (index === 0) { // Make the first one 'today'
-              status = 'today';
-            } else if (mission.title === '공원 산책하기') { // Example: make a specific one 'completed'
-              status = 'completed';
-            }
-
-            return {
-              id: mission.id,
-              title: mission.title,
-              description: mission.description,
-              type: mission.mission_type, // Use mission_type from backend
-              status: status, // Use simulated status
-              image: require('../assets/images/mission2.png'), // Placeholder
-              todayImage: require('../assets/images/mission1.png'), // Placeholder
-              completedImage: require('../assets/images/mission_complete.png'), // Placeholder
-            };
-          });
-        setCards(filteredAndMappedCards);
-      } catch (e) {
-        setError(e);
-        console.error("Failed to fetch cards:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCards();
-  }, [type]); // Re-fetch if type changes
+    if (missions) {
+      // Map backend mission data to frontend card structure
+      const mappedCards = missions.map((mission) => {
+        return {
+          id: mission.id,
+          title: mission.title,
+          description: mission.description,
+          type: mission.mission_type, // Use mission_type from backend
+          status: mission.status, // Use actual status from backend
+          image: require('../assets/images/mission2.png'), // Placeholder
+          todayImage: require('../assets/images/mission1.png'), // Placeholder
+          completedImage: require('../assets/images/mission_complete.png'), // Placeholder
+        };
+      });
+      setCards(mappedCards);
+    } else {
+      setError(new Error("No missions data provided."));
+    }
+  }, [missions, type]); // Re-map if missions or type changes
 
 
 

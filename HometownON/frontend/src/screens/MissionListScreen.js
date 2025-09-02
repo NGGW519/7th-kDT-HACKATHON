@@ -173,8 +173,10 @@ const MissionListScreen = ({ navigation, route }) => {
     return '새내기';
   };
 
-  const handleMissionSelect = (mission) => {
-    navigation.navigate('MissionCardGame', { type: mission.title.toLowerCase().replace('형 미션', '') });
+  const handleMissionSelect = (missionTypeData) => { // Renamed parameter for clarity
+    const selectedMissionType = missionTypeData.id; // e.g., 'exploration'
+    const missionsOfType = missions.filter(m => m.mission_type === selectedMissionType);
+    navigation.navigate('MissionCardGame', { type: selectedMissionType, missions: missionsOfType });
   };
 
   return (
@@ -480,7 +482,7 @@ const styles = StyleSheet.create({
   progressFillSmall: {
     height: '100%',
     borderRadius: 3,
-  },
+},
   progressTextSmall: {
     fontSize: 12,
     color: '#666',
@@ -512,5 +514,3 @@ const styles = StyleSheet.create({
 });
 
 export default MissionListScreen;
-
-

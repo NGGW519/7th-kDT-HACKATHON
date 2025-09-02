@@ -15,4 +15,4 @@ class Mission(Base):
     tags = Column(String(255))
     description = Column(Text)
     thumbnail_image = Column(String(255))
-    status = Column(String(50), default="active") # active, completed, locked, in_progress
+    status = Column(Enum("today", "completed", "locked", name="mission_status_enum"), default="today") # today, completed, locked
