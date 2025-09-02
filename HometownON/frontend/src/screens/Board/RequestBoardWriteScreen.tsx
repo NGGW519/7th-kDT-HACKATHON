@@ -1,4 +1,4 @@
-// src/screens/BoardWriteScreen.tsx
+// src/screens/RequestBoardWriteScreen.tsx
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
@@ -36,9 +36,9 @@ const CATEGORIES = [
   { key: "installation", title: "설치", icon: "🔨" },
 ];
 
-export default function BoardWriteScreen({ route }) { // Add route prop
+export default function RequestBoardWriteScreen({ route }) {
   const navigation = useNavigation();
-  const { boardType } = route.params || {}; // Extract boardType from params
+  const { boardType } = route.params || {};
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [title, setTitle] = useState("");
@@ -73,33 +73,52 @@ export default function BoardWriteScreen({ route }) { // Add route prop
       return;
     }
 
-    const authorName = currentUser?.returnName || currentUser?.name || "익명";
-
-    const post = {
-      id: Date.now(),
+    const newPost = {
       title: title.trim(),
       content: content.trim(),
-      author: authorName,
       category: selectedCategory,
-      likes: 0,
-      comments: 0,
-      views: 0,
-      createdAt: new Date().toISOString().slice(0, 10),
-      isNew: true,
       budget: budget.trim(),
       location: location.trim(),
-      status: "pending" as const,
-      acceptedBy: null as string | null,
+      status: "pending",
     };
 
-    Alert.alert("등록 완료", "의뢰가 성공적으로 등록되었습니다!", [
-      {
-        text: "확인",
-        onPress: () => {
-          navigation.replace("BoardDetail" as never, { post } as never);
-        },
-      },
-    ]);
+    try {
+        const token = await AuthService.getToken();
+        const response = await fetch(`${API_URL}/api/requests/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(newPost),
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        if (response.ok) {
+            const post = await response.json();
+            console.log('Created post from API:', post);
+            const handleAlertPress = () => {
+              setTimeout(() => {
+                navigation.replace("BoardDetail", { post });
+              }, 100);
+            };
+            Alert.alert("등록 완료", "의뢰가 성공적으로 등록되었습니다!", [
+              {
+                text: "확인",
+                onPress: handleAlertPress,
+              },
+            ]);
+        } else {
+            const errorText = await response.text();
+            console.log('Error response:', errorText);
+            Alert.alert("오류", `의뢰를 등록하지 못했습니다. 상태: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error creating request post:', error);
+        Alert.alert("오류", "의뢰를 등록하는 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -116,11 +135,7 @@ export default function BoardWriteScreen({ route }) { // Add route prop
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>
-            {boardType === "멘토 게시판" ? "멘토 게시글 작성" :
-             boardType === "자유 게시판" ? "자유 게시글 작성" :
-             "의뢰 게시글 작성"}
-          </Text>
+          <Text style={styles.headerTitle}>의뢰 게시글 작성</Text>
         </View>
 
         <TouchableOpacity

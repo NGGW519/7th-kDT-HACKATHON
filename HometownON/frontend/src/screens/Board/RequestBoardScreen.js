@@ -9,8 +9,11 @@ import {
   ScrollView,
   FlatList,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { getCurrentUser } from '../../utils/storage';
+import API_URL from '../../config/apiConfig';
+import AuthService from '../../services/AuthService';
 
 const RequestBoardScreen = ({ navigation }) => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -24,92 +27,128 @@ const RequestBoardScreen = ({ navigation }) => {
     'IT': ['it'],
     '청소': ['cleaning'],
   };
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      title: '집 수리 의뢰합니다',
-      content: '오래된 집을 수리하고 싶습니다. 전기공, 목수, 도배공 등 필요한 분들 연락 부탁드려요.',
-      author: '김기준',
-      category: 'repair',
-      likes: 8,
-      comments: 5,
-      views: 32,
-      createdAt: '2024-01-15',
-      isNew: true,
-      budget: '50-100만원',
-      location: '강원도 춘천시',
-      status: 'pending', // pending, completed
-      acceptedBy: null,
-    },
-    {
-      id: 2,
-      title: '농작물 수확 도움 요청',
-      content: '사과 농장에서 수확을 도와주실 분을 찾습니다. 경험자 우대하고, 일당 협의 가능합니다.',
-      author: '박농부',
-      category: 'agriculture',
-      likes: 12,
-      comments: 8,
-      views: 45,
-      createdAt: '2024-01-14',
-      isNew: false,
-      budget: '일당 협의',
-      location: '강원도 원주시',
-      status: 'completed',
-      acceptedBy: '함필규',
-    },
-    {
-      id: 3,
-      title: '컴퓨터 수리 의뢰',
-      content: '노트북이 갑자기 켜지지 않아요. 컴퓨터 수리에 능숙하신 분 도움 부탁드립니다.',
-      author: '이도시',
-      category: 'it',
-      likes: 6,
-      comments: 3,
-      views: 28,
-      createdAt: '2024-01-13',
-      isNew: false,
-      budget: '10-30만원',
-      location: '강원도 강릉시',
-      status: 'pending',
-      acceptedBy: null,
-    },
-    {
-      id: 4,
-      title: '집 청소 도움 요청',
-      content: '이사 후 집 정리가 필요합니다. 청소 도와주실 분 찾아요.',
-      author: '최이사',
-      category: 'cleaning',
-      likes: 4,
-      comments: 2,
-      views: 18,
-      createdAt: '2024-01-12',
-      isNew: false,
-      budget: '5-10만원',
-      location: '강원도 속초시',
-      status: 'pending',
-      acceptedBy: null,
-    },
-    {
-      id: 5,
-      title: '가전제품 설치 의뢰',
-      content: '새로 산 에어컨 설치를 도와주실 분을 찾습니다. 전문가 분 연락 부탁드려요.',
-      author: '함필규',
-      category: 'installation',
-      likes: 9,
-      comments: 6,
-      views: 35,
-      createdAt: '2024-01-11',
-      isNew: false,
-      budget: '20-40만원',
-      location: '강원도 태백시',
-      status: 'pending',
-      acceptedBy: null,
-    },
-  ]);
+  const [posts, setPosts] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadUserData();
+    fetchPosts();
   }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_URL}/api/requests/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // API 응답이 배열인지 확인
+        if (Array.isArray(data)) {
+          setPosts(data);
+          return;
+        } else if (data && Array.isArray(data.results)) {
+          // 페이지네이션 응답인 경우
+          setPosts(data.results);
+          return;
+        } else {
+          console.log('API response structure:', data);
+        }
+      }
+      
+      // API가 없거나 응답이 올바르지 않으면 샘플 데이터 사용
+      throw new Error('API not available or invalid response');
+    } catch (error) {
+      console.log('의뢰 게시판 API가 없어서 샘플 데이터를 사용합니다:', error.message);
+      // 에러 발생 시 샘플 데이터 유지
+      setPosts([
+        {
+          id: 1,
+          title: '집 수리 의뢰합니다',
+          content: '오래된 집을 수리하고 싶습니다. 전기공, 목수, 도배공 등 필요한 분들 연락 부탁드려요.',
+          author: { profile: { display_name: '김기준' } },
+          category: 'repair',
+          likes_count: 8,
+          comments_count: 5,
+          views: 32,
+          created_at: '2024-01-15',
+          isNew: true,
+          budget: '50-100만원',
+          location: '강원도 춘천시',
+          status: 'pending',
+          acceptedBy: null,
+        },
+        {
+          id: 2,
+          title: '농작물 수확 도움 요청',
+          content: '사과 농장에서 수확을 도와주실 분을 찾습니다. 경험자 우대하고, 일당 협의 가능합니다.',
+          author: { profile: { display_name: '박농부' } },
+          category: 'agriculture',
+          likes_count: 12,
+          comments_count: 8,
+          views: 45,
+          created_at: '2024-01-14',
+          isNew: false,
+          budget: '일당 협의',
+          location: '강원도 원주시',
+          status: 'completed',
+          acceptedBy: '함필규',
+        },
+        {
+          id: 3,
+          title: '컴퓨터 수리 의뢰',
+          content: '노트북이 갑자기 켜지지 않아요. 컴퓨터 수리에 능숙하신 분 도움 부탁드립니다.',
+          author: { profile: { display_name: '이도시' } },
+          category: 'it',
+          likes_count: 6,
+          comments_count: 3,
+          views: 28,
+          created_at: '2024-01-13',
+          isNew: false,
+          budget: '10-30만원',
+          location: '강원도 강릉시',
+          status: 'pending',
+          acceptedBy: null,
+        },
+        {
+          id: 4,
+          title: '집 청소 도움 요청',
+          content: '이사 후 집 정리가 필요합니다. 청소 도와주실 분 찾아요.',
+          author: { profile: { display_name: '최이사' } },
+          category: 'cleaning',
+          likes_count: 4,
+          comments_count: 2,
+          views: 18,
+          created_at: '2024-01-12',
+          isNew: false,
+          budget: '5-10만원',
+          location: '강원도 속초시',
+          status: 'pending',
+          acceptedBy: null,
+        },
+        {
+          id: 5,
+          title: '가전제품 설치 의뢰',
+          content: '새로 산 에어컨 설치를 도와주실 분을 찾습니다. 전문가 분 연락 부탁드려요.',
+          author: { profile: { display_name: '함필규' } },
+          category: 'installation',
+          likes_count: 9,
+          comments_count: 6,
+          views: 35,
+          created_at: '2024-01-11',
+          isNew: false,
+          budget: '20-40만원',
+          location: '강원도 태백시',
+          status: 'pending',
+          acceptedBy: null,
+        },
+      ]);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -120,6 +159,12 @@ const RequestBoardScreen = ({ navigation }) => {
     } catch (error) {
       console.error('사용자 데이터 로드 오류:', error);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPosts();
+    setRefreshing(false);
   };
 
   const categories = [
@@ -211,7 +256,7 @@ const RequestBoardScreen = ({ navigation }) => {
           </Text>
           {item.isNew && <Text style={styles.newTag}>NEW</Text>}
         </View>
-        <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
+        <Text style={styles.postDate}>{formatDate(item.created_at || item.createdAt)}</Text>
       </View>
       
       <Text style={styles.postTitle} numberOfLines={2}>
@@ -266,17 +311,17 @@ const RequestBoardScreen = ({ navigation }) => {
               style={styles.authorAvatar}
               resizeMode="contain"
             />
-            <Text style={styles.authorName}>{item.author}</Text>
+            <Text style={styles.authorName}>{item.author?.profile?.display_name || item.author || '익명'}</Text>
           </View>
         
         <View style={styles.postStats}>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👍</Text>
-            <Text style={styles.statText}>{item.likes}</Text>
+            <Text style={styles.statText}>{item.likes_count || item.likes || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>💬</Text>
-            <Text style={styles.statText}>{item.comments}</Text>
+            <Text style={styles.statText}>{item.comments_count || item.comments || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👁️</Text>
@@ -334,7 +379,12 @@ const RequestBoardScreen = ({ navigation }) => {
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>의뢰게시판</Text>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity 
+            style={styles.writeButton}
+            onPress={() => navigation.navigate('RequestBoardWriteScreen')}
+          >
+            <Text style={styles.writeButtonText}>✏️</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
@@ -384,6 +434,14 @@ const RequestBoardScreen = ({ navigation }) => {
         style={styles.postsList}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.postsContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#6956E5']}
+            tintColor="#6956E5"
+          />
+        }
       />
     </SafeAreaView>
   );

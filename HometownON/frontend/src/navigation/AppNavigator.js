@@ -8,6 +8,7 @@ import { Image } from 'react-native';
 import RequestBoardScreen from '../screens/Board/RequestBoardScreen';
 import BoardScreen from '../screens/Board/BoardScreen';
 import BoardWriteScreen from '../screens/Board/BoardWriteScreen';
+import RequestBoardWriteScreen from '../screens/Board/RequestBoardWriteScreen';
 import FreeBoardScreen from '../screens/Board/FreeBoardScreen';
 import FreeBoardWriteScreen from '../screens/Board/FreeBoardWriteScreen';
 import MissionDetailScreen from '../screens/Mission/MissionDetailScreen';
@@ -87,6 +88,7 @@ function ReturneeBoardStackScreen() {
       <Stack.Screen name="MessengerChatScreen" component={MessengerChatScreen} />
       <Stack.Screen name="MentorBoardWriteScreen" component={MentorBoardWriteScreen} />
       <Stack.Screen name="BoardWriteScreen" component={BoardWriteScreen} />
+      <Stack.Screen name="RequestBoardWriteScreen" component={RequestBoardWriteScreen} />
     </Stack.Navigator>
   );
 }
@@ -240,6 +242,7 @@ function ResBoardStackScreen() {
       <ResBoardStack.Screen name="MessengerChatScreen" component={MessengerChatScreen} />
       <ResBoardStack.Screen name="MentorBoardWriteScreen" component={MentorBoardWriteScreen} />
       <ResBoardStack.Screen name="BoardWriteScreen" component={BoardWriteScreen} />
+      <ResBoardStack.Screen name="RequestBoardWriteScreen" component={RequestBoardWriteScreen} />
     </ResBoardStack.Navigator>
   );
 }
@@ -451,6 +454,7 @@ function MentorBoardStackScreen() {
       <MentorBoardStack.Screen name="MessengerChatScreen" component={MessengerChatScreen} />
       <MentorBoardStack.Screen name="MentorBoardWriteScreen" component={MentorBoardWriteScreen} />
       <MentorBoardStack.Screen name="BoardWriteScreen" component={BoardWriteScreen} />
+      <MentorBoardStack.Screen name="RequestBoardWriteScreen" component={RequestBoardWriteScreen} />
     </MentorBoardStack.Navigator>
   );
 }

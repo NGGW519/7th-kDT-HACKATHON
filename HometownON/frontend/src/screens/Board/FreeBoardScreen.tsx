@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -18,6 +19,7 @@ const FreeBoardScreen = ({ navigation }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [posts, setPosts] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -48,6 +50,12 @@ const FreeBoardScreen = ({ navigation }) => {
     } catch (error) {
       console.error('사용자 데이터 로드 오류:', error);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPosts();
+    setRefreshing(false);
   };
 
   const categories = [
@@ -181,6 +189,14 @@ const FreeBoardScreen = ({ navigation }) => {
         style={styles.postsList}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.postsContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#6956E5']}
+            tintColor="#6956E5"
+          />
+        }
       />
     </SafeAreaView>
   );

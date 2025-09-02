@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -12,6 +13,8 @@ import {
   View,
 } from 'react-native';
 import { getCurrentUser } from '../../../utils/storage';
+import API_URL from '../../../config/apiConfig';
+import AuthService from '../../../services/AuthService';
 
 const MentorBoardScreen = () => {
   const navigation = useNavigation();
@@ -26,87 +29,123 @@ const MentorBoardScreen = () => {
     'IT': ['technical'],
     '청소': ['lifestyle'],
   };
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      title: '전기공 기술 멘토링 제공합니다',
-      content: '20년간 전기공으로 일한 경험을 바탕으로 전기 기술을 가르쳐드립니다. 초보자도 환영합니다.',
-      author: '이철수 멘토',
-      category: 'technical',
-      likes: 15,
-      comments: 8,
-      views: 52,
-      createdAt: '2024-01-15',
-      isNew: true,
-      experience: '20년',
-      hourlyRate: '3만원',
-      location: '경남 거제시 고현동',
-    },
-    {
-      id: 2,
-      title: '농업 기술 멘토 찾습니다',
-      content: '도시에서 고향으로 돌아와서 농업을 시작하고 싶은데, 경험 있으신 분들의 멘토링을 받고 싶습니다.',
-      author: '박귀향님',
-      category: 'seeking',
-      likes: 8,
-      comments: 12,
-      views: 38,
-      createdAt: '2024-01-14',
-      isNew: false,
-      experience: '초보자',
-      hourlyRate: '협의',
-      location: '함안군 가야읍',
-    },
-    {
-      id: 3,
-      title: 'IT 기술 멘토링 서비스',
-      content: '웹 개발, 앱 개발, 데이터 분석 등 IT 기술을 가르쳐드립니다. 온라인/오프라인 모두 가능합니다.',
-      author: '이개발 멘토',
-      category: 'technical',
-      likes: 12,
-      comments: 6,
-      views: 45,
-      createdAt: '2024-01-13',
-      isNew: false,
-      experience: '15년',
-      hourlyRate: '5만원',
-      location: '함안군 가야읍',
-    },
-    {
-      id: 4,
-      title: '요리 기술 멘토링',
-      content: '전통 요리와 현대 요리를 모두 가르쳐드립니다. 개인 레슨, 그룹 레슨 모두 가능합니다.',
-      author: '최요리 멘토',
-      category: 'lifestyle',
-      likes: 18,
-      comments: 10,
-      views: 67,
-      createdAt: '2024-01-12',
-      isNew: false,
-      experience: '25년',
-      hourlyRate: '4만원',
-      location: '함안군 가야읍',
-    },
-    {
-      id: 5,
-      title: '사업 멘토링 받고 싶습니다',
-      content: '고향에서 작은 사업을 시작하고 싶은데, 경험 있으신 분들의 조언을 받고 싶습니다.',
-      author: '함사업님',
-      category: 'seeking',
-      likes: 6,
-      comments: 9,
-      views: 29,
-      createdAt: '2024-01-11',
-      isNew: false,
-      experience: '초보자',
-      hourlyRate: '협의',
-      location: '강원도 태백시',
-    },
-  ]);
+  const [posts, setPosts] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadUserData();
+    fetchPosts();
   }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_URL}/api/mentors/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // API 응답이 배열인지 확인
+        if (Array.isArray(data)) {
+          setPosts(data);
+          return;
+        } else if (data && Array.isArray(data.results)) {
+          // 페이지네이션 응답인 경우
+          setPosts(data.results);
+          return;
+        } else {
+          console.log('API response structure:', data);
+        }
+      }
+      
+      // API가 없거나 응답이 올바르지 않으면 샘플 데이터 사용
+      throw new Error('API not available or invalid response');
+    } catch (error) {
+      console.log('멘토 게시판 API가 없어서 샘플 데이터를 사용합니다:', error.message);
+      // 에러 발생 시 샘플 데이터 유지
+      setPosts([
+        {
+          id: 1,
+          title: '전기공 기술 멘토링 제공합니다',
+          content: '20년간 전기공으로 일한 경험을 바탕으로 전기 기술을 가르쳐드립니다. 초보자도 환영합니다.',
+          author: { profile: { display_name: '이철수 멘토' } },
+          category: 'technical',
+          likes_count: 15,
+          comments_count: 8,
+          views: 52,
+          created_at: '2024-01-15',
+          isNew: true,
+          experience: '20년',
+          hourlyRate: '3만원',
+          location: '경남 거제시 고현동',
+        },
+        {
+          id: 2,
+          title: '농업 기술 멘토 찾습니다',
+          content: '도시에서 고향으로 돌아와서 농업을 시작하고 싶은데, 경험 있으신 분들의 멘토링을 받고 싶습니다.',
+          author: { profile: { display_name: '박귀향님' } },
+          category: 'seeking',
+          likes_count: 8,
+          comments_count: 12,
+          views: 38,
+          created_at: '2024-01-14',
+          isNew: false,
+          experience: '초보자',
+          hourlyRate: '협의',
+          location: '함안군 가야읍',
+        },
+        {
+          id: 3,
+          title: 'IT 기술 멘토링 서비스',
+          content: '웹 개발, 앱 개발, 데이터 분석 등 IT 기술을 가르쳐드립니다. 온라인/오프라인 모두 가능합니다.',
+          author: { profile: { display_name: '이개발 멘토' } },
+          category: 'technical',
+          likes_count: 12,
+          comments_count: 6,
+          views: 45,
+          created_at: '2024-01-13',
+          isNew: false,
+          experience: '15년',
+          hourlyRate: '5만원',
+          location: '함안군 가야읍',
+        },
+        {
+          id: 4,
+          title: '요리 기술 멘토링',
+          content: '전통 요리와 현대 요리를 모두 가르쳐드립니다. 개인 레슨, 그룹 레슨 모두 가능합니다.',
+          author: { profile: { display_name: '최요리 멘토' } },
+          category: 'lifestyle',
+          likes_count: 18,
+          comments_count: 10,
+          views: 67,
+          created_at: '2024-01-12',
+          isNew: false,
+          experience: '25년',
+          hourlyRate: '4만원',
+          location: '함안군 가야읍',
+        },
+        {
+          id: 5,
+          title: '사업 멘토링 받고 싶습니다',
+          content: '고향에서 작은 사업을 시작하고 싶은데, 경험 있으신 분들의 조언을 받고 싶습니다.',
+          author: { profile: { display_name: '함사업님' } },
+          category: 'seeking',
+          likes_count: 6,
+          comments_count: 9,
+          views: 29,
+          created_at: '2024-01-11',
+          isNew: false,
+          experience: '초보자',
+          hourlyRate: '협의',
+          location: '강원도 태백시',
+        },
+      ]);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -119,6 +158,12 @@ const MentorBoardScreen = () => {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPosts();
+    setRefreshing(false);
+  };
+
   const categories = [
     { key: 'all', title: '전체', icon: '📋' },
     { key: 'technical', title: '기술', icon: '🔧' },
@@ -129,8 +174,8 @@ const MentorBoardScreen = () => {
   ];
 
   const filteredPosts = selectedCategory === 'all' 
-    ? posts 
-    : posts.filter(post => post.category === selectedCategory);
+    ? (posts || []) 
+    : (posts || []).filter(post => post.category === selectedCategory);
 
   const getCategoryIcon = (category) => {
     switch (category) {
@@ -188,7 +233,7 @@ const MentorBoardScreen = () => {
           </Text>
           {item.isNew && <Text style={styles.newTag}>NEW</Text>}
         </View>
-        <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
+        <Text style={styles.postDate}>{formatDate(item.created_at || item.createdAt)}</Text>
       </View>
       
       <Text style={styles.postTitle} numberOfLines={2}>
@@ -233,17 +278,17 @@ const MentorBoardScreen = () => {
             style={styles.authorAvatar}
             resizeMode="contain"
           />
-          <Text style={styles.authorName}>{item.author}</Text>
+          <Text style={styles.authorName}>{item.author?.profile?.display_name || item.author || '익명'}</Text>
         </View>
         
         <View style={styles.postStats}>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👍</Text>
-            <Text style={styles.statText}>{item.likes}</Text>
+            <Text style={styles.statText}>{item.likes_count || item.likes || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>💬</Text>
-            <Text style={styles.statText}>{item.comments}</Text>
+            <Text style={styles.statText}>{item.comments_count || item.comments || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👁️</Text>
@@ -294,7 +339,7 @@ const MentorBoardScreen = () => {
           관심 분야: <Text style={styles.specialtyHighlight}>{userSpecialty}</Text>
         </Text>
         <Text style={styles.matchStatsText}>
-          관심 분야 멘토: {posts.filter(post => isSpecialtyMatch(post.category) && post.category !== 'seeking').length}명
+          관심 분야 멘토: {(posts || []).filter(post => isSpecialtyMatch(post.category) && post.category !== 'seeking').length}명
         </Text>
       </View>
 
@@ -334,6 +379,14 @@ const MentorBoardScreen = () => {
         style={styles.postsList}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.postsContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#6956E5']}
+            tintColor="#6956E5"
+          />
+        }
       />
     </SafeAreaView>
   );

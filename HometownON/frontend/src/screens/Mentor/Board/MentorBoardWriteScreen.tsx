@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { getCurrentUser } from '../../../utils/storage';
+import API_URL from '../../../config/apiConfig';
+import AuthService from '../../../services/AuthService';
 
 const MentorBoardWriteScreen = ({ navigation, route }) => { // Add route prop
   const { boardType } = route.params || {}; // Extract boardType from params
@@ -55,26 +57,43 @@ const MentorBoardWriteScreen = ({ navigation, route }) => { // Add route prop
       return;
     }
 
-    const authorName = currentUser?.returnName || currentUser?.name || '익명';
-
-    const post = {
-      id: Date.now(),
+    const newPost = {
       title: title.trim(),
       content: content.trim(),
       category: selectedCategory,
-      author: authorName,
-      createdAt: new Date().toISOString(),
-      views: 0,
-      likes: 0,
-      isNew: true,
     };
 
-    Alert.alert('멘토 게시글 등록', '게시글이 성공적으로 등록되었습니다!', [
-      {
-        text: '확인',
-        onPress: () => navigation.navigate('BoardDetailScreen', { post }),
-      },
-    ]);
+    try {
+        const token = await AuthService.getToken();
+        const response = await fetch(`${API_URL}/api/mentors/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(newPost),
+        });
+
+        if (response.ok) {
+            const post = await response.json();
+            const handleAlertPress = () => {
+              setTimeout(() => {
+                navigation.replace("BoardDetail", { post });
+              }, 100);
+            };
+            Alert.alert("등록 완료", "멘토 게시글이 성공적으로 등록되었습니다!", [
+              {
+                text: "확인",
+                onPress: handleAlertPress,
+              },
+            ]);
+        } else {
+            Alert.alert("오류", "멘토 게시글을 등록하지 못했습니다.");
+        }
+    } catch (error) {
+        console.error('Error creating mentor post:', error);
+        Alert.alert("오류", "멘토 게시글을 등록하는 중 오류가 발생했습니다.");
+    }
   };
 
   return (

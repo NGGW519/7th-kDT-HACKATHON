@@ -92,7 +92,7 @@ class Mission(Base):
     code = Column(VARCHAR(255), unique=True, index=True, nullable=False)
     title = Column(VARCHAR(255), nullable=False)
     mission_type = Column(VARCHAR(50), nullable=False)
-    difficulty = Column(VARCHAR(50), nullable=False)
+    difficulty = Column(INT, nullable=False)
     expected_minutes = Column(SMALLINT, nullable=False)
     tags = Column(VARCHAR(255), nullable=True)
     description = Column(TEXT, nullable=True)
@@ -382,3 +382,77 @@ class Announcement(Base):
     start_date = Column(TIMESTAMP, nullable=False)
     end_date = Column(TIMESTAMP, nullable=True)
     status = Column(Enum('active', 'inactive'), default='active')
+
+# Request Board (의뢰 게시판)
+class RequestPost(Base):
+    __tablename__ = 'request_posts'
+    id = Column(BIGINT, primary_key=True, autoincrement=True)
+    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
+    category = Column(Enum('repair', 'agriculture', 'it', 'cleaning', 'installation'), nullable=False)
+    title = Column(VARCHAR(200), nullable=False)
+    content = Column(TEXT, nullable=False)
+    budget = Column(VARCHAR(50), nullable=True)
+    location = Column(VARCHAR(120), nullable=True)
+    status = Column(Enum('pending', 'completed', 'cancelled'), default='pending')
+    accepted_by = Column(VARCHAR(100), nullable=True)
+    likes_count = Column(INT, default=0)
+    comments_count = Column(INT, default=0)
+    views = Column(INT, default=0)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+    author = relationship("User")
+    comments = relationship("RequestComment", back_populates="post")
+
+class RequestComment(Base):
+    __tablename__ = 'request_comments'
+    id = Column(BIGINT, primary_key=True, autoincrement=True)
+    post_id = Column(BIGINT, ForeignKey('request_posts.id'), nullable=False)
+    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
+    content = Column(TEXT, nullable=False)
+    parent_comment_id = Column(BIGINT, ForeignKey('request_comments.id'), nullable=True)
+    likes_count = Column(INT, default=0)
+    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+    post = relationship("RequestPost", back_populates="comments")
+    author = relationship("User")
+    parent = relationship("RequestComment", remote_side=[id])
+
+# Mentor Board (멘토 게시판)
+class MentorPost(Base):
+    __tablename__ = 'mentor_posts'
+    id = Column(BIGINT, primary_key=True, autoincrement=True)
+    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
+    category = Column(Enum('technical', 'lifestyle', 'business', 'seeking', 'offering'), nullable=False)
+    title = Column(VARCHAR(200), nullable=False)
+    content = Column(TEXT, nullable=False)
+    experience = Column(VARCHAR(50), nullable=True)
+    hourly_rate = Column(VARCHAR(50), nullable=True)
+    location = Column(VARCHAR(120), nullable=True)
+    likes_count = Column(INT, default=0)
+    comments_count = Column(INT, default=0)
+    views = Column(INT, default=0)
+    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+    author = relationship("User")
+    comments = relationship("MentorComment", back_populates="post")
+
+class MentorComment(Base):
+    __tablename__ = 'mentor_comments'
+    id = Column(BIGINT, primary_key=True, autoincrement=True)
+    post_id = Column(BIGINT, ForeignKey('mentor_posts.id'), nullable=False)
+    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
+    content = Column(TEXT, nullable=False)
+    parent_comment_id = Column(BIGINT, ForeignKey('mentor_comments.id'), nullable=True)
+    likes_count = Column(INT, default=0)
+    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+    post = relationship("MentorPost", back_populates="comments")
+    author = relationship("User")
+    parent = relationship("MentorComment", remote_side=[id])

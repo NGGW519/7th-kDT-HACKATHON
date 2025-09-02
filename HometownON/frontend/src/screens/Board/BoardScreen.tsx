@@ -235,7 +235,7 @@ export default function BoardScreen() {
   const handlePressWrite = () => {
     console.log("Active Tab:", activeTab); // Added for debugging
     if (activeTab === "의뢰 게시판") {
-      navigation.navigate("Board", { screen: "BoardWriteScreen", params: { boardType: activeTab } });        // 의뢰글 작성
+      navigation.navigate("Board", { screen: "RequestBoardWriteScreen", params: { boardType: activeTab } });        // 의뢰글 작성
     } else if (activeTab === "멘토 게시판") {
       navigation.navigate("Board", { screen: "MentorBoardWriteScreen", params: { boardType: activeTab } });  // 멘토글 작성
     } else {
@@ -384,7 +384,7 @@ export default function BoardScreen() {
 
       {/* 상단 탭 */}
       <View style={styles.tabRow}>
-        <TouchableOpacity onPress={() => setActiveTab("의뢰 게시판")} style={{ marginHorizontal: 16 }}>
+        <TouchableOpacity onPress={() => navigation.navigate("RequestBoard")} style={{ marginHorizontal: 16 }}>
           <View style={activeTab === "의뢰 게시판" ? styles.activeTabUnderline : null}>
             <Text style={activeTab === "의뢰 게시판" ? styles.tabActive : styles.tab}>의뢰 게시판</Text>
           </View>
@@ -412,7 +412,7 @@ export default function BoardScreen() {
               </Text>
               <Text style={styles.matchStatsText}>
                 매칭 가능한 의뢰:{" "}
-                {posts.filter((p) => isSpecialtyMatch(p.category) && p.status === "pending").length}개
+                {(posts || []).filter((p) => isSpecialtyMatch(p.category) && p.status === "pending").length}개
               </Text>
             </View>
 

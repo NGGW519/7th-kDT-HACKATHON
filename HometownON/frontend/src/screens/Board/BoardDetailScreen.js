@@ -21,7 +21,7 @@ const BoardDetailScreen = ({ navigation, route }) => {
   const [post, setPost] = useState(initialPost);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(initialPost.likes_count);
+  const [likeCount, setLikeCount] = useState(initialPost.likes_count || initialPost.likes || 0);
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState([]);
 
@@ -32,18 +32,45 @@ const BoardDetailScreen = ({ navigation, route }) => {
 
   const fetchPostDetails = async () => {
     try {
+      console.log('initialPost in BoardDetailScreen:', initialPost);
+      console.log('initialPost.id:', initialPost.id);
       const token = await AuthService.getToken();
-      const response = await fetch(`${API_URL}/api/board/${initialPost.id}`, {
+      
+      // 게시물 타입에 따라 다른 API 엔드포인트 사용
+      let apiEndpoint = `${API_URL}/api/board/${initialPost.id}`;
+      
+      // 게시물 타입 판별 - 카테고리를 기준으로 판별
+      const requestCategories = ['repair', 'agriculture', 'it', 'cleaning', 'installation'];
+      const mentorCategories = ['technical', 'lifestyle', 'business', 'seeking', 'offering'];
+      
+      if (requestCategories.includes(initialPost.category) || initialPost.budget || initialPost.location || initialPost.status === 'pending' || initialPost.status === 'completed') {
+        apiEndpoint = `${API_URL}/api/requests/${initialPost.id}`;
+      }
+      // 멘토 게시판인지 확인
+      else if (mentorCategories.includes(initialPost.category) || initialPost.experience || initialPost.hourly_rate || initialPost.hourlyRate) {
+        apiEndpoint = `${API_URL}/api/mentors/${initialPost.id}`;
+      }
+      
+      const response = await fetch(apiEndpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      const data = await response.json();
-      setPost(data);
-      setComments(data.comments);
-      setLikeCount(data.likes_count);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPost(data);
+        setComments(data.comments || []);
+        setLikeCount(data.likes_count);
+      } else {
+        console.error('Failed to fetch post details:', response.status);
+        // API가 실패하면 초기 게시물 데이터 그대로 사용
+        setComments(initialPost.comments || []);
+      }
     } catch (error) {
       console.error('Error fetching post details:', error);
+      // 에러 발생 시 초기 게시물 데이터 그대로 사용
+      setComments(initialPost.comments || []);
     }
   };
 
@@ -59,7 +86,19 @@ const BoardDetailScreen = ({ navigation, route }) => {
   };
 
   const handleLike = async () => {
-    const url = `${API_URL}/api/board/${post.id}/${isLiked ? 'unlike' : 'like'}`;
+    // 게시물 타입에 따라 다른 API 엔드포인트 사용
+    let baseApiEndpoint = `${API_URL}/api/board`;
+    
+    const requestCategories = ['repair', 'agriculture', 'it', 'cleaning', 'installation'];
+    const mentorCategories = ['technical', 'lifestyle', 'business', 'seeking', 'offering'];
+    
+    if (requestCategories.includes(initialPost.category) || initialPost.budget || initialPost.location || initialPost.status === 'pending' || initialPost.status === 'completed') {
+      baseApiEndpoint = `${API_URL}/api/requests`;
+    } else if (mentorCategories.includes(initialPost.category) || initialPost.experience || initialPost.hourly_rate || initialPost.hourlyRate) {
+      baseApiEndpoint = `${API_URL}/api/mentors`;
+    }
+    
+    const url = `${baseApiEndpoint}/${post.id}/${isLiked ? 'unlike' : 'like'}`;
     try {
       const token = await AuthService.getToken();
       const response = await fetch(url, { 
@@ -87,8 +126,17 @@ const BoardDetailScreen = ({ navigation, route }) => {
     }
 
     try {
+      // 게시물 타입에 따라 다른 API 엔드포인트 사용
+      let baseApiEndpoint = `${API_URL}/api/board`;
+      
+      if (requestCategories.includes(initialPost.category)) {
+        baseApiEndpoint = `${API_URL}/api/requests`;
+      } else if (mentorCategories.includes(initialPost.category)) {
+        baseApiEndpoint = `${API_URL}/api/mentors`;
+      }
+      
       const token = await AuthService.getToken();
-      const response = await fetch(`${API_URL}/board/${post.id}/comments`,
+      const response = await fetch(`${baseApiEndpoint}/${post.id}/comments`,
         {
           method: 'POST',
           headers: {
@@ -246,10 +294,10 @@ const BoardDetailScreen = ({ navigation, route }) => {
                     style={styles.commentAvatar}
                     resizeMode="contain"
                   />
-                  <Text style={styles.commentAuthorName}>{comment.author}</Text>
+                  <Text style={styles.commentAuthorName}>{comment.author?.profile?.display_name || comment.author || '익명'}</Text>
                   {comment.isAuthor && <Text style={styles.authorBadge}>작성자</Text>}
                 </View>
-                <Text style={styles.commentDate}>{comment.createdAt}</Text>
+                <Text style={styles.commentDate}>{formatDate(comment.created_at || comment.createdAt)}</Text>
               </View>
               <Text style={styles.commentContent}>{comment.content}</Text>
             </View>

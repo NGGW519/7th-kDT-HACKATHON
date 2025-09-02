@@ -27,12 +27,21 @@ const COLORS = {
   chipActiveText: "#FFF",
 };
 
-const CATEGORIES = [
+const FREE_CATEGORIES = [
   { key: 'daily', title: '일상', icon: '☀️' },
   { key: 'food', title: '맛집', icon: '🍽️' },
   { key: 'memory', title: '추억', icon: '💭' },
   { key: 'nature', title: '자연', icon: '🌿' },
   { key: 'hobby', title: '취미', icon: '🎨' },
+  { key: 'other', title: '기타', icon: '📋' },
+];
+
+const REQUEST_CATEGORIES = [
+  { key: 'repair', title: '수리', icon: '🔧' },
+  { key: 'agriculture', title: '농업', icon: '🌾' },
+  { key: 'it', title: 'IT', icon: '💻' },
+  { key: 'cleaning', title: '청소', icon: '🧹' },
+  { key: 'installation', title: '설치', icon: '🔨' },
   { key: 'other', title: '기타', icon: '📋' },
 ];
 
@@ -43,7 +52,11 @@ export default function FreeBoardWriteScreen({ route }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("일상");
+  const [selectedCategory, setSelectedCategory] = useState(
+    boardType === "의뢰 게시판" ? "repair" : "일상"
+  );
+
+  const categories = boardType === "의뢰 게시판" ? REQUEST_CATEGORIES : FREE_CATEGORIES;
 
   useEffect(() => {
     (async () => {
@@ -85,7 +98,7 @@ export default function FreeBoardWriteScreen({ route }) {
             const post = await response.json();
             const handleAlertPress = () => {
               setTimeout(() => {
-                navigation.navigate("BoardDetail", { post });
+                navigation.replace("BoardDetail", { post });
               }, 100); // Delay navigation by 100ms
             };
             Alert.alert("등록 완료", "게시글이 성공적으로 등록되었습니다!", [

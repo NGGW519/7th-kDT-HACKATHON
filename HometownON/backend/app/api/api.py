@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .endpoints import users, chat, weather, locations, missions, board
+from .endpoints import users, chat, weather, locations, missions, board, request, mentor
 
 api_router = APIRouter()
 
@@ -10,4 +10,6 @@ api_router.include_router(weather.router, prefix="/weather", tags=["Weather"])
 api_router.include_router(locations.router, prefix="/locations", tags=["Locations"])
 api_router.include_router(missions.router, prefix="/missions", tags=["Missions"])
 api_router.include_router(board.router, prefix="/board", tags=["Board"])
+api_router.include_router(request.router, prefix="/requests", tags=["Requests"])
+api_router.include_router(mentor.router, prefix="/mentors", tags=["Mentors"])
 
