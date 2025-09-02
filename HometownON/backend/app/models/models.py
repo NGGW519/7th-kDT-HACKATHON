@@ -196,6 +196,8 @@ class BoardPost(Base):
     likes_count = Column(INT, default=0)
     comments_count = Column(INT, default=0)
     status = Column(Enum('active', 'hidden', 'deleted'), default='active')
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
     author = relationship("User")
     comments = relationship("BoardComment", back_populates="post")

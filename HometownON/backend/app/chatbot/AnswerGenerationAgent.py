@@ -10,14 +10,14 @@ def run_answer_generation_agent(state: AgentState) -> dict:
     """Synthesizes a final answer based on the context and returns it."""
     print("--- Running Answer Generation Agent ---")
 
-    # ¾ÈÀüÇÏ°Ô intermediate_steps °¡Á®¿À±â
+    # ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ intermediate_steps ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     intermediate_steps = state.get("intermediate_steps", [])
     if not isinstance(intermediate_steps, list):
         intermediate_steps = [str(intermediate_steps)]
 
     context = "\n".join(intermediate_steps)
 
-    # prompt ±¸¼º
+    # prompt ï¿½ï¿½ï¿½ï¿½
     prompt_text = (
         f"User Question: {state.get('prompt', '')}\n\n"
         f"Database Search Results:\n{context}"
@@ -28,7 +28,7 @@ def run_answer_generation_agent(state: AgentState) -> dict:
         ("human", prompt_text)
     ])
 
-    # LLM ÃÊ±âÈ­ (streaming ²û)
+    # LLM ï¿½Ê±ï¿½È­ (streaming ï¿½ï¿½)
     llm = ChatOpenAI(
         model="gpt-4o",
         api_key=settings.OPENAI_API_KEY,
@@ -36,7 +36,7 @@ def run_answer_generation_agent(state: AgentState) -> dict:
         streaming=False,
     )
 
-    # chain ½ÇÇà
+    # chain ï¿½ï¿½ï¿½ï¿½
     try:
         response = (prompt | llm).invoke({
             "prompt": state.get("prompt", ""),
@@ -50,4 +50,7 @@ def run_answer_generation_agent(state: AgentState) -> dict:
     print("--- Answer Generation complete. Response: ---")
     print(final_answer)
 
-    return {"generation": final_answer}
+    # Update task index for work plan progression
+    current_index = state.get("current_task_index", 0)
+    
+    return {"generation": final_answer, "current_task_index": current_index + 1}

@@ -46,4 +46,10 @@ def run_mission_generation_agent(state: AgentState) -> dict:
     final_response = response.get("output", "An unexpected error occurred.")
     print(f"--- Mission Generation Agent finished. Final Response: {final_response} ---")
 
-    return {"generation": final_response}
+    # Update task index for work plan progression
+    current_index = state.get("current_task_index", 0)
+    
+    return {
+        "generation": final_response, 
+        "current_task_index": current_index + 1
+    }

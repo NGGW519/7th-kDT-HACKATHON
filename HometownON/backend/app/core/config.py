@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "a_very_secret_key_for_jwt"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # One week
+    API_URL: str = "http://localhost:8000"
 
     # model_config를 사용하여 추가 설정을 정의합니다 (Pydantic v2 스타일).
     model_config = SettingsConfigDict(

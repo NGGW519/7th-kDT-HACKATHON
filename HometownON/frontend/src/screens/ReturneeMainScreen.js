@@ -15,6 +15,7 @@ import WeatherInfo from '../components/WeatherInfo';
 import MissionCard from '../components/MissionCard';
 import MyMenu from '../components/MyMenu';
 import { getCurrentUser } from '../utils/storage';
+import AuthService from '../services/AuthService';
 import LocationService from '../services/LocationService';
 import WeatherService from '../services/WeatherService';
 
@@ -160,10 +161,11 @@ const ReturneeMainScreen = ({ navigation }) => {
       const loadUser = async () => {
         try {
           setIsLoading(true);
-          const currentUser = await getCurrentUser();
-          if (currentUser && currentUser.name) {
-            setUser(currentUser);
-            const userName = currentUser.name;
+          // 백엔드에서 현재 사용자 정보 가져오기
+          const result = await AuthService.getCurrentUser();
+          if (result.success && result.data && result.data.profile) {
+            setUser(result.data);
+            const userName = result.data.profile.display_name;
             setUserName(userName);
             setMissionData(prev => ({
               ...prev,
@@ -171,7 +173,11 @@ const ReturneeMainScreen = ({ navigation }) => {
             }));
             console.log('✅ 사용자 정보 로드 완료:', userName);
           } else {
-            console.log('⚠️ 사용자 정보가 없습니다');
+            console.log('⚠️ 사용자 정보를 가져올 수 없습니다:', result.error);
+            // 토큰이 없거나 만료된 경우 로그인 화면으로 이동
+            if (result.error === '로그인이 필요합니다.') {
+              navigation.navigate('SignIn');
+            }
           }
         } catch (error) {
           console.error('사용자 정보 로드 오류:', error);

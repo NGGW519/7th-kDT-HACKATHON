@@ -459,7 +459,7 @@ export default function BoardScreen() {
         )}
 
         {activeTab === "멘토 게시판" && <MentorBoardScreen />}
-        {activeTab === "자유 게시판" && <FreeBoardScreen />}
+        {activeTab === "자유 게시판" && <FreeBoardScreen navigation={navigation} />}
       </View>
     </SafeAreaView>
   );
