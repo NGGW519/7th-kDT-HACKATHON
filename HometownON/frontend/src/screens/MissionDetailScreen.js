@@ -153,15 +153,16 @@ const MissionDetailScreen = ({ navigation, route }) => {
                 <MapView
                   style={styles.map}
                   initialRegion={{
-                    latitude: locationDetails.coordinates.latitude,
-                    longitude: locationDetails.coordinates.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
+                    latitude: locationDetails.coordinates.longitude,
+                    longitude: locationDetails.coordinates.latitude,
+                    latitudeDelta: 0.01, // Increased delta
+                    longitudeDelta: 0.01, // Increased delta
                   }}
                   showsUserLocation={true}
                   showsMyLocationButton={true}
                   onMapReady={() => {
                     console.log('✅ 미션 상세 지도 로드 완료!');
+                    console.log('📍 MapView initialRegion Lat:', locationDetails.coordinates.longitude, 'Lng:', locationDetails.coordinates.latitude);
                   }}
                   onError={(error) => {
                     console.error('❌ 미션 상세 지도 오류:', error);
@@ -169,8 +170,8 @@ const MissionDetailScreen = ({ navigation, route }) => {
                 >
                   <Marker
                     coordinate={{
-                      latitude: locationDetails.coordinates.latitude,
-                      longitude: locationDetails.coordinates.longitude,
+                      latitude: locationDetails.coordinates.longitude,
+                      longitude: locationDetails.coordinates.latitude,
                     }}
                     title={locationDetails.name}
                     description={locationDetails.address}

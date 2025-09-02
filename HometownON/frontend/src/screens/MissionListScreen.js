@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Animated,
   Image,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import API_URL from '../config/apiConfig'; // API_URL import 추가
 
 const MissionListScreen = ({ navigation, route }) => {
@@ -95,43 +96,51 @@ const MissionListScreen = ({ navigation, route }) => {
       };
     });
 
-    return frontendMissionTypes;
+        return frontendMissionTypes;
   };
 
-  useEffect(() => {
-    // Fetch missions from backend
-    const fetchMissions = async () => {
-      console.log(`[DEBUG] Fetching missions from: ${API_URL}/api/missions`);
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`${API_URL}/api/missions`);
-        console.log(`[DEBUG] Response status: ${response.status}`);
+  const fetchMissions = useCallback(async () => {
+    console.log(`[DEBUG] Fetching missions from: ${API_URL}/api/missions`);
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_URL}/api/missions`);
+      console.log(`[DEBUG] Response status: ${response.status}`);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        setMissions(data); // 원본 데이터 저장
-        const processedMissions = processMissionsForDisplay(data); // 데이터 가공
-        setMissionTypesForDisplay(processedMissions); // 화면 표시용 상태 업데이트
-
-      } catch (error) {
-        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-        console.error('!!! FETCH FAILED - ERROR !!!');
-        console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-        console.error(error);
-        setError(error);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    };
 
-    fetchMissions();
+      const data = await response.json();
+      
+      setMissions(data); // 원본 데이터 저장
+      const processedMissions = processMissionsForDisplay(data); // 데이터 가공
+      setMissionTypesForDisplay(processedMissions); // 화면 표시용 상태 업데이트
 
-    // 진행률 애니메이션
+    } catch (error) {
+      console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+      console.error('!!! FETCH FAILED - ERROR !!!');
+      console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+      console.error(error);
+      setError(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [API_URL]); // API_URL을 의존성 배열에 추가
+
+  
+
+  // 진행률 애니메이션은 progressPercentage가 변경될 때만 실행
+  
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMissions();
+    }, [fetchMissions])
+  );
+
+  // 진행률 애니메이션은 progressPercentage가 변경될 때만 실행
+  useEffect(() => {
     Animated.timing(progressAnimation, {
       toValue: progressPercentage,
       duration: 1000,
