@@ -92,14 +92,15 @@ async def event_stream(request: ChatRequest, db: Session, user_id: int, token: s
 
 @router.post("/chat")
 async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(security.get_current_user), credentials: HTTPAuthorizationCredentials = Depends(security.security)):
+    user_id = current_user.id # Extract ID here
     session_id = request.session_id
     if not session_id:
-        chat_session = crud.crud_chat.create_chat_session(db=db, user_id=current_user.id)
+        chat_session = crud.crud_chat.create_chat_session(db=db, user_id=user_id)
         db.commit()
         session_id = chat_session.id
     
     async def simple_generator():
-        async for chunk in event_stream(request, db, current_user.id, credentials.credentials, session_id):
+        async for chunk in event_stream(request, db, user_id, credentials.credentials, session_id):
             yield chunk
     
     return StreamingResponse(

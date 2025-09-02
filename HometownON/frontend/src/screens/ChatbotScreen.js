@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import API_URL from '../config/apiConfig';
 import AuthService from '../services/AuthService';
@@ -217,9 +218,16 @@ const ChatbotScreen = ({ navigation }) => {
               key={message.id}
               style={[
                 styles.messageContainer,
-                message.type === 'user' ? styles.userMessage : styles.botMessage,
+                message.type === 'user' ? styles.userMessageContainer : styles.botMessageContainer,
               ]}
             >
+              {message.type === 'bot' && (
+                <Image 
+                  source={require('../assets/images/ai_chatbot.png')}
+                  style={styles.chatbotAvatar}
+                  resizeMode="contain"
+                />
+              )}
               <View
                 style={[
                   styles.messageBubble,
@@ -317,6 +325,20 @@ const styles = StyleSheet.create({
     marginVertical: 5,
     flexDirection: 'row',
   },
+  userMessageContainer: {
+    justifyContent: 'flex-end',
+  },
+  botMessageContainer: {
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end', // Align image and bubble to the bottom
+  },
+  chatbotAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginRight: -20, // Adjust to overlap more
+    alignSelf: 'flex-end', // Align to bottom of message container
+  },
   userMessage: {
     justifyContent: 'flex-end',
   },
@@ -324,8 +346,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   messageBubble: {
-    maxWidth: '80%',
-    padding: 15,
+    maxWidth: '70%',
+    padding: 12,
     borderRadius: 20,
   },
   userBubble: {
@@ -336,7 +358,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#EAEAEA',
-    borderBottomLeftRadius: 5,
+    borderTopLeftRadius: 20, // Make it rounded
+    borderBottomLeftRadius: 5, // Make it pointed
+    marginLeft: 10, // Adjust to align with image
+    paddingLeft: 25, // Make space for the image
+    marginBottom: 10, // Move bubble up slightly from the bottom of the image
   },
   messageText: {
     fontSize: 16,

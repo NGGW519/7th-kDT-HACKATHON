@@ -87,7 +87,7 @@ export default function MentorMyPageScreen() {
           </View>
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{currentUser ? `${currentUser.name}님` : '사용자님'}</Text>
-            <Text style={styles.userType}>귀향자</Text>
+            <Text style={styles.userType}>멘토</Text>
             <Text style={styles.userEmail}>{currentUser?.email ?? 'user@example.com'}</Text>
           </View>
         </View>
