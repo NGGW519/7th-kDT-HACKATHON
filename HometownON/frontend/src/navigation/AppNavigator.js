@@ -5,106 +5,67 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createStackNavigator } from '@react-navigation/stack';
 import { Image } from 'react-native';
 
-// Import screens
-import AchievementScreen from '../screens/AchievementScreen';
-import BadgeCollectionScreen from '../screens/BadgeCollectionScreen';
-// import BoardDetailScreen from '../screens/BoardDetailScreen';
-// import BoardScreen from '../screens/BoardScreen';
-// import BoardWriteScreen from '../screens/BoardWriteScreen';
-import ChangePasswordScreen from '../screens/ChangePasswordScreen';
-import ChatbotScreen from '../screens/ChatbotScreen';
-import EditProfileScreen from '../screens/EditProfileScreen';
-// import FreeBoardScreen from '../screens/FreeBoardScreen';
-// import FreeBoardWriteScreen from '../screens/FreeBoardWriteScreen';
-import GoalSettingScreen from '../screens/GoalSettingScreen';
-import HelpScreen from '../screens/HelpScreen';
-// import MentorBoardScreen from '../screens/MentorBoardScreen';
-// import MentorDetailScreen from '../screens/MentorDetailScreen';
-// import MentorMainScreen from '../screens/MentorMainScreen';
-import MentorSeekingWriteScreen from '../screens/MentorSeekingWriteScreen';
-import MentorSignUpScreen from '../screens/MentorSignUpScreen';
-import MessengerScreen from '../screens/MessengerScreen';
-import MissionCardGameScreen from '../screens/MissionCardGameScreen';
-import MissionDashboardScreen from '../screens/MissionDashboardScreen';
-import MissionDetailScreen from '../screens/MissionDetailScreen';
-import MissionListScreen from '../screens/MissionListScreen';
-import MissionLoadingScreen from '../screens/MissionLoadingScreen';
-import MissionCompleteScreen from '../screens/MissionCompleteScreen';
-import MyPageScreen from '../screens/MyPageScreen';
-import NotificationScreen from '../screens/NotificationScreen';
-import PrivacySettingsScreen from '../screens/PrivacySettingsScreen';
-import RequestBoardScreen from '../screens/RequestBoardScreen';
+import RequestBoardScreen from '../screens/Board/RequestBoardScreen';
+import BoardScreen from '../screens/Board/BoardScreen';
+import BoardWriteScreen from '../screens/Board/BoardWriteScreen';
+import FreeBoardScreen from '../screens/Board/FreeBoardScreen';
+import FreeBoardWriteScreen from '../screens/Board/FreeBoardWriteScreen';
+import MissionDetailScreen from '../screens/Mission/MissionDetailScreen';
+import MissionCompleteScreen from '../screens/Mission/MissionCompleteScreen';
+import ChatbotScreen from '../screens/Chat/ChatbotScreen';
+import ChatDetailScreen from '../screens/Chat/ChatDetailScreen';
+import MessengerChatScreen from '../screens/Chat/MessengerChatScreen';
+import TabMessengerScreen from '../screens/Chat/TabMessengerScreen';
+import MyPageScreen from '../screens/Common/MyPageScreen';
+import ReturneeSignUpScreen from '../screens/Returnee/SignUp/ReturneeSignUpScreen';
+import ReturneeMainScreen from '../screens/Returnee/Main/ReturneeMainScreen';
+import ResidentSignUpScreen from '../screens/Resident/SignUp/ResidentSignUpScreen';
+import ResidentMainScreen from '../screens/Resident/Main/ResidentMainScreen';
+import MissionListScreen from '../screens/Mission/MissionListScreen';
+import MentorSignUpScreen from '../screens/Mentor/SignUp/MentorSignUpScreen';
+import MentorMainScreen from '../screens/Mentor/Main/MentorMainScreen';
+import MentorBoardScreen from '../screens/Mentor/Board/MentorBoardScreen';
+import MentorBoardWriteScreen from '../screens/Mentor/Board/MentorBoardWriteScreen';
+import MentorMessengerChatScreen from '../screens/Mentor/Messenger/MentorMessengerChatScreen';
+import MentorMyPageScreen from '../screens/Mentor/MyPage/MentorMyPageScreen';
+import MentorEditProfileScreen from '../screens/Mentor/Profile/MentorEditProfileScreen';
+import MentorSettingsScreen from '../screens/Mentor/Settings/MentorSettingsScreen';
+import MentorHelp from '../screens/Mentor/Help/MentorHelp';
+import MentorNotificationScreen from '../screens/Mentor/Notifications/MentorNotificationScreen';
+import MentorRequestStatusScreen from '../screens/Mentor/Requests/MentorRequestStatusScreen';
+import MyStudentsScreen from '../screens/Mentor/MyStudentsScreen';
+import StudentDetailScreen from '../screens/Mentor/StudentDetailScreen';
+import CourseEditorScreen from '../screens/Course/CourseEditorScreen';
+import CreateClassScreen from '../screens/Course/CreateClassScreen';
+import ResNotificationScreen from '../screens/Resident/Notifications/ResNotificationScreen';
+import ResMessengerChatScreen from '../screens/Resident/Messenger/ResMessengerChatScreen';
+import ResidentMyPageScreen from '../screens/Resident/MyPage/ResidentMyPageScreen';
+import ResEditProfileScreen from '../screens/Resident/Profile/ResEditProfileScreen';
+import ResSettingsScreen from '../screens/Resident/Settings/ResSettingsScreen';
+import ResRequestStatusScreen from '../screens/Resident/Requests/ResRequestStatusScreen';
+import ResHelp from '../screens/Resident/Help/ResHelp';
+import MyActiveRequestsScreen from '../screens/Requests/MyActiveRequestsScreen';
+import MyAllRequestsScreen from '../screens/Requests/MyAllRequestsScreen';
+import EditProfileScreen from '../screens/Common/EditProfileScreen';
+import BadgeCollectionScreen from '../screens/Mission/BadgeCollectionScreen';
+import BoardDetailScreen from '../screens/Board/BoardDetailScreen';
+import SignInScreen from '../screens/Auth/SignInScreen';
+import MissionCardGameScreen from '../screens/Mission/MissionCardGameScreen';
+import SignUpScreen from '../screens/Auth/SignUpScreen';
+import MessengerScreen from '../screens/Chat/MessengerScreen';
+import ChangePasswordScreen from '../screens/Common/ChangePasswordScreen';
+import HelpScreen from '../screens/Common/HelpScreen';
+import NotificationScreen from '../screens/Common/NotificationScreen';
+import PrivacySettingsScreen from '../screens/Common/PrivacySettingsScreen';
+import SettingsScreen from '../screens/Common/SettingsScreen';
+import WelcomeScreen from '../screens/Common/WelcomeScreen';
+import MentorDetailScreen from '../screens/Mentor/Profile/MentorDetailScreen';
+import MentorSeekingWriteScreen from '../screens/Mentor/Seeking/MentorSeekingWriteScreen';
+import AchievementScreen from '../screens/Mission/AchievementScreen';
+import GoalSettingScreen from '../screens/Mission/GoalSettingScreen';
+import MissionDashboardScreen from '../screens/Mission/MissionDashboardScreen';
+import MissionLoadingScreen from '../screens/Mission/MissionLoadingScreen';
 
-import ResidentMyPageScreen from '../screens/ResidentMyPageScreen';
-import ResidentSignUpScreen from '../screens/ResidentSignUpScreen';
-import ReturneeMainScreen from '../screens/ReturneeMainScreen';
-import ReturneeSignUpScreen from '../screens/ReturneeSignUpScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import SignInScreen from '../screens/SignInScreen';
-import SignUpScreen from '../screens/SignUpScreen';
-import WelcomeScreen from '../screens/WelcomeScreen';
-
-// ----박현아----//
-
-//멘토
-
-//홈 화면
-import CourseEditorScreen from "../screens/CourseEditorScreen";
-import CreateClassScreen from "../screens/CreateClassScreen";
-import MentorMainScreen from "../screens/MentorMainScreen";
-import MentorNotificationScreen from "../screens/MentorNotificationScreen";
-import MyStudentsScreen from "../screens/MyStudentsScreen";
-import StudentDetailScreen from "../screens/StudentDetailScreen";
-
-//의뢰 현황
-import MentorMessengerChatScreen from "../screens/MentorMessengerChatScreen";
-import MentorRequestStatusScreen from "../screens/MentorRequestStatusScreen";
-
-//게시판
-import BoardDetailScreen from "../screens/BoardDetailScreen";
-import BoardScreen from "../screens/BoardScreen";
-import BoardWriteScreen from "../screens/BoardWriteScreen";
-import ChatDetailScreen from "../screens/ChatDetailScreen";
-import FreeBoardScreen from "../screens/FreeBoardScreen";
-import FreeBoardWriteScreen from "../screens/FreeBoardWriteScreen";
-import MentorBoardScreen from "../screens/MentorBoardScreen";
-import MentorBoardWriteScreen from "../screens/MentorBoardWriteScreen";
-import MentorDetailScreen from "../screens/MentorDetailScreen";
-
-// 채팅 
-import MessengerChatScreen from "../screens/MessengerChatScreen";
-import TabMessengerScreen from "../screens/TabMessengerScreen";
-
-//마이페이지
-import MentorEditProfileScreen from "../screens/MentorEditProfileScreen";
-import MentorHelp from "../screens/MentorHelp";
-import MentorMyPageScreen from "../screens/MentorMyPageScreen";
-import MentorSettingsScreen from "../screens/MentorSettingsScreen";
-
-// 지역주민 
-
-// 홈 화면
-import MyActiveRequestsScreen from "../screens/MyActiveRequestsScreen";
-import MyAllRequestsScreen from "../screens/MyAllRequestsScreen";
-import ResidentMainScreen from '../screens/ResidentMainScreen';
-import ResMessengerChatScreen from "../screens/ResMessengerChatScreen";
-import ResNotificationScreen from "../screens/ResNotificationScreen";
-
-// 의뢰 현황
-import ResRequestStatusScreen from "../screens/ResRequestStatusScreen";
-// 채팅 화면 동일
-
-//게시판
-//멘토와 동일
-
-//채팅
-//멘도와 동일
-
-// 마이페이지
-import ResEditProfileScreen from "../screens/ResEditProfileScreen";
-import ResHelp from "../screens/ResHelp";
-import ResMyPageScreen from "../screens/ResMyPageScreen";
-import ResSettingsScreen from "../screens/ResSettingsScreen";
 
 
 
@@ -296,7 +257,7 @@ function ResMessengerStackScreen() {
 function ResMyPageStackScreen() {
   return (
     <ResMypageStack.Navigator screenOptions={{ headerShown: false }}>
-      <ResMypageStack.Screen name="ResMyPageHome" component={ResMyPageScreen} />
+      <ResMypageStack.Screen name="ResMyPageHome" component={ResidentMyPageScreen} />
       <ResMypageStack.Screen name="ResEditProfileScreen" component={ResEditProfileScreen} />
       <ResMypageStack.Screen name="ResSettingsScreen" component={ResSettingsScreen} />
       <ResMypageStack.Screen name="ResHelp" component={ResHelp} />
