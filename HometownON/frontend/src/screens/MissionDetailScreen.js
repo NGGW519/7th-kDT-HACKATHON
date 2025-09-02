@@ -32,8 +32,8 @@ const MissionDetailScreen = ({ navigation, route }) => {
     setMissionDetails(missionData);
 
     // Extract location name from mission title
-    // Assuming mission title is like "장소이름 - 미션 설명"
-    const titleParts = missionData.title.split(' - ');
+    // Assuming mission title is like "장소이름,- 미션 설명"
+    const titleParts = missionData.title.split(', ');
     const locationName = titleParts.length > 1 ? titleParts[0] : null;
 
     if (locationName) {
