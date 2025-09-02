@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { logout, getCurrentUser } from '../utils/storage';
+import AuthService from '../services/AuthService';
 
 const MyPageScreen = ({ navigation }) => {
   const [currentUser, setCurrentUser] = React.useState(null);
@@ -21,8 +22,17 @@ const MyPageScreen = ({ navigation }) => {
 
   const loadCurrentUser = async () => {
     try {
-      const user = await getCurrentUser();
-      setCurrentUser(user);
+      const result = await AuthService.getCurrentUser();
+      if (result.success && result.data && result.data.profile) {
+        setCurrentUser({
+          id: result.data.id,
+          email: result.data.email,
+          phone: result.data.phone,
+          name: result.data.profile.display_name,
+          profileImage: result.data.profile.profile_image,
+          bio: result.data.profile.bio,
+        });
+      }
     } catch (error) {
       console.error('사용자 정보 로드 오류:', error);
     }
