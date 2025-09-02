@@ -11,12 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
-  Animated,
-  Dimensions
 } from 'react-native';
-
-const { width } = Dimensions.get('window');
+import { REACT_APP_API_URL } from '@env';
 
 const ChatbotScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([
@@ -29,10 +25,20 @@ const ChatbotScreen = ({ navigation }) => {
   ]);
   const [inputText, setInputText] = useState('');
   const [sessionId, setSessionId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef();
 
-  const handleSendMessage = async () => {
-    if (inputText.trim() === '') return;
+  useEffect(() => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
+
+  // 디버깅용 로그
+  useEffect(() => {
+    console.log('🔍 Current sessionId:', sessionId);
+  }, [sessionId]);
+
+  const handleSendMessage = () => {
+    if (inputText.trim() === '' || isLoading) return;
 
     const userMessage = {
       id: Date.now(),
@@ -41,61 +47,128 @@ const ChatbotScreen = ({ navigation }) => {
       timestamp: new Date(),
     };
 
-    // Add user message and a bot placeholder
-    setMessages(prev => [...prev, userMessage, { id: Date.now() + 1, type: 'bot', text: '', timestamp: new Date() }]);
+    const botMessagePlaceholder = { 
+      id: Date.now() + 1, 
+      type: 'bot', 
+      text: '', 
+      timestamp: new Date(),
+      isLoading: true
+    };
+
+    setMessages(prev => [...prev, userMessage, botMessagePlaceholder]);
     const currentInput = inputText;
     setInputText('');
+    setIsLoading(true);
 
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
-      const response = await fetch(`${apiUrl}/api/chatbot/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message: currentInput,
-          session_id: sessionId 
-        }),
-      });
+    console.log('📤 Sending message with sessionId:', sessionId);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    const apiUrl = REACT_APP_API_URL || 'http://10.0.2.2:8000';
+    const url = `${apiUrl}/api/chatbot/chat`;
+    
+    const requestBody = {
+      message: currentInput,
+      ...(sessionId && { session_id: sessionId }) // sessionId가 있을 때만 포함
+    };
 
-      // Handle session ID from header
-      const newSessionId = response.headers.get('X-Session-Id');
-      if (newSessionId && !sessionId) {
-        setSessionId(parseInt(newSessionId, 10));
-      }
+    console.log('📡 Request body:', requestBody);
 
-      // Handle streaming response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let streaming = true;
+    const xhr = new XMLHttpRequest();
+    let processedLength = 0;
 
-      while (streaming) {
-        const { done, value } = await reader.read();
-        if (done) {
-          streaming = false;
-          break;
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    
+    // 응답 헤더에서 세션 ID 가져오기
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 2) { // HEADERS_RECEIVED
+        const responseSessionId = xhr.getResponseHeader('X-Session-ID');
+        if (responseSessionId && !sessionId) {
+          console.log('🆕 Got new sessionId from header:', responseSessionId);
+          setSessionId(parseInt(responseSessionId, 10));
         }
-        const chunk = decoder.decode(value, { stream: true });
+      }
+    };
+    
+    // 스트리밍 데이터 처리
+    xhr.onprogress = () => {
+      const currentText = xhr.responseText;
+      const newChunk = currentText.substring(processedLength);
+      
+      if (newChunk) {
+        console.log('📨 Received chunk:', newChunk.substring(0, 50) + '...');
+        
         setMessages(prev => {
-          const lastMessage = prev[prev.length - 1];
-          if (lastMessage && lastMessage.type === 'bot') {
-            lastMessage.text += chunk;
-            return [...prev.slice(0, -1), lastMessage];
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage && lastMessage.type === 'bot' && lastMessage.isLoading) {
+            lastMessage.text += newChunk;
           }
-          return prev;
+          return newMessages;
         });
       }
+      processedLength = currentText.length;
+    };
 
-    } catch (error) {
-      console.error("Chat API error:", error);
+    // 요청 완료 처리
+    xhr.onload = () => {
+      console.log('✅ Request completed with status:', xhr.status);
+      setIsLoading(false);
+      
+      // 로딩 상태 제거
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.isLoading) {
+          delete lastMessage.isLoading;
+        }
+        return newMessages;
+      });
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let errorDetail = '알 수 없는 오류가 발생했습니다.';
+        try {
+          const errorData = JSON.parse(xhr.responseText);
+          errorDetail = errorData.detail || xhr.responseText;
+        } catch (e) {
+          errorDetail = xhr.responseText;
+        }
+        Alert.alert('오류', `HTTP ${xhr.status}: ${errorDetail}`);
+        
+        // 에러 시 메시지 제거
+        setMessages(prev => prev.filter(m => 
+          m.id !== userMessage.id && m.id !== botMessagePlaceholder.id
+        ));
+      }
+
+      // 마지막 청크 처리
+      const finalText = xhr.responseText;
+      const finalChunk = finalText.substring(processedLength);
+      if (finalChunk) {
+        console.log('📨 Final chunk:', finalChunk.substring(0, 50) + '...');
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage && lastMessage.type === 'bot') {
+            lastMessage.text += finalChunk;
+          }
+          return newMessages;
+        });
+      }
+    };
+
+    // 네트워크 에러 처리
+    xhr.onerror = () => {
+      console.error('❌ Chat API error:', xhr.status, xhr.responseText);
+      setIsLoading(false);
       Alert.alert('오류', '챗봇 서비스에 연결할 수 없습니다.');
-      setMessages(prev => prev.slice(0, -1)); // Remove bot placeholder on error
-    }
+      
+      // 에러 시 메시지 제거
+      setMessages(prev => prev.filter(m => 
+        m.id !== userMessage.id && m.id !== botMessagePlaceholder.id
+      ));
+    };
+
+    xhr.send(JSON.stringify(requestBody));
   };
 
   const formatTime = (timestamp) => {
@@ -115,12 +188,16 @@ const ChatbotScreen = ({ navigation }) => {
           </TouchableOpacity>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>인공지능 고향이</Text>
+            {/* 디버깅용: 현재 세션 ID 표시 */}
+            {sessionId && (
+              <Text style={styles.sessionDebug}>Session: {sessionId}</Text>
+            )}
           </View>
           <View style={{width: 40}} />
         </View>
       </SafeAreaView>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.messagesContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
@@ -144,10 +221,16 @@ const ChatbotScreen = ({ navigation }) => {
                   message.type === 'user' ? styles.userBubble : styles.botBubble,
                 ]}
               >
-                <Text style={styles.messageText}>
-                  {message.text || '...'}
+                <Text style={[
+                  styles.messageText,
+                  message.type === 'user' ? styles.userMessageText : styles.botMessageText
+                ]}>
+                  {message.text || (message.isLoading ? '응답을 기다리는 중...' : '...')}
                 </Text>
-                <Text style={styles.timestamp}>
+                <Text style={[
+                  styles.timestamp,
+                  message.type === 'user' ? styles.userTimestamp : styles.botTimestamp
+                ]}>
                   {formatTime(message.timestamp)}
                 </Text>
               </View>
@@ -162,9 +245,16 @@ const ChatbotScreen = ({ navigation }) => {
             onChangeText={setInputText}
             placeholder="메시지를 입력하세요..."
             placeholderTextColor="#999"
+            editable={!isLoading}
           />
-          <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-            <Text style={styles.sendButtonText}>전송</Text>
+          <TouchableOpacity 
+            style={[styles.sendButton, isLoading && styles.sendButtonDisabled]} 
+            onPress={handleSendMessage}
+            disabled={isLoading}
+          >
+            <Text style={styles.sendButtonText}>
+              {isLoading ? '전송중...' : '전송'}
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -206,6 +296,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
   },
+  sessionDebug: {
+    fontSize: 12,
+    color: '#E0E0E0',
+    marginTop: 2,
+  },
   messagesContainer: {
     flex: 1,
   },
@@ -242,8 +337,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  'userBubble .messageText': {
+  userMessageText: {
     color: '#FFF',
+  },
+  botMessageText: {
+    color: '#333',
   },
   timestamp: {
     fontSize: 12,
@@ -251,8 +349,11 @@ const styles = StyleSheet.create({
     marginTop: 5,
     alignSelf: 'flex-end',
   },
-  'userBubble .timestamp': {
+  userTimestamp: {
     color: '#E0E0E0',
+  },
+  botTimestamp: {
+    color: '#999',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -278,6 +379,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#CCC',
   },
   sendButtonText: {
     color: '#FFF',

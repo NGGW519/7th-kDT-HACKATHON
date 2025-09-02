@@ -316,7 +316,7 @@ class ChatSession(Base):
     id = Column(BIGINT, primary_key=True, autoincrement=True)
     user_id = Column(BIGINT, ForeignKey('users.id'), nullable=True)
     started_at = Column(TIMESTAMP, server_default=func.now())
-    session_data = Column(JSON, nullable=True)
+    session_data = Column("metadata", JSON, nullable=True)
 
 class ChatMessage(Base):
     __tablename__ = 'chat_messages'
