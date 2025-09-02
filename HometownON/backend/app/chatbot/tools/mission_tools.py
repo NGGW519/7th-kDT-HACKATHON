@@ -137,8 +137,19 @@ def create_mission_and_save_tool(location_info: dict, user_prompt: str) -> str:
     
     mission_gen_prompt_template = ChatPromptTemplate.from_template(
         """Based on the user's request ('{user_prompt}') and the chosen location ('{location_name}' at '{location_address}'), create a mission. 
-        The mission should be a JSON object with keys: 'title', 'instruction', and 'icon'. Make the title and instruction creative and empathetic to the user's original request.
-        Respond in Korean and make it warm and friendly."""
+        The mission should be a JSON object with the following keys:
+        - 'title': A creative and empathetic title for the mission.
+        - 'description': A detailed instruction for the mission. Make it creative and empathetic to the user's original request.
+        - 'icon': A single emoji representing the mission.
+        - 'mission_type': One of 'exploration', 'bonding', or 'career'. Choose the most relevant type.
+        - 'difficulty': One of 'easy', 'medium', or 'hard'.
+        - 'expected_minutes': An integer representing the estimated time to complete the mission in minutes.
+        - 'tags': A comma-separated string of relevant keywords for the mission.
+        - 'thumbnail_image': A URL for a relevant thumbnail image (e.g., from Unsplash or a placeholder).
+        - 'status': Always 'today' for newly generated missions.
+        
+        Respond in Korean and make it warm and friendly. Ensure the JSON is valid and complete. **Crucially, respond with ONLY the JSON object, no conversational text, no markdown backticks (```json), no extra characters before or after the JSON.**
+        """
     )
     llm = ChatOpenAI(model="gpt-4o", api_key=settings.OPENAI_API_KEY, temperature=0.7)
     chain = mission_gen_prompt_template | llm
@@ -153,17 +164,19 @@ def create_mission_and_save_tool(location_info: dict, user_prompt: str) -> str:
         mission_details = json.loads(response.content)
         
         # 필수 필드 확인
-        if not all(key in mission_details for key in ['title', 'instruction', 'icon']):
-            return "Error: Generated mission is missing required fields."
+        required_fields = ['title', 'description', 'icon', 'mission_type', 'difficulty', 'expected_minutes', 'tags', 'thumbnail_image', 'status']
+        if not all(key in mission_details for key in required_fields):
+            missing_fields = [key for key in required_fields if key not in mission_details]
+            return f"Error: Generated mission is missing required fields: {', '.join(missing_fields)}."
             
     except json.JSONDecodeError:
-        return "Error: Failed to generate valid mission details."
+        return "Error: Failed to generate valid mission details. Ensure the response is a valid JSON object."
     except Exception as e:
         return f"Error: Failed to generate mission: {str(e)}"
 
     full_mission_data = {**location_info, **mission_details}
 
-    user_id = 1 # Placeholder
+    user_id = 1 # Placeholder - In a real app, this would come from the authenticated user
     db = SessionLocal()
     try:
         assignment = crud_mission.create_mission_from_chatbot(db, user_id, full_mission_data)

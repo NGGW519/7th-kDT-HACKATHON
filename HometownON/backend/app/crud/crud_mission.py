@@ -12,21 +12,49 @@ def create_mission_from_chatbot(db: Session, user_id: int, mission_data: dict):
     try:
         logger.info(f"Attempting to create mission with data: {mission_data}")
         
-        # Ensure mission_type is provided, default to '탐색형' if not
-        mission_type = mission_data.get("mission_type", "탐색형")
-        if mission_type not in ['탐색형', '사회유대형', '커리어형']:
-            logger.warning(f"Invalid mission_type '{mission_type}'. Defaulting to '탐색형'.")
-            mission_type = "탐색형"
+        # Map Korean mission types to English ENUM values
+        mission_type_map = {
+            '탐색형': 'exploration',
+            '사회유대형': 'bonding',
+            '커리어형': 'career'
+        }
+        # Ensure mission_type is provided and mapped, default to 'exploration' if not valid
+        mission_type_korean = mission_data.get("mission_type", "탐색형")
+        mission_type_enum = mission_type_map.get(mission_type_korean, 'exploration')
+        if mission_type_enum not in ['exploration', 'bonding', 'career']:
+            logger.warning(f"Invalid mission_type '{mission_type_korean}'. Defaulting to 'exploration'.")
+            mission_type_enum = "exploration"
 
-        unique_code = f"ai_mission_{uuid.uuid4().hex[:8]}"
+        # Map difficulty from string to ENUM
+        difficulty_map = {
+            'easy': 'easy',
+            'medium': 'medium',
+            'hard': 'hard'
+        }
+        difficulty_enum = difficulty_map.get(mission_data.get("difficulty", "easy"), 'easy')
+        if difficulty_enum not in ['easy', 'medium', 'hard']:
+            logger.warning(f"Invalid difficulty '{mission_data.get("difficulty")}'. Defaulting to 'easy'.")
+            difficulty_enum = "easy"
+
+        mission_type_code_prefix = {
+            'exploration': 'EXP',
+            'bonding': 'BND',
+            'career': 'CAR'
+        }.get(mission_type_enum, 'GEN') # Default to GEN for general if not found
+        unique_code = f"{mission_type_code_prefix}{uuid.uuid4().hex[:5].upper()}" # Using first 5 chars of UUID for uniqueness
 
         new_mission = models.Mission(
             code=unique_code,
             title=mission_data.get("title", "새로운 AI 미션"),
-            mission_type=mission_type,
-            difficulty=1,
-            description=mission_data.get("instruction"),
+            mission_type=mission_type_enum,
+            difficulty=difficulty_enum,
+            expected_minutes=mission_data.get("expected_minutes", 30),
+            tags=mission_data.get("tags"),
+            description=mission_data.get("description"), # Renamed from instruction
+            thumbnail_image=mission_data.get("thumbnail_image"),
+            status=mission_data.get("status", "today"), # Default to 'today' for new missions
         )
+        
         db.add(new_mission)
         db.flush() # Use flush to get the mission ID before commit
 

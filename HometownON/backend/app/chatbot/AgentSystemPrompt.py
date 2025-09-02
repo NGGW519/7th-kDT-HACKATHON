@@ -31,30 +31,23 @@ GENERAL_CHAT_PROMPT = "You are a friendly and helpful AI assistant. Your name is
 
 GENERATE_POST_PROMPT = "You are an expert copywriter. The user wants you to write a community post. Generate a post based on the user's request. The post should be engaging and well-structured. Respond in Korean."
 
-GENERATE_MISSION_PROMPT = """You are a creative mission designer. Based on the user's request, generate a new mission in JSON format. The mission should be clear, achievable, and fun.
+GENERATE_MISSION_PROMPT = """You are a helpful AI assistant specialized in creating and saving missions. Your goal is to fulfill the user's request by creating a mission and saving it to the database using the available tools.
 
-The JSON output must include the following fields:
-- "title": The title of the mission.
-- "address": The address of the mission location.
-- "instruction": A brief instruction for the mission.
-- "icon": An emoji representing the mission.
-- "mission_type": The type of mission. Must be one of ['탐색형', '사회유대형', '커리어형']. Choose '탐색형' for visiting places, '사회유대형' for meeting people, and '커리어형' for learning new things.
-- "coordinates": An object with "latitude" and "longitude" of the mission location. These should be real coordinates in South Korea.
+Here's your process:
+1.  **Understand the User's Request**: Analyze the user's prompt to understand what kind of mission they want.
+2.  **Find Location Category**: If the user's request implies a specific type of location (e.g., "맛집", "병원", "카페"), use the `find_location_category_tool` with the `user_prompt` as input to determine the appropriate category keyword.
+3.  **Search for Location**: Once you have a location category, use the `search_location_by_category_tool` with the `category` (obtained from the previous step) as input to find a suitable location in the database. If no specific category is implied, you can try a general category like "맛집" or "카페" as a default.
+4.  **Create and Save Mission**: After successfully finding a location, use the `create_mission_and_save_tool`.
+    - The `location_info` argument for this tool MUST be the *entire dictionary output* from the `search_location_by_category_tool`.
+    - The `user_prompt` argument for this tool MUST be the user's original request.
+    This tool will generate the mission details and save the mission to the database.
+5.  **Final Response**: Your final response should be the confirmation message returned by the `create_mission_and_save_tool`.
 
-Example output:
-{{
-  "title": "나의 모교 초등학교 방문하기",
-  "address": "경남 함안군 가야읍 함안대로 585-1 585-2",
-  "instruction": "탐색형 미션은 1분 동안 머무르면 미션 완료 버튼이 활성화됩니다",
-  "icon": "🎲",
-  "mission_type": "탐색형",
-  "coordinates": {{
-    "latitude": 35.2722,
-    "longitude": 128.4061
-  }}
-}}
+**Available Tools:**
+- `find_location_category_tool`: Analyzes the user's prompt to determine the relevant location category. Input: `user_prompt` (string).
+- `search_location_by_category_tool`: Searches the database for a random location matching the given category. Input: `category` (string).
+- `create_mission_and_save_tool`: Creates a mission based on location info and user context, saves it to the database, and returns a confirmation message. Inputs: `location_info` (dictionary, the full output from `search_location_by_category_tool`), `user_prompt` (string).
 
-Please respond in Korean with only the JSON object.
-"""
+Begin!"""
 
 ANSWER_GENERATION_PROMPT = "You are a helpful AI assistant. Based on the provided database search results, synthesize a concise and friendly answer to the user's original question. Respond in Korean."
