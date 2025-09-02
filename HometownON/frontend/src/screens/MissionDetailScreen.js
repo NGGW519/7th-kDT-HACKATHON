@@ -31,15 +31,15 @@ const MissionDetailScreen = ({ navigation, route }) => {
     const missionData = await missionResponse.json();
     setMissionDetails(missionData);
 
-    // Extract location name from mission title (temporary logic)
-    // Assuming mission title is like "장소이름 방문하기"
-    const locationNameMatch = missionData.title.match(/(.*) 방문하기/);
-    const locationName = locationNameMatch ? locationNameMatch[1] : null;
+    // Extract location name from mission title
+    // Assuming mission title is like "장소이름 - 미션 설명"
+    const titleParts = missionData.title.split(' - ');
+    const locationName = titleParts.length > 1 ? titleParts[0] : null;
 
     if (locationName) {
       try {
         const locationResponse = await fetch(
-          `${API_URL}/api/locations/by_name/${encodeURIComponent(locationName)}`
+          `${API_URL}/api/locations/by_name/${encodeURIComponent(locationName.trim())}`
         );
         if (!locationResponse.ok) {
           throw new Error(`HTTP error! status: ${locationResponse.status}`);
@@ -48,8 +48,8 @@ const MissionDetailScreen = ({ navigation, route }) => {
         // Parse POINT(lon lat) from geom
         const geomMatch = locationData.geom.match(/POINT\(([^ ]+) ([^ ]+)\)/);
         if (geomMatch) {
-          const latitude = parseFloat(geomMatch[1]);  // This is the latitude
-          const longitude = parseFloat(geomMatch[2]); // This is the longitude
+          const longitude = parseFloat(geomMatch[1]);
+          const latitude = parseFloat(geomMatch[2]);
           setLocationDetails({
             ...locationData,
             coordinates: { latitude, longitude }
