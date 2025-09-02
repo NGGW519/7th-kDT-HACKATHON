@@ -1,58 +1,49 @@
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from sqlalchemy.orm import Session
-import json
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.agents import AgentExecutor, create_openai_tools_agent
 
 from .AgentState import AgentState
 from . import AgentSystemPrompt
 from ..core.config import settings
-from ..core.database import SessionLocal
-from ..crud import crud_mission
+from .tools.mission_tools import (
+    find_location_category_tool,
+    search_location_by_category_tool,
+    create_mission_and_save_tool
+)
 
 
-def run_generate_and_save_mission_agent(state: AgentState):
-    """Generates a mission, saves it to the DB, and returns a confirmation."""
-    print("--- Running Generate and Save Mission Agent ---")
+def run_mission_generation_agent(state: AgentState) -> dict:
+    """Runs a tool-based agent to autonomously create and save a mission."""
+    print("--- Running Mission Generation Tool-Based Agent ---")
 
-    location_info = state.get("location_info")
-
-    if location_info:
-        category = location_info.get("category", "place")
-        name = location_info.get("name", "the location")
-        prompt_text = f"Create a fun and engaging mission to visit the {category} '{name}'. Suggest a simple activity to do there. For example, if it's a cafe, suggest trying a signature drink."
-        print(f"Generating mission with location: {name} (Category: {category})")
-    else:
-        print("No location info found, skipping mission generation.")
-        return { "mission_saved": False, "generation": "어떤 장소에 대한 미션을 만들어 드릴까요? 구체적인 장소나 종류를 알려주세요." }
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", AgentSystemPrompt.GENERATE_MISSION_PROMPT),
-        ("human", "{prompt}")
-    ])
-    llm = ChatOpenAI(model="gpt-4o", api_key=settings.OPENAI_API_KEY, temperature=0.7, streaming=False)
-    chain = prompt | llm
+    prompt = state["prompt"]
+    tools = [
+        find_location_category_tool, 
+        search_location_by_category_tool, 
+        create_mission_and_save_tool
+    ]
     
-    response = chain.invoke({"prompt": prompt_text})
-    mission_json_str = response.content
+    llm = ChatOpenAI(model="gpt-4o", api_key=settings.OPENAI_API_KEY, temperature=0.7)
 
-    print(f"--- Mission generation complete. Response: ---")
-    print(mission_json_str)
+    # System prompt to guide the agent
+    agent_prompt = ChatPromptTemplate.from_messages([
+        ("system", AgentSystemPrompt.GENERATE_MISSION_PROMPT),
+        MessagesPlaceholder(variable_name="messages"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ])
 
-    try:
-        mission_data = json.loads(mission_json_str)
-    except json.JSONDecodeError:
-        print("Failed to decode mission JSON from LLM response.")
-        return { "mission_saved": False, "generation": "미션을 만들다가 오류가 발생했어요. 다시 시도해 주세요." }
+    # Create the agent
+    agent = create_openai_tools_agent(llm, tools, agent_prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    user_id = 1 
-    db = SessionLocal()
-    try:
-        assignment = crud_mission.create_mission_from_chatbot(db, user_id, mission_data)
-        if assignment:
-            print(f"Mission assigned with ID: {assignment.id}")
-            final_response = f"새로운 미션 '{mission_data.get('title')}'이 추가되었어요! 지금 확인해 보세요."
-            return { "mission_saved": True, "assignment_id": assignment.id, "generation": final_response }
-        else:
-            return { "mission_saved": False, "generation": "미션을 데이터베이스에 저장하는 데 실패했어요." }
-    finally:
-        db.close()
+    # Invoke the agent to get the final result
+    response = agent_executor.invoke({
+        "messages": state["messages"],
+        "prompt": prompt
+    })
+
+    # The final confirmation message is in the 'output' key
+    final_response = response.get("output", "An unexpected error occurred.")
+    print(f"--- Mission Generation Agent finished. Final Response: {final_response} ---")
+
+    return {"generation": final_response}

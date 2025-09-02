@@ -9,7 +9,7 @@ from ..core.config import settings
 # This defines the structured output format for our router.
 class RouteQuery(BaseModel):
     """Routes the user's request to the appropriate agent."""
-    intent: str = Field(..., description="The user's intent. One of [DatabaseSearchAgent, GeneralChatAgent, GeneratePostAgent, GenerateMissionAgent]")
+    intent: str = Field(..., description="""The user's intent. One of ["GeneralChat", "GeneratePost", "GenerateMission", "DatabaseSearch"]""")
 
 def run_routing_agent(state: AgentState) -> dict:
     """Determines the user's intent and the next agent to route to."""
@@ -32,4 +32,4 @@ def run_routing_agent(state: AgentState) -> dict:
     except Exception as e:
         print(f"Error during routing: {e}")
         # Default to general chat on error
-        return {"intent": "GeneralChatAgent"}
+        return {"intent": "GeneralChat"}
