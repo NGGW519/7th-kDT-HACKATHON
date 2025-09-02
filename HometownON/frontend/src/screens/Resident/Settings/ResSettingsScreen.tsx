@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AuthService from '../../../services/AuthService';
 
 const ResSettingsScreen = ({ navigation }) => {
   const [fontSize, setFontSize] = useState('medium'); // small, medium, large
@@ -46,12 +47,21 @@ const ResSettingsScreen = ({ navigation }) => {
         { 
           text: '로그아웃', 
           style: 'destructive',
-          onPress: () => {
-            // 로그아웃 로직
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Welcome' }],
-            });
+          onPress: async () => {
+            try {
+              // AuthService를 통해 토큰과 사용자 정보 삭제
+              await AuthService.signOut();
+              console.log('✅ Logout successful, tokens cleared');
+              
+              // 화면을 Welcome으로 이동
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Welcome' }],
+              });
+            } catch (error) {
+              console.error('❌ Logout error:', error);
+              Alert.alert('오류', '로그아웃 중 오류가 발생했습니다.');
+            }
           }
         },
       ]

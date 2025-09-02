@@ -4,12 +4,14 @@ from ..schemas import request as schemas
 
 def get_post(db: Session, post_id: int):
     return db.query(models.RequestPost).options(
-        joinedload(models.RequestPost.author).joinedload(models.User.profile)
+        joinedload(models.RequestPost.author).joinedload(models.User.profile),
+        joinedload(models.RequestPost.comments).joinedload(models.RequestComment.author).joinedload(models.User.profile)
     ).filter(models.RequestPost.id == post_id).first()
 
 def get_posts(db: Session, skip: int = 0, limit: int = 10):
     return db.query(models.RequestPost).options(
-        joinedload(models.RequestPost.author).joinedload(models.User.profile)
+        joinedload(models.RequestPost.author).joinedload(models.User.profile),
+        joinedload(models.RequestPost.comments).joinedload(models.RequestComment.author).joinedload(models.User.profile)
     ).order_by(models.RequestPost.created_at.desc()).offset(skip).limit(limit).all()
 
 def create_post(db: Session, post: schemas.RequestPostCreate, user_id: int):
@@ -45,7 +47,10 @@ def create_comment(db: Session, comment: schemas.RequestCommentCreate, user_id: 
     db.query(models.RequestPost).filter(models.RequestPost.id == comment.post_id).update({'comments_count': models.RequestPost.comments_count + 1})
     db.commit()
     db.refresh(db_comment)
-    return db_comment
+    # 작성자 정보를 포함하여 반환
+    return db.query(models.RequestComment).options(
+        joinedload(models.RequestComment.author).joinedload(models.User.profile)
+    ).filter(models.RequestComment.id == db_comment.id).first()
 
 def like_post(db: Session, post_id: int, user_id: int):
     db_like = db.query(models.Like).filter(models.Like.target_id == post_id, models.Like.user_id == user_id, models.Like.target_type == 'post').first()

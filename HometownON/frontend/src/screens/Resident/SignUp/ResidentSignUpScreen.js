@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../../../utils/storage';
+import AuthService from '../../../services/AuthService';
 
 
 const ResidentSignUpScreen = ({ navigation }) => {
@@ -192,27 +193,32 @@ const ResidentSignUpScreen = ({ navigation }) => {
           Alert.alert('오류', '회원가입 중 오류가 발생했습니다.');
         }
       } else {
-        // 기본 회원가입
-        const emailExists = await isEmailExists(formData.email.trim());
-        if (emailExists) {
-          Alert.alert('오류', '이미 가입된 이메일입니다.');
-          return;
-        }
-
+        // API 호출용 사용자 데이터 준비
         const userData = {
-          id: Date.now().toString(),
           email: formData.email.trim(),
           password: formData.password,
+          phone: null,
           name: formData.residentName,
           userType: 'resident',
-          ...formData,
-          createdAt: new Date().toISOString(),
+          location: formData.location,
+          interests: formData.interests,
         };
 
-        const success = await updateUserAndSave(userData);
-        if (success) {
-          // 현재 사용자로 저장
-          await saveCurrentUser(userData);
+        // 실제 API 호출
+        const result = await AuthService.signUp(userData);
+        
+        if (result.success) {
+          // 로컬 스토리지에도 저장 (기존 로직 유지)
+          const localUserData = {
+            id: result.data.id,
+            email: result.data.email,
+            name: formData.residentName,
+            userType: 'resident',
+            ...formData,
+            createdAt: new Date().toISOString(),
+          };
+
+          await saveCurrentUser(localUserData);
           Alert.alert('성공', '지역주민 회원가입이 완료되었습니다!', [
             {
               text: '확인',
@@ -220,7 +226,7 @@ const ResidentSignUpScreen = ({ navigation }) => {
             },
           ]);
         } else {
-          Alert.alert('오류', '회원가입 중 오류가 발생했습니다.');
+          Alert.alert('오류', result.message || '회원가입에 실패했습니다.');
         }
       }
     } catch (error) {
