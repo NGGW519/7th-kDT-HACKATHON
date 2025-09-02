@@ -47,13 +47,13 @@ const REQUEST_CATEGORIES = [
 
 export default function FreeBoardWriteScreen({ route }) {
   const navigation = useNavigation();
-  const { boardType } = route.params || {};
+  const { boardType } = route?.params || {};
 
   const [currentUser, setCurrentUser] = useState(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(
-    boardType === "의뢰 게시판" ? "repair" : "일상"
+    boardType === "의뢰 게시판" ? "repair" : "daily"
   );
 
   const categories = boardType === "의뢰 게시판" ? REQUEST_CATEGORIES : FREE_CATEGORIES;
@@ -80,7 +80,7 @@ export default function FreeBoardWriteScreen({ route }) {
     const newPost = {
       title: title.trim(),
       content: content.trim(),
-      category: selectedCategory,
+      category: '자유', // 자유게시판은 항상 '자유' 카테고리로 고정
     };
 
     try {
@@ -96,10 +96,12 @@ export default function FreeBoardWriteScreen({ route }) {
 
         if (response.ok) {
             const post = await response.json();
+            console.log('Created board post from API:', post);
             const handleAlertPress = () => {
               setTimeout(() => {
-                navigation.replace("BoardDetail", { post });
-              }, 100); // Delay navigation by 100ms
+                // 게시판 목록으로 돌아가면서 새로고침 트리거
+                navigation.navigate("Board", { refresh: true });
+              }, 100);
             };
             Alert.alert("등록 완료", "게시글이 성공적으로 등록되었습니다!", [
               {
@@ -151,8 +153,8 @@ export default function FreeBoardWriteScreen({ route }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>카테고리</Text>
           <View style={styles.categoryRow}>
-            {CATEGORIES.map((c) => {
-              const active = selectedCategory === (c.key as any);
+            {categories.map((c) => {
+              const active = selectedCategory === c.key;
               return (
                 <TouchableOpacity
                   key={c.key}
@@ -160,7 +162,7 @@ export default function FreeBoardWriteScreen({ route }) {
                     styles.categoryChip,
                     active && styles.categoryChipActive,
                   ]}
-                  onPress={() => setSelectedCategory(c.key as any)}
+                  onPress={() => setSelectedCategory(c.key)}
                 >
                   <Text style={styles.categoryIcon}>{c.icon}</Text>
                   <Text

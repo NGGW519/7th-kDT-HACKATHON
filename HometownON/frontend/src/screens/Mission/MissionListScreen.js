@@ -16,14 +16,16 @@ import { getCurrentUser } from '../../utils/storage'; // getCurrentUser import �
 
 const MissionListScreen = ({ navigation, route }) => {
   const [progressAnimation] = useState(new Animated.Value(0));
-  const [userLevel, setUserLevel] = useState(5);
-  const [totalExp, setTotalExp] = useState(1250);
-  const [currentExp, setCurrentExp] = useState(750);
-  
-  // 레벨별 필요 경험치
-  const expForNextLevel = 1000;
-  const progressPercentage = (currentExp / expForNextLevel) * 100;
-  const expNeeded = expForNextLevel - currentExp;
+  const [userLevel, setUserLevel] = useState(1);
+  const [totalExp, setTotalExp] = useState(0);
+  const [currentExp, setCurrentExp] = useState(0);
+  const [expForNextLevel, setExpForNextLevel] = useState(1000);
+  const [expNeeded, setExpNeeded] = useState(1000);
+  const [progressPercentage, setProgressPercentage] = useState(0);
+
+  // 최대 레벨을 위한 설정 (변경 가능)
+  const MAX_LEVEL = 10;
+  const EXP_PER_LEVEL = 1000;
 
   const [missions, setMissions] = useState([]); // State for raw fetched missions
   const [missionTypesForDisplay, setMissionTypesForDisplay] = useState([]); // State for processed mission types
@@ -94,6 +96,15 @@ const MissionListScreen = ({ navigation, route }) => {
 
       const progress = typeData.total > 0 ? (typeData.completed / typeData.total) * 100 : 0;
 
+      // 해당 유형의 완료된 미션들의 경험치 계산
+      const completedMissionsOfType = rawMissions.filter(mission =>
+        mission.mission_type === typeData.id && mission.status === 'completed'
+      );
+      const typeExp = completedMissionsOfType.reduce((sum, mission) => sum + (mission.difficulty * 50), 0);
+
+      // 유형별 레벨 계산 (100 경험치당 1레벨)
+      const typeLevel = Math.max(1, Math.floor(typeExp / 100) + 1);
+
       return {
         ...typeData,
         title,
@@ -101,11 +112,75 @@ const MissionListScreen = ({ navigation, route }) => {
         icon,
         color,
         progress, // Set calculated progress
+        level: typeLevel, // 유형별 레벨
+        expReward: typeExp, // 유형별 총 경험치
       };
     });
 
     return frontendMissionTypes;
   };
+
+  const fetchUserStats = useCallback(async () => {
+    try {
+      console.log(`[DEBUG] Fetching user stats from: ${API_URL}/api/missions/user-stats`);
+      const response = await fetch(`${API_URL}/api/missions/user-stats`);
+
+      if (response.ok) {
+        const stats = await response.json();
+        console.log(`[DEBUG] User stats received:`, stats);
+
+        setUserLevel(stats.level);
+        setTotalExp(stats.total_exp);
+        setCurrentExp(stats.current_level_exp);
+        setExpForNextLevel(stats.exp_for_next_level);
+        setExpNeeded(stats.exp_needed);
+        setProgressPercentage(stats.progress_percentage);
+      } else {
+        console.warn(`[DEBUG] Failed to fetch user stats: ${response.status}`);
+        // 백엔드 API 실패시 프론트엔드에서 직접 계산
+        calculateUserStatsFromMissions();
+      }
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      // 에러 발생시 프론트엔드에서 직접 계산
+      calculateUserStatsFromMissions();
+    }
+  }, [API_URL]);
+
+  const calculateUserStatsFromMissions = useCallback(() => {
+    // 완료된 미션들의 경험치 계산 (difficulty * 50)
+    const completedMissions = missions.filter(mission => mission.status === 'completed');
+    const calculatedTotalExp = completedMissions.reduce((sum, mission) => sum + (mission.difficulty * 50), 0);
+
+    // 레벨 계산
+    const calculatedLevel = Math.max(1, Math.floor(calculatedTotalExp / EXP_PER_LEVEL) + 1);
+
+    // 현재 레벨에서의 경험치
+    const calculatedCurrentExp = calculatedTotalExp % EXP_PER_LEVEL;
+
+    // 다음 레벨까지 필요한 경험치
+    const calculatedExpNeeded = EXP_PER_LEVEL - calculatedCurrentExp;
+
+    // 진행률 계산
+    const calculatedProgressPercentage = (calculatedCurrentExp / EXP_PER_LEVEL) * 100;
+
+    console.log(`[DEBUG] Calculated stats from missions:`, {
+      totalExp: calculatedTotalExp,
+      level: calculatedLevel,
+      currentExp: calculatedCurrentExp,
+      expNeeded: calculatedExpNeeded,
+      progressPercentage: calculatedProgressPercentage,
+      completedCount: completedMissions.length
+    });
+
+    // 상태 업데이트
+    setTotalExp(calculatedTotalExp);
+    setUserLevel(calculatedLevel);
+    setCurrentExp(calculatedCurrentExp);
+    setExpNeeded(calculatedExpNeeded);
+    setProgressPercentage(calculatedProgressPercentage);
+
+  }, [missions, EXP_PER_LEVEL]);
 
   const fetchMissions = useCallback(async () => {
     console.log(`[DEBUG] Fetching missions from: ${API_URL}/api/missions`);
@@ -120,7 +195,7 @@ const MissionListScreen = ({ navigation, route }) => {
       }
 
       const data = await response.json();
-      
+
       setMissions(data); // 원본 데이터 저장
       const processedMissions = processMissionsForDisplay(data); // 데이터 가공
       setMissionTypesForDisplay(processedMissions); // 화면 표시용 상태 업데이트
@@ -129,26 +204,31 @@ const MissionListScreen = ({ navigation, route }) => {
       const sumCompleted = processedMissions.reduce((sum, type) => sum + type.completed, 0);
       setTotalCompletedMissions(sumCompleted);
 
+      return data; // 데이터 반환
+
     } catch (error) {
       console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
       console.error('!!! FETCH FAILED - ERROR !!!');
       console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
       console.error(error);
       setError(error);
+      return [];
     } finally {
       setLoading(false);
     }
   }, [API_URL]); // API_URL을 의존성 배열에 추가
 
-  
+
 
   // 진행률 애니메이션은 progressPercentage가 변경될 때만 실행
-  
+
 
   useFocusEffect(
     useCallback(() => {
-      fetchMissions();
-    }, [fetchMissions])
+      fetchMissions().then(() => {
+        fetchUserStats();
+      });
+    }, [fetchMissions, fetchUserStats])
   );
 
   // 진행률 애니메이션은 progressPercentage가 변경될 때만 실행
@@ -187,11 +267,37 @@ const MissionListScreen = ({ navigation, route }) => {
   };
 
   const getLevelTitle = (level) => {
-    if (level >= 10) return '마스터';
-    if (level >= 7) return '전문가';
-    if (level >= 4) return '중급자';
-    if (level >= 2) return '초급자';
+    const maxLevel = MAX_LEVEL;
+    const levelRanges = {
+      master: Math.ceil(maxLevel * 0.9), // 90% 이상
+      expert: Math.ceil(maxLevel * 0.7), // 70% 이상
+      intermediate: Math.ceil(maxLevel * 0.4), // 40% 이상
+      beginner: Math.ceil(maxLevel * 0.2), // 20% 이상
+      newbie: 1 // 나머지
+    };
+
+    if (level >= levelRanges.master) return '마스터';
+    if (level >= levelRanges.expert) return '전문가';
+    if (level >= levelRanges.intermediate) return '중급자';
+    if (level >= levelRanges.beginner) return '초급자';
     return '새내기';
+  };
+
+  const getLevelImage = (level) => {
+    const maxLevel = MAX_LEVEL;
+    const levelRanges = {
+      master: Math.ceil(maxLevel * 0.9),
+      expert: Math.ceil(maxLevel * 0.7),
+      intermediate: Math.ceil(maxLevel * 0.4),
+      beginner: Math.ceil(maxLevel * 0.2),
+      newbie: 1
+    };
+
+    if (level >= levelRanges.master) return require('../../assets/images/expert_level.png');
+    if (level >= levelRanges.expert) return require('../../assets/images/advanced_level.png');
+    if (level >= levelRanges.intermediate) return require('../../assets/images/intermediate_level.png');
+    if (level >= levelRanges.beginner) return require('../../assets/images/beginner_level.png');
+    return require('../../assets/images/splash_logo.png');
   };
 
   const handleMissionSelect = (missionTypeData) => { // Renamed parameter for clarity
@@ -203,18 +309,18 @@ const MissionListScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#6956E5" />
-      
+
       {/* Header */}
       <SafeAreaView style={styles.headerSafeArea}>
         <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>미션 현황</Text>
-        <View style={styles.headerRight} />
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>미션 현황</Text>
+          <View style={styles.headerRight} />
         </View>
       </SafeAreaView>
 
@@ -222,8 +328,8 @@ const MissionListScreen = ({ navigation, route }) => {
       <View style={styles.progressSection}>
         <View style={styles.levelInfo}>
           <View style={styles.levelBadge}>
-            <Image 
-              source={require('../../assets/images/advanced_level.png')}
+            <Image
+              source={getLevelImage(userLevel)}
               style={styles.levelImage}
               resizeMode="contain"
             />
@@ -233,19 +339,22 @@ const MissionListScreen = ({ navigation, route }) => {
           <View style={styles.expInfo}>
             <Text style={styles.expText}>경험치: {currentExp} / {expForNextLevel}</Text>
             <Text style={styles.nextLevelText}>다음 레벨까지 {expNeeded} EXP 필요</Text>
+            <Text style={styles.totalExpText}>총 경험치: {totalExp} EXP</Text>
           </View>
         </View>
-        
+
         <View style={styles.progressBarContainer}>
           <View style={styles.progressBar}>
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.progressFill,
-                { width: progressAnimation.interpolate({
-                  inputRange: [0, 100],
-                  outputRange: ['0%', '100%'],
-                })}
-              ]} 
+                {
+                  width: progressAnimation.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ['0%', '100%'],
+                  })
+                }
+              ]}
             />
           </View>
           <Text style={styles.progressText}>{progressPercentage.toFixed(1)}%</Text>
@@ -302,7 +411,7 @@ const MissionListScreen = ({ navigation, route }) => {
               </View>
               <View style={styles.missionLevel}>
                 <Text style={styles.levelText}>LV.{missionType.level}</Text>
-                <Text style={styles.starsText}>{renderStars(missionType.level)}</Text>
+                <Text style={styles.starsText}>{renderStars(1)}</Text>
                 <View style={styles.expReward}>
                   <Text style={styles.expRewardText}>+{missionType.expReward} EXP</Text>
                 </View>
@@ -403,6 +512,11 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
+  totalExpText: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 2,
+  },
   progressBarContainer: {
     marginBottom: 15,
   },
@@ -472,8 +586,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   missionIcon: {
-    fontSize: 32,
-    marginRight: 15,
+    fontSize: 30,
+    marginRight: 5,
   },
   missionText: {
     flex: 1,
@@ -482,7 +596,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 5,
+    marginBottom: 3,
+    marginRight: 4,
   },
   missionDescription: {
     fontSize: 14,
@@ -503,7 +618,7 @@ const styles = StyleSheet.create({
   progressFillSmall: {
     height: '100%',
     borderRadius: 3,
-},
+  },
   progressTextSmall: {
     fontSize: 12,
     color: '#666',

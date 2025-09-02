@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -39,6 +40,7 @@ export default function BoardScreen() {
   // ---- RequestBoardScreen 과 동일한 상태/데이터/유틸 ----
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [userSpecialty, setUserSpecialty] = useState("수리");
+  const [refreshing, setRefreshing] = useState(false);
 
   const specialtyMapping = {
     수리: ["repair", "installation"],
@@ -144,15 +146,55 @@ export default function BoardScreen() {
   ]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const user = await getCurrentUser();
-        if (user) setCurrentUser(user);
-      } catch (e) {
-        console.error("사용자 데이터 로드 오류:", e);
-      }
-    })();
+    loadUserData();
+    fetchRequestPosts();
   }, []);
+
+  const loadUserData = async () => {
+    try {
+      const user = await getCurrentUser();
+      if (user) setCurrentUser(user);
+    } catch (e) {
+      console.error("사용자 데이터 로드 오류:", e);
+    }
+  };
+
+  const fetchRequestPosts = async () => {
+    try {
+      const AuthService = await import('../../services/AuthService');
+      const API_URL = await import('../../config/apiConfig');
+
+      const token = await AuthService.default.getToken();
+      const response = await fetch(`${API_URL.default}/api/requests/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          setPosts(data);
+          return;
+        } else if (data && Array.isArray(data.results)) {
+          setPosts(data.results);
+          return;
+        }
+      }
+
+      throw new Error('API not available or invalid response');
+    } catch (error) {
+      console.log('의뢰 게시판 API가 없어서 샘플 데이터를 사용합니다:', error.message);
+      // 기존 샘플 데이터 유지
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchRequestPosts();
+    setRefreshing(false);
+  };
 
   const filteredPosts =
     selectedCategory === "all"
@@ -213,11 +255,11 @@ export default function BoardScreen() {
       prev.map((post) =>
         post.id === postId
           ? {
-              ...post,
-              status: "completed",
-              acceptedBy:
-                currentUser?.returnName || currentUser?.name || "익명",
-            }
+            ...post,
+            status: "completed",
+            acceptedBy:
+              currentUser?.returnName || currentUser?.name || "익명",
+          }
           : post
       )
     );
@@ -225,7 +267,7 @@ export default function BoardScreen() {
 
   const handleContactAuthor = (post) => {
     navigation.navigate("ChatDetail", {
-      recipient: post.author,
+      recipient: post.author?.profile?.display_name || post.author || '익명',
       requestTitle: post.title,
       requestId: post.id,
     });
@@ -235,7 +277,7 @@ export default function BoardScreen() {
   const handlePressWrite = () => {
     console.log("Active Tab:", activeTab); // Added for debugging
     if (activeTab === "의뢰 게시판") {
-      navigation.navigate("Board", { screen: "RequestBoardWriteScreen", params: { boardType: activeTab } });        // 의뢰글 작성
+      navigation.navigate("Board", { screen: "RequestBoardWriteScreen", params: { boardType: activeTab } });   // 의뢰글 작성
     } else if (activeTab === "멘토 게시판") {
       navigation.navigate("Board", { screen: "MentorBoardWriteScreen", params: { boardType: activeTab } });  // 멘토글 작성
     } else {
@@ -257,7 +299,7 @@ export default function BoardScreen() {
           </Text>
           {item.isNew && <Text style={styles.newTag}>NEW</Text>}
         </View>
-        <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
+        <Text style={styles.postDate}>{formatDate(item.created_at || item.createdAt)}</Text>
       </View>
 
       {/* 제목/본문 미리보기 */}
@@ -314,20 +356,20 @@ export default function BoardScreen() {
             style={styles.authorAvatar}
             resizeMode="contain"
           />
-          <Text style={styles.authorName}>{item.author}</Text>
+          <Text style={styles.authorName}>{item.author?.profile?.display_name || item.author || '익명'}</Text>
         </View>
         <View style={styles.postStats}>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👍</Text>
-            <Text style={styles.statText}>{item.likes}</Text>
+            <Text style={styles.statText}>{item.likes_count || item.likes || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>💬</Text>
-            <Text style={styles.statText}>{item.comments}</Text>
+            <Text style={styles.statText}>{item.comments_count || item.comments || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👁️</Text>
-            <Text style={styles.statText}>{item.views}</Text>
+            <Text style={styles.statText}>{item.views || 0}</Text>
           </View>
         </View>
       </View>
@@ -384,7 +426,7 @@ export default function BoardScreen() {
 
       {/* 상단 탭 */}
       <View style={styles.tabRow}>
-        <TouchableOpacity onPress={() => navigation.navigate("RequestBoard")} style={{ marginHorizontal: 16 }}>
+        <TouchableOpacity onPress={() => setActiveTab("의뢰 게시판")} style={{ marginHorizontal: 16 }}>
           <View style={activeTab === "의뢰 게시판" ? styles.activeTabUnderline : null}>
             <Text style={activeTab === "의뢰 게시판" ? styles.tabActive : styles.tab}>의뢰 게시판</Text>
           </View>
@@ -454,6 +496,14 @@ export default function BoardScreen() {
               style={styles.postsList}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.postsContainer}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={['#6956E5']}
+                  tintColor="#6956E5"
+                />
+              }
             />
           </>
         )}

@@ -36,7 +36,14 @@ const MissionCardGameScreen = ({ navigation, route }) => {
           completedImage: require('../../assets/images/mission_complete.png'), // Placeholder
         };
       });
-      setCards(mappedCards);
+      
+      // Status별로 정렬: today -> locked -> completed 순서
+      const sortedCards = mappedCards.sort((a, b) => {
+        const statusOrder = { 'today': 1, 'locked': 2, 'completed': 3 };
+        return statusOrder[a.status] - statusOrder[b.status];
+      });
+      
+      setCards(sortedCards);
     } else {
       setError(new Error("No missions data provided."));
     }

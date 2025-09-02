@@ -25,16 +25,11 @@ def create_mission_from_chatbot(db: Session, user_id: int, mission_data: dict):
             logger.warning(f"Invalid mission_type '{mission_type_korean}'. Defaulting to 'exploration'.")
             mission_type_enum = "exploration"
 
-        # Map difficulty from string to ENUM
-        difficulty_map = {
-            'easy': 'easy',
-            'medium': 'medium',
-            'hard': 'hard'
-        }
-        difficulty_enum = difficulty_map.get(mission_data.get("difficulty", "easy"), 'easy')
-        if difficulty_enum not in ['easy', 'medium', 'hard']:
-            logger.warning(f"Invalid difficulty '{mission_data.get("difficulty")}'. Defaulting to 'easy'.")
-            difficulty_enum = "easy"
+        # Directly use integer difficulty, default to 1 (easy) if not valid
+        difficulty_int = mission_data.get("difficulty", 1)
+        if not isinstance(difficulty_int, int) or not (1 <= difficulty_int <= 3):
+            logger.warning(f"Invalid difficulty '{mission_data.get("difficulty")}'. Defaulting to 1.")
+            difficulty_int = 1
 
         mission_type_code_prefix = {
             'exploration': 'EXP',
@@ -47,7 +42,7 @@ def create_mission_from_chatbot(db: Session, user_id: int, mission_data: dict):
             code=unique_code,
             title=mission_data.get("title", "새로운 AI 미션"),
             mission_type=mission_type_enum,
-            difficulty=difficulty_enum,
+            difficulty=difficulty_int,
             expected_minutes=mission_data.get("expected_minutes", 30),
             tags=mission_data.get("tags"),
             description=mission_data.get("description"), # Renamed from instruction
@@ -77,3 +72,25 @@ def create_mission_from_chatbot(db: Session, user_id: int, mission_data: dict):
         logger.error(f"❌ Error creating mission from chatbot: {e}", exc_info=True)
         db.rollback()
         return None
+
+def get_missions(db: Session, skip: int = 0, limit: int = 100):
+    """모든 미션을 가져옵니다."""
+    return db.query(models.Mission).offset(skip).limit(limit).all()
+
+def get_mission(db: Session, mission_id: int):
+    """특정 미션을 가져옵니다."""
+    return db.query(models.Mission).filter(models.Mission.id == mission_id).first()
+
+def get_completed_missions(db: Session):
+    """완료된 미션들을 가져옵니다."""
+    return db.query(models.Mission).filter(models.Mission.status == 'completed').all()
+
+def update_mission_status(db: Session, mission_id: int, new_status: str):
+    """미션 상태를 업데이트합니다."""
+    mission = db.query(models.Mission).filter(models.Mission.id == mission_id).first()
+    if mission and mission.status == 'today':  # 'today' 상태인 미션만 업데이트 가능
+        mission.status = new_status
+        db.commit()
+        db.refresh(mission)
+        return mission
+    return None

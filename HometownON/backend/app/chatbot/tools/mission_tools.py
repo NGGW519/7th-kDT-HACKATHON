@@ -143,7 +143,7 @@ def create_mission_and_save_tool(location_info: dict, user_prompt: str) -> str:
         - 'description': A detailed instruction for the mission.
         - 'icon': A single emoji representing the mission.
         - 'mission_type': One of 'exploration', 'bonding', or 'career'.
-        - 'difficulty': One of 'easy', 'medium', or 'hard'.
+        - 'difficulty': An integer from 1 (easy) to 3 (hard).
         - 'expected_minutes': An integer representing the estimated time in minutes.
         - 'tags': A comma-separated string of keywords.
         - 'thumbnail_image': A URL for a relevant thumbnail.

@@ -74,7 +74,7 @@ CREATE TABLE missions (
     code VARCHAR(64) UNIQUE,
     title VARCHAR(200),
     mission_type ENUM('exploration', 'bonding', 'career') NOT NULL,
-    difficulty ENUM('easy','medium','hard') DEFAULT 'easy',
+    difficulty INT DEFAULT 1,
     expected_minutes SMALLINT,
     tags TEXT,
     description TEXT,

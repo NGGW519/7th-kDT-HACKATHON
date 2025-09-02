@@ -10,7 +10,7 @@
 - **테이블 수**: 26 → **36** (게시판/메신저/알림/리뷰/목표/날씨/공지 등 대폭 확장)
 - **미션 스키마 보강**
   - `missions.mission_type`: `'exploration'|'bonding'|'career'` 3종
-  - `missions.difficulty`: `'easy'|'medium'|'hard'` 3단계
+  - missions.difficulty: 1|2|3 (1: easy, 2: medium, 3: hard) 3단계
   - `missions.status`: `'locked'|'today'|'completed'`
   - `mission_parts`/`mission_assignments`/`mission_progress`/`mission_part_progress` 연동 및 인덱스 정비
 - **공간 데이터 강화**

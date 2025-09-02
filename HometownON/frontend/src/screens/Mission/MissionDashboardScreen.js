@@ -16,12 +16,75 @@ const { width } = Dimensions.get('window');
 
 const MissionDashboardScreen = ({ navigation }) => {
   const [userStats, setUserStats] = useState({
-    totalBadges: 12,
-    totalMissions: 25,
-    completedMissions: 18,
-    currentStreak: 7,
-    totalExp: 2450,
+    totalBadges: 0,
+    totalMissions: 0,
+    completedMissions: 0,
+    currentStreak: 0,
+    totalExp: 0,
+    level: 1,
   });
+
+  useEffect(() => {
+    const fetchMissionStats = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/missions/completed_missions_with_difficulty'); // Assuming backend runs on 8000
+        const data = await response.json();
+
+        let calculatedExp = 0;
+        let completedCount = 0;
+
+        if (data && Array.isArray(data)) {
+          completedCount = data.length;
+          calculatedExp = data.reduce((sum, mission) => sum + (mission.difficulty * 50), 0);
+        }
+
+        const calculatedLevel = Math.floor(calculatedExp / 1000) + 1;
+
+        setUserStats(prevStats => ({
+          ...prevStats,
+          completedMissions: completedCount,
+          totalExp: calculatedExp,
+          level: calculatedLevel,
+        }));
+
+      } catch (error) {
+        console.error("Failed to fetch mission stats:", error);
+      }
+    };
+
+    fetchMissionStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchMissionStats = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/missions/completed_missions_with_difficulty'); // Assuming backend runs on 8000
+        const data = await response.json();
+
+        let calculatedExp = 0;
+        let completedCount = 0;
+
+        if (data && Array.isArray(data)) {
+          completedCount = data.length;
+          calculatedExp = data.reduce((sum, mission) => sum + (mission.difficulty * 50), 0);
+        }
+
+        const calculatedLevel = Math.floor(calculatedExp / 1000) + 1;
+
+        setUserStats(prevStats => ({
+          ...prevStats,
+          completedMissions: completedCount,
+          totalExp: calculatedExp,
+          level: calculatedLevel,
+        }));
+
+      } catch (error) {
+        console.error("Failed to fetch mission stats:", error);
+      }
+    };
+
+    fetchMissionStats();
+  }, []);
 
   const [radarData, setRadarData] = useState({
     exploration: {

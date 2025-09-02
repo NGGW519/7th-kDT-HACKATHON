@@ -3,11 +3,39 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ...crud import mission as crud
+from ...crud import crud_mission as crud
 from ...schemas.mission import Mission, MissionCreate, MissionUpdateStatus
 from ...core.database import get_db
 
 router = APIRouter()
+
+@router.get("/user-stats")
+def get_user_mission_stats(db: Session = Depends(get_db)):
+    """사용자의 미션 통계 및 경험치 정보를 반환합니다."""
+    completed_missions = crud.get_completed_missions(db)
+    
+    # 완료된 미션들의 경험치 계산 (difficulty * 50)
+    total_exp = sum(mission.difficulty * 50 for mission in completed_missions)
+    
+    # 레벨 계산 (1000 경험치당 1레벨)
+    level = max(1, total_exp // 500 + 1)
+    
+    # 현재 레벨에서의 경험치
+    current_level_exp = total_exp % 500
+    
+    # 다음 레벨까지 필요한 경험치
+    exp_for_next_level = 500
+    exp_needed = exp_for_next_level - current_level_exp
+    
+    return {
+        "total_exp": total_exp,
+        "level": level,
+        "current_level_exp": current_level_exp,
+        "exp_for_next_level": exp_for_next_level,
+        "exp_needed": exp_needed,
+        "completed_missions_count": len(completed_missions),
+        "progress_percentage": (current_level_exp / exp_for_next_level) * 100
+    }
 
 @router.get("/", response_model=List[Mission]) # Use imported Mission
 def read_missions(

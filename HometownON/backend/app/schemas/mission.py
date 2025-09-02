@@ -13,7 +13,7 @@ class MissionStatus(PyEnum):
 class MissionBase(BaseModel):
     title: str = Field(..., max_length=255)
     description: str # Changed from content
-    difficulty: str = Field(..., max_length=50) # Changed from level
+    difficulty: int
     mission_type: str = Field(..., max_length=50) # Changed from category
     status: MissionStatus = MissionStatus.TODAY # Default status
     created_by_user_id: Optional[int] = None

@@ -23,7 +23,7 @@ const BoardDetailScreen = ({ navigation, route }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(initialPost.likes_count || initialPost.likes || 0);
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState(initialPost.comments || []);
 
   useEffect(() => {
     loadUserData();
@@ -35,14 +35,14 @@ const BoardDetailScreen = ({ navigation, route }) => {
       console.log('initialPost in BoardDetailScreen:', initialPost);
       console.log('initialPost.id:', initialPost.id);
       const token = await AuthService.getToken();
-      
+
       // 게시물 타입에 따라 다른 API 엔드포인트 사용
       let apiEndpoint = `${API_URL}/api/board/${initialPost.id}`;
-      
+
       // 게시물 타입 판별 - 카테고리를 기준으로 판별
       const requestCategories = ['repair', 'agriculture', 'it', 'cleaning', 'installation'];
       const mentorCategories = ['technical', 'lifestyle', 'business', 'seeking', 'offering'];
-      
+
       if (requestCategories.includes(initialPost.category) || initialPost.budget || initialPost.location || initialPost.status === 'pending' || initialPost.status === 'completed') {
         apiEndpoint = `${API_URL}/api/requests/${initialPost.id}`;
       }
@@ -50,27 +50,32 @@ const BoardDetailScreen = ({ navigation, route }) => {
       else if (mentorCategories.includes(initialPost.category) || initialPost.experience || initialPost.hourly_rate || initialPost.hourlyRate) {
         apiEndpoint = `${API_URL}/api/mentors/${initialPost.id}`;
       }
-      
+
+      console.log('Fetching from API endpoint:', apiEndpoint);
+
       const response = await fetch(apiEndpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
+        console.log('API response data:', data);
         setPost(data);
-        setComments(data.comments || []);
-        setLikeCount(data.likes_count);
+        setComments(Array.isArray(data.comments) ? data.comments : []);
+        setLikeCount(data.likes_count || data.likes || 0);
       } else {
         console.error('Failed to fetch post details:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         // API가 실패하면 초기 게시물 데이터 그대로 사용
-        setComments(initialPost.comments || []);
+        setComments(Array.isArray(initialPost.comments) ? initialPost.comments : []);
       }
     } catch (error) {
       console.error('Error fetching post details:', error);
       // 에러 발생 시 초기 게시물 데이터 그대로 사용
-      setComments(initialPost.comments || []);
+      setComments(Array.isArray(initialPost.comments) ? initialPost.comments : []);
     }
   };
 
@@ -88,20 +93,20 @@ const BoardDetailScreen = ({ navigation, route }) => {
   const handleLike = async () => {
     // 게시물 타입에 따라 다른 API 엔드포인트 사용
     let baseApiEndpoint = `${API_URL}/api/board`;
-    
+
     const requestCategories = ['repair', 'agriculture', 'it', 'cleaning', 'installation'];
     const mentorCategories = ['technical', 'lifestyle', 'business', 'seeking', 'offering'];
-    
+
     if (requestCategories.includes(initialPost.category) || initialPost.budget || initialPost.location || initialPost.status === 'pending' || initialPost.status === 'completed') {
       baseApiEndpoint = `${API_URL}/api/requests`;
     } else if (mentorCategories.includes(initialPost.category) || initialPost.experience || initialPost.hourly_rate || initialPost.hourlyRate) {
       baseApiEndpoint = `${API_URL}/api/mentors`;
     }
-    
+
     const url = `${baseApiEndpoint}/${post.id}/${isLiked ? 'unlike' : 'like'}`;
     try {
       const token = await AuthService.getToken();
-      const response = await fetch(url, { 
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -128,13 +133,16 @@ const BoardDetailScreen = ({ navigation, route }) => {
     try {
       // 게시물 타입에 따라 다른 API 엔드포인트 사용
       let baseApiEndpoint = `${API_URL}/api/board`;
-      
-      if (requestCategories.includes(initialPost.category)) {
+
+      const requestCategories = ['repair', 'agriculture', 'it', 'cleaning', 'installation'];
+      const mentorCategories = ['technical', 'lifestyle', 'business', 'seeking', 'offering'];
+
+      if (requestCategories.includes(initialPost.category) || initialPost.budget || initialPost.location || initialPost.status === 'pending' || initialPost.status === 'completed') {
         baseApiEndpoint = `${API_URL}/api/requests`;
-      } else if (mentorCategories.includes(initialPost.category)) {
+      } else if (mentorCategories.includes(initialPost.category) || initialPost.experience || initialPost.hourly_rate || initialPost.hourlyRate) {
         baseApiEndpoint = `${API_URL}/api/mentors`;
       }
-      
+
       const token = await AuthService.getToken();
       const response = await fetch(`${baseApiEndpoint}/${post.id}/comments`,
         {
@@ -149,7 +157,7 @@ const BoardDetailScreen = ({ navigation, route }) => {
 
       if (response.ok) {
         const newComment = await response.json();
-        setComments(prev => [newComment, ...prev]);
+        setComments(prev => Array.isArray(prev) ? [newComment, ...prev] : [newComment]);
         setCommentText('');
       } else {
         Alert.alert('오류', '댓글을 작성하지 못했습니다.');
@@ -162,6 +170,20 @@ const BoardDetailScreen = ({ navigation, route }) => {
 
   const getCategoryIcon = (category) => {
     switch (category) {
+      // 의뢰게시판 카테고리
+      case 'repair': return '🔧';
+      case 'agriculture': return '🌾';
+      case 'it': return '💻';
+      case 'cleaning': return '🧹';
+      case 'installation': return '🔨';
+      // 멘토게시판 카테고리
+      case 'technical': return '💻';
+      case 'lifestyle': return '🏠';
+      case 'business': return '💼';
+      case 'seeking': return '🔍';
+      case 'offering': return '🤝';
+      // 자유게시판 카테고리
+      case '자유': return '💬';
       case '일상': return '☀️';
       case '맛집': return '🍽️';
       case '추억': return '💭';
@@ -172,6 +194,20 @@ const BoardDetailScreen = ({ navigation, route }) => {
 
   const getCategoryTitle = (category) => {
     switch (category) {
+      // 의뢰게시판 카테고리
+      case 'repair': return '수리';
+      case 'agriculture': return '농업';
+      case 'it': return 'IT';
+      case 'cleaning': return '청소';
+      case 'installation': return '설치';
+      // 멘토게시판 카테고리
+      case 'technical': return '기술';
+      case 'lifestyle': return '생활';
+      case 'business': return '비즈니스';
+      case 'seeking': return '멘토 찾기';
+      case 'offering': return '멘토 제공';
+      // 자유게시판 카테고리
+      case '자유': return '자유';
       case '일상': return '일상';
       case '맛집': return '맛집';
       case '추억': return '추억';
@@ -189,7 +225,7 @@ const BoardDetailScreen = ({ navigation, route }) => {
     <View style={styles.commentItem}>
       <View style={styles.commentHeader}>
         <View style={styles.commentAuthor}>
-          <Image 
+          <Image
             source={require('../../assets/images/회원가입_귀향자.png')}
             style={styles.commentAvatar}
             resizeMode="contain"
@@ -205,7 +241,7 @@ const BoardDetailScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#6956E5" />
-      
+
       {/* Header */}
       <SafeAreaView style={styles.headerSafeArea}>
         <View style={styles.header}>
@@ -233,11 +269,11 @@ const BoardDetailScreen = ({ navigation, route }) => {
             </View>
             <Text style={styles.postDate}>{formatDate(post.created_at)}</Text>
           </View>
-          
+
           <Text style={styles.postTitle}>{post.title}</Text>
-          
+
           <View style={styles.authorInfo}>
-            <Image 
+            <Image
               source={require('../../assets/images/회원가입_귀향자.png')}
               style={styles.authorAvatar}
               resizeMode="contain"
@@ -247,20 +283,20 @@ const BoardDetailScreen = ({ navigation, route }) => {
               <Text style={styles.authorType}>귀향자</Text>
             </View>
           </View>
-          
+
           <Text style={styles.postContent}>{post.content}</Text>
-          
+
           <View style={styles.postStats}>
             <View style={styles.statItem}>
               <Text style={styles.statIcon}>💬</Text>
-              <Text style={styles.statText}>댓글 {comments.length}</Text>
+              <Text style={styles.statText}>댓글 {Array.isArray(comments) ? comments.length : 0}</Text>
             </View>
           </View>
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actionSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, isLiked && styles.actionButtonActive]}
             onPress={handleLike}
           >
@@ -269,12 +305,12 @@ const BoardDetailScreen = ({ navigation, route }) => {
               좋아요 {likeCount}
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.actionButton}>
             <Text style={styles.actionIcon}>💬</Text>
             <Text style={styles.actionText}>댓글</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.actionButton}>
             <Text style={styles.actionIcon}>📤</Text>
             <Text style={styles.actionText}>공유</Text>
@@ -283,13 +319,13 @@ const BoardDetailScreen = ({ navigation, route }) => {
 
         {/* Comments Section */}
         <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>댓글 ({comments.length})</Text>
-          
-          {comments.map((comment) => (
+          <Text style={styles.commentsTitle}>댓글 ({Array.isArray(comments) ? comments.length : 0})</Text>
+
+          {Array.isArray(comments) && comments.map((comment) => (
             <View key={comment.id} style={styles.commentItem}>
               <View style={styles.commentHeader}>
                 <View style={styles.commentAuthor}>
-                  <Image 
+                  <Image
                     source={require('../../assets/images/회원가입_귀향자.png')}
                     style={styles.commentAvatar}
                     resizeMode="contain"
@@ -317,7 +353,7 @@ const BoardDetailScreen = ({ navigation, route }) => {
             multiline
             maxLength={500}
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.commentButton, !commentText.trim() && styles.commentButtonDisabled]}
             onPress={handleComment}
             disabled={!commentText.trim()}

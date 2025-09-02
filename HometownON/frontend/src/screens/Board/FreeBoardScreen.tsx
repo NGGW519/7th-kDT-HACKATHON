@@ -15,7 +15,7 @@ import { getCurrentUser } from '../../utils/storage';
 import API_URL from '../../config/apiConfig';
 import AuthService from '../../services/AuthService';
 
-const FreeBoardScreen = ({ navigation }) => {
+const FreeBoardScreen = ({ navigation, route }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [posts, setPosts] = useState([]);
@@ -26,18 +26,57 @@ const FreeBoardScreen = ({ navigation }) => {
     fetchPosts();
   }, []);
 
+  // 새로고침 파라미터 감지
+  useEffect(() => {
+    if (route?.params?.refresh) {
+      fetchPosts();
+    }
+  }, [route?.params?.refresh]);
+
   const fetchPosts = async () => {
     try {
       const token = await AuthService.getToken();
+      console.log('Fetching board posts...');
       const response = await fetch(`${API_URL}/api/board/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      const data = await response.json();
-      setPosts(data);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Board API Response:', data);
+        setPosts(data);
+      } else {
+        console.log('Board API not available, using sample data');
+        // 샘플 데이터 사용
+        setPosts([
+          {
+            id: 1,
+            title: '함안 맛집 추천해주세요!',
+            content: '이번 주말에 함안에 놀러가는데 맛있는 식당 추천 부탁드려요.',
+            category: '자유',
+            author: { profile: { display_name: '맛집탐험가' } },
+            likes_count: 5,
+            comments_count: 3,
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: 2,
+            title: '함안 아라가야 테마파크 후기',
+            content: '어제 다녀왔는데 정말 좋았어요! 가족들과 함께 가기 좋은 곳이네요.',
+            category: '자유',
+            author: { profile: { display_name: '여행러버' } },
+            likes_count: 8,
+            comments_count: 2,
+            created_at: new Date(Date.now() - 86400000).toISOString(),
+          }
+        ]);
+      }
     } catch (error) {
       console.error('Error fetching posts:', error);
+      // 에러 시 샘플 데이터 사용
+      setPosts([]);
     }
   };
 
@@ -58,36 +97,15 @@ const FreeBoardScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const categories = [
-    { key: 'all', title: '전체', icon: '📋' },
-    { key: '일상', title: '일상', icon: '☀️' },
-    { key: '맛집', title: '맛집', icon: '🍽️' },
-    { key: '추억', title: '추억', icon: '💭' },
-    { key: '기타', title: '기타', icon: '🌿' },
-  ];
-
-  const filteredPosts = selectedCategory === 'all' 
-    ? posts 
-    : posts.filter(post => post.category === selectedCategory);
+  // 자유게시판은 모든 글을 표시 (카테고리 필터링 제거)
+  const filteredPosts = posts;
 
   const getCategoryIcon = (category) => {
-    switch (category) {
-      case '일상': return '☀️';
-      case '맛집': return '🍽️';
-      case '추억': return '💭';
-      case '기타': return '🌿';
-      default: return '📋';
-    }
+    return '💬'; // 자유게시판은 모두 동일한 아이콘
   };
 
   const getCategoryTitle = (category) => {
-    switch (category) {
-      case '일상': return '일상';
-      case '맛집': return '맛집';
-      case '추억': return '추억';
-      case '기타': return '기타';
-      default: return '기타';
-    }
+    return '자유'; // 자유게시판은 모두 '자유' 카테고리
   };
 
   const formatDate = (dateString) => {
@@ -95,14 +113,14 @@ const FreeBoardScreen = ({ navigation }) => {
     const now = new Date();
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) return '어제';
     if (diffDays < 7) return `${diffDays}일 전`;
     return date.toLocaleDateString('ko-KR');
   };
 
   const renderPost = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.postItem}
       onPress={() => navigation.navigate('BoardDetail', { post: item })}
     >
@@ -114,25 +132,25 @@ const FreeBoardScreen = ({ navigation }) => {
         </View>
         <Text style={styles.postDate}>{formatDate(item.created_at)}</Text>
       </View>
-      
+
       <Text style={styles.postTitle} numberOfLines={2}>
         {item.title}
       </Text>
-      
+
       <Text style={styles.postContent} numberOfLines={2}>
         {item.content}
       </Text>
-      
+
       <View style={styles.postFooter}>
         <View style={styles.authorInfo}>
-          <Image 
+          <Image
             source={require('../../assets/images/회원가입_귀향자.png')}
             style={styles.authorAvatar}
             resizeMode="contain"
           />
           <Text style={styles.authorName}>{item.author?.profile?.display_name || '익명'}</Text>
         </View>
-        
+
         <View style={styles.postStats}>
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>👍</Text>
@@ -150,36 +168,10 @@ const FreeBoardScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#6956E5" />
-      
 
 
-      {/* Category Filter */}
-      <View style={styles.categoryContainer}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
-        >
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.key}
-              style={[
-                styles.categoryButton,
-                selectedCategory === category.key && styles.categoryButtonActive
-              ]}
-              onPress={() => setSelectedCategory(category.key)}
-            >
-              <Text style={styles.categoryIcon}>{category.icon}</Text>
-              <Text style={[
-                styles.categoryTitle,
-                selectedCategory === category.key && styles.categoryTitleActive
-              ]}>
-                {category.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+
+      {/* 자유게시판은 카테고리 필터 없이 모든 글 표시 */}
 
       {/* Posts List */}
       <FlatList

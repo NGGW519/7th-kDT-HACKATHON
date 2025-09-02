@@ -189,7 +189,7 @@ class BoardPost(Base):
     __tablename__ = 'board_posts'
     id = Column(BIGINT, primary_key=True, autoincrement=True)
     author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    category = Column(Enum('일상', '맛집', '추억', '기타'), nullable=False)
+    category = Column(Enum('의뢰', '멘토', '자유'), nullable=False)
     title = Column(VARCHAR(200), nullable=False)
     content = Column(TEXT, nullable=False) # MEDIUMTEXT -> TEXT
     images = Column(JSON, nullable=True)
