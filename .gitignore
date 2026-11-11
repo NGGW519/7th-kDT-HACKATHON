@@ -240,3 +240,7 @@ Thumbs.db
 *.log
 *.bak
 settings.json
+
+# 하네스 중간 산출물 (.claude/skills/hometown-dev)
+_workspace/
+_workspace_*/
