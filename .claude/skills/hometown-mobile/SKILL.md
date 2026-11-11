@@ -25,6 +25,8 @@ description: "고향으로 ON 앱(React Native/Expo, HometownON/frontend) 작업
   - 멘토: `experience`, `hourly_rate`, `location`, `status`, `views`
 - 미션: `/api/missions/`(배열, `status`는 today/completed, `mission_type`은 exploration/bonding/career), `/api/missions/user-stats`, `/api/missions/completed_missions_with_difficulty`, `PATCH /api/missions/{id}` `{status}`
 - 장소: `/api/locations/{id}`, `/api/locations/by_name/{name}` → `geom`은 `POINT(경도 위도)`, `latitude`/`longitude`도 함께 온다.
+  - 근처 검색 `POST /api/locations/nearby` `{latitude, longitude, radius_km?, limit?, category?}` → 가까운 순 배열, 각 항목에 `coordinates: {latitude, longitude}`, `distance_km`
+  - 분류 목록 `GET /api/locations/categories/` → `[{id, main, sub}]`, 목록 `GET /api/locations/?category_id=&search=`
 - 챗봇: `POST /api/chatbot/chat` `{message, session_id?}` → 텍스트, 새 세션은 헤더 `X-Session-Id`.
 - 계약이 바뀌면 이 목록도 함께 고친다(리더가 갱신).
 
