@@ -28,9 +28,11 @@ SECRET_ENV = {"MONOGPT_API_KEY", "GOOGLE_API_KEY", "SECRET_KEY", "POSTGRES_PASSW
 
 
 def sources():
-    for p in sorted(FRONT.rglob("*")):
-        if p.suffix in SOURCE_EXT and "node_modules" not in p.parts:
-            yield p, p.read_text(encoding="utf-8", errors="replace")
+    """앱 소스: src/ 전체 + 앱 루트의 App.js·index.js 같은 파일 (babel/metro 등 *.config.js 는 Node 에서 도는 설정이라 제외)."""
+    files = [p for p in FRONT.rglob("*") if p.suffix in SOURCE_EXT and "node_modules" not in p.parts]
+    files += [p for p in FRONT.parent.glob("*") if p.suffix in SOURCE_EXT and not p.name.endswith(".config.js")]
+    for p in sorted(files):
+        yield p, p.read_text(encoding="utf-8", errors="replace")
 
 
 def load_openapi(path: str | None) -> dict:
@@ -53,9 +55,17 @@ def route_patterns(openapi: dict):
     return routes
 
 
-CALL = re.compile(r"""(?:fetch|\.open)\(\s*(?:['"](GET|POST|PUT|PATCH|DELETE)['"]\s*,\s*)?(?:[`'"]([^`'"]*)[`'"]|(\w+))""")
+# 주소 인자: `템플릿`(안에 따옴표가 있어도 됨) | '문자열' | "문자열" | 변수 이름
+CALL = re.compile(r"""(?:fetch|\.open)\(\s*(?:['"](GET|POST|PUT|PATCH|DELETE)['"]\s*,\s*)?(?:`([^`]*)`|'([^'\n]*)'|"([^"\n]*)"|(\w+))""")
 METHOD_NEAR = re.compile(r"""method\s*:\s*['"](GET|POST|PUT|PATCH|DELETE)['"]""", re.I)
-ASSIGN = re.compile(r"""\b(\w+)\s*=\s*[`'"]([^`'"\n]*/api[^`'"\n]*)[`'"]""")
+ASSIGN = re.compile(r"""\b(\w+)\s*=\s*(?:`([^`\n]*/api[^`\n]*)`|'([^'\n]*/api[^'\n]*)'|"([^"\n]*/api[^"\n]*)")""")
+ALIAS = re.compile(r"""\b(?:const|let|var)\s+(\w+)\s*=\s*(\w+)\s*;?\s*$""", re.M)
+ALIAS_TEMPLATE = re.compile(r"""\b(?:const|let|var)\s+(\w+)\s*=\s*`\$\{(\w+)\}([^`\n]*)`""")
+
+
+def _assignments(text: str):
+    for m in ASSIGN.finditer(text):
+        yield m.group(1), m.group(2) or m.group(3) or m.group(4)
 
 
 def _resolve(url: str, variables: dict[str, set[str]]) -> set[str]:
@@ -66,30 +76,61 @@ def _resolve(url: str, variables: dict[str, set[str]]) -> set[str]:
     return {url}
 
 
+def shared_variables() -> dict[str, set[str]]:
+    """src/config/apiConfig.js 가 export 하는 주소 변수(API_BASE 등). 다른 파일에서 import 해 써도 따라간다."""
+    config = FRONT / "config" / "apiConfig.js"
+    found: dict[str, set[str]] = {}
+    if config.is_file():
+        for name, value in _assignments(config.read_text(encoding="utf-8", errors="replace")):
+            found.setdefault(name, set()).add(value)
+    return found
+
+
 def app_calls():
     """앱의 fetch/XHR 호출을 (메서드, /api/... 경로, 위치)로 뽑는다. 다른 파일에서 만든 주소는 따라가지 못한다."""
     for p, text in sources():
-        variables: dict[str, set[str]] = {}
-        for name, value in ASSIGN.findall(text):
+        text = _strip_line_comments(text)  # 주석 속 예시 호출은 대조하지 않는다 (줄 번호는 유지)
+        variables: dict[str, set[str]] = {k: set(v) for k, v in shared_variables().items()}
+        for name, value in _assignments(text):
             variables.setdefault(name, set()).add(value)
+        # 별칭: const API_BASE_URL = API_BASE;  /  const X = `${API_BASE}/board`;
+        for name, other in ALIAS.findall(text):
+            if other in variables:
+                variables.setdefault(name, set()).update(variables[other])
+        for name, other, tail in ALIAS_TEMPLATE.findall(text):
+            if other in variables:
+                variables.setdefault(name, set()).update(base + tail for base in variables[other])
         for m in CALL.finditer(text):
-            if m.group(3):  # fetch(url) 처럼 변수 하나를 넘긴 경우
-                urls = variables.get(m.group(3), set())
+            if m.group(5):  # fetch(url) 처럼 변수 하나를 넘긴 경우
+                urls = variables.get(m.group(5), set())
             else:
-                urls = _resolve(m.group(2), variables)
+                urls = _resolve(m.group(2) or m.group(3) or m.group(4) or "", variables)
             method = m.group(1)
             if not method:
                 near = METHOD_NEAR.search(text, m.end(), m.end() + 400)
                 method = near.group(1).upper() if near else "GET"
             line = text.count("\n", 0, m.start()) + 1
             for url in urls:
-                url = _resolve(url, variables).pop() if url.startswith("${") else url
-                if "/api" not in url:
-                    continue
-                tail = url.split("/api", 1)[1]
-                path = "/api" + (tail if tail.startswith("/") else "/" + tail)
-                path = re.sub(r"\$\{[^}]+\}", "{x}", path).split("?")[0]
-                yield method, path, f"{p.relative_to(ROOT)}:{line}"
+                for resolved in (_resolve(url, variables) if url.startswith("${") else {url}):
+                    for full in _expand_ternaries(resolved):
+                        if "/api" not in full:
+                            continue
+                        tail = full.split("/api", 1)[1]
+                        path = "/api" + (tail if tail.startswith("/") else "/" + tail)
+                        path = re.sub(r"\$\{[^}]+\}", "{x}", path).split("?")[0]
+                        yield method, path, f"{p.relative_to(ROOT)}:{line}"
+
+
+TERNARY = re.compile(r"""\$\{[^{}]*\?\s*['"]([^'"]*)['"]\s*:\s*['"]([^'"]*)['"]\s*\}""")
+
+
+def _expand_ternaries(url: str) -> list[str]:
+    """`/${isLiked ? 'unlike' : 'like'}` 처럼 문자열 두 개 중 하나를 고르는 부분을 두 경우 모두로 펼친다."""
+    m = TERNARY.search(url)
+    if not m:
+        return [url]
+    head, tail = url[:m.start()], url[m.end():]
+    return [*_expand_ternaries(head + m.group(1) + tail), *_expand_ternaries(head + m.group(2) + tail)]
 
 
 def check_api(openapi_path):
@@ -111,10 +152,17 @@ def check_api(openapi_path):
                       for m, p in unused]
 
 
+def _strip_line_comments(text: str) -> str:
+    """// 주석 줄을 같은 길이의 공백으로 바꾼다 (줄 번호 유지). 주석 속 예시 코드를 결함으로 보지 않기 위해."""
+    text = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), text, flags=re.S)
+    return re.sub(r"(?m)^[ \t]*//[^\n]*$", lambda m: " " * len(m.group(0)), text)
+
+
 def check_nav():
     registered, targets = set(), []
     for p, text in sources():
-        registered |= set(re.findall(r"""name=\{?\s*['"]([^'"]+)['"]""", text))
+        text = _strip_line_comments(text)
+        registered |= set(re.findall(r"""\bname\s*=\s*\{?\s*['"]([^'"]+)['"]""", text))
         for m in re.finditer(r"""navigat(?:e|ion\.(?:navigate|replace|push))\(\s*['"]([^'"]+)['"]""", text):
             targets.append((m.group(1), f"{p.relative_to(ROOT)}:{text.count(chr(10), 0, m.start()) + 1}"))
     return [f"[nav] 등록되지 않은 화면으로 이동: '{t}'  ({w})" for t, w in targets if t not in registered], []
@@ -132,8 +180,13 @@ def check_env():
             if p.name != "apiConfig.js":
                 line = text.count("\n", 0, m.start()) + 1
                 problems.append(f"[env] 서버 주소를 코드에 직접 씀: {m.group(0)}  ({rel}:{line})")
-        if "process.env.REACT_APP_" in text:
-            problems.append(f"[env] React Native 에서 동작하지 않는 process.env.REACT_APP_* 사용  ({rel})")
+        for m in re.finditer(r"""process\.env(?:\.(\w+)|\[\s*['"`](\w+)['"`]\s*\])""", _strip_line_comments(text)):
+            name = m.group(1) or m.group(2)
+            if name == "NODE_ENV":
+                continue
+            line = text.count("\n", 0, m.start()) + 1
+            problems.append(f"[env] process.env.{name} 사용 - @env import 로 바꿀 것 "
+                            f"(react-native-dotenv allowlist 를 우회해 .env 값이 번들에 들어갈 수 있음)  ({rel}:{line})")
     return problems, []
 
 
