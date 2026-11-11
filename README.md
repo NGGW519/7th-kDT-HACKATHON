@@ -184,7 +184,7 @@ PostgreSQL 한 곳에 **34개 테이블** (PostGIS 로 위치, pgvector 로 임�
 ├── proposal/  memorial/  images/  # 기획서, 발표 자료, 디자인 이미지
 ├── docker-compose.yml             # backend + PostgreSQL
 ├── scripts/                       # check_llm_models.py(모델 점검), insert_sample_missions.py(기본 미션)
-├── .github/workflows/             # push 알림, 백엔드 테스트, MonoGPT 모델 주간 점검 (실패 시 Discord 알림)
+├── .github/workflows/             # 백엔드 테스트, MonoGPT 모델 주간 점검 (실패 시 Discord 알림)
 ├── .claude/                       # Claude Code 개발 하네스 (에이전트·스킬, CLAUDE.md 참고)
 ├── requirements.txt               # Crawling_Haman · Ai_llm 스크립트용 Python 패키지
 └── .env                           # 모든 환경 변수 (직접 생성, Git 에 올라가지 않음)
