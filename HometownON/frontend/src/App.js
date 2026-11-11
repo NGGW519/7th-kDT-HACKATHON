@@ -4,8 +4,14 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
 import 'react-native-gesture-handler';
+import { purgeStoredPasswords } from './utils/storage';
 
 const App = () => {
+  // 앱 시작 때 기기에 남은 옛 비밀번호 필드를 한 번 지운다.
+  useEffect(() => {
+    purgeStoredPasswords();
+  }, []);
+
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID_WEB || !GOOGLE_CLIENT_ID_IOS) {
       console.error('❌ Google Client ID가 .env 파일에서 로드되지 않았습니다!');

@@ -13,6 +13,17 @@ import {
   Platform,
 } from 'react-native';
 import { getCurrentUser, updateUserAndSave } from '../../utils/storage';
+import { fetchMe, patchMyProfile, mergeServerUser, mergePreferences } from '../../services/profileApi';
+
+// 커리어 계획 (가입 화면의 careerPlan 과 같은 값). 직업 분류(careerType)와는 다른 키다.
+const PLAN_CONTINUE = '커리어 지속형';
+const PLAN_CHANGE = '커리어 전환형';
+// 이전 수정 코드가 'continue'/'change' 로 저장했을 수 있어 같이 해석한다.
+const normalizePlan = (v) => {
+  if (v === PLAN_CONTINUE || v === 'continue') return PLAN_CONTINUE;
+  if (v === PLAN_CHANGE || v === 'change') return PLAN_CHANGE;
+  return '';
+};
 
 const EditProfileScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -20,7 +31,7 @@ const EditProfileScreen = ({ navigation }) => {
     returnName: '',
     hometown: '',
     previousCareer: '',
-    careerType: '',
+    careerPlan: '',
     personality: '',
   });
 
@@ -33,16 +44,21 @@ const EditProfileScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
-      const user = await getCurrentUser();
+      const cached = await getCurrentUser();
+      // 서버의 현재 값이 있으면 그것으로 채운다. 실패하면 기기 캐시를 쓴다.
+      const me = await fetchMe();
+      const user = me.ok ? mergeServerUser(cached, me.data) : cached;
       if (user) {
         setCurrentUser(user);
+        const p = user.profile || {};
+        const prefs = p.preferences || {};
         setFormData({
           email: user.email || '',
-          returnName: user.returnName || user.name || '',
-          hometown: user.hometown || '',
-          previousCareer: user.previousCareer || '',
-          careerType: user.careerType || '',
-          personality: user.personality || '',
+          returnName: p.display_name || user.returnName || user.name || '',
+          hometown: p.home_region || user.hometown || '',
+          previousCareer: prefs.previousCareer || user.previousCareer || '',
+          careerPlan: normalizePlan(prefs.careerPlan) || normalizePlan(user.careerPlan) || normalizePlan(prefs.careerType) || normalizePlan(user.careerType),
+          personality: prefs.personality || user.personality || '',
         });
       }
     } catch (error) {
@@ -58,10 +74,10 @@ const EditProfileScreen = ({ navigation }) => {
     }));
   };
 
-  const handleCareerTypeSelect = (type) => {
+  const handleCareerPlanSelect = (plan) => {
     setFormData(prev => ({
       ...prev,
-      careerType: type,
+      careerPlan: plan,
     }));
   };
 
@@ -78,8 +94,16 @@ const EditProfileScreen = ({ navigation }) => {
       Alert.alert('오류', '은퇴 혹은 이전 커리어를 입력해주세요.');
       return false;
     }
-    if (!formData.careerType) {
-      Alert.alert('오류', '커리어 유형을 선택해주세요.');
+    if (!formData.careerPlan) {
+      Alert.alert('오류', '커리어 계획을 선택해주세요.');
+      return false;
+    }
+    if (formData.returnName.trim().length > 80) {
+      Alert.alert('오류', '귀향 이름은 80자 이하로 입력해주세요.');
+      return false;
+    }
+    if (formData.hometown.trim().length > 120) {
+      Alert.alert('오류', '고향은 120자 이하로 입력해주세요.');
       return false;
     }
     return true;
@@ -90,10 +114,45 @@ const EditProfileScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
+      // preferences 는 서버에서 통째로 교체되므로 현재 값을 읽어 바꿀 키만 덮어쓴다.
+      // 읽기에 실패하면 서버 값을 덮어쓸 수 있으니 저장하지 않는다.
+      const me = await fetchMe();
+      if (!me.ok) {
+        Alert.alert('오류', me.error);
+        return;
+      }
+      const currentPrefs = (me.data.profile && me.data.profile.preferences) || {};
+      const region = formData.hometown.trim();
+      const name = formData.returnName.trim();
+      const previousCareer = formData.previousCareer.trim();
+      const personality = formData.personality.trim();
+      const res = await patchMyProfile({
+        display_name: name,
+        home_region: region,
+        target_region: region,
+        preferences: mergePreferences(currentPrefs, {
+          previousCareer,
+          careerPlan: formData.careerPlan,
+          personality,
+        }),
+      });
+      if (!res.ok) {
+        Alert.alert('오류', res.error);
+        return;
+      }
+
+      // 캐시에는 trim 한 값(서버 응답 값 우선)을 저장한다.
+      const saved = res.data.profile || {};
       const updatedUser = {
-        ...currentUser,
-        ...formData,
-        name: formData.returnName, // Explicitly map returnName to name
+        ...mergeServerUser(currentUser, res.data),
+        email: formData.email,
+        returnName: saved.display_name || name,
+        hometown: saved.home_region || region,
+        previousCareer,
+        careerPlan: formData.careerPlan,
+        careerType: (saved.preferences && saved.preferences.careerType) || currentUser?.careerType,
+        personality,
+        name: saved.display_name || name,
         updatedAt: new Date().toISOString(),
       };
 
@@ -164,6 +223,7 @@ const EditProfileScreen = ({ navigation }) => {
               <TextInput
                 style={styles.textInput}
                 value={formData.returnName}
+                maxLength={80}
                 onChangeText={(text) => handleInputChange('returnName', text)}
                 placeholder="귀향하신 이름을 입력해주세요"
                 placeholderTextColor="#999"
@@ -175,6 +235,7 @@ const EditProfileScreen = ({ navigation }) => {
               <TextInput
                 style={styles.textInput}
                 value={formData.hometown}
+                maxLength={120}
                 onChangeText={(text) => handleInputChange('hometown', text)}
                 placeholder="고향 지역을 입력해주세요 (예: 경기도 수원시)"
                 placeholderTextColor="#999"
@@ -195,18 +256,18 @@ const EditProfileScreen = ({ navigation }) => {
 
           {/* Career Type Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. 커리어 유형 선택 *</Text>
+            <Text style={styles.sectionTitle}>3. 커리어 계획 선택 *</Text>
             <View style={styles.careerTypeContainer}>
               <TouchableOpacity
                 style={[
                   styles.careerTypeButton,
-                  formData.careerType === 'continue' && styles.careerTypeButtonActive,
+                  formData.careerPlan === PLAN_CONTINUE && styles.careerTypeButtonActive,
                 ]}
-                onPress={() => handleCareerTypeSelect('continue')}
+                onPress={() => handleCareerPlanSelect(PLAN_CONTINUE)}
               >
                 <Text style={[
                   styles.careerTypeButtonText,
-                  formData.careerType === 'continue' && styles.careerTypeButtonTextActive,
+                  formData.careerPlan === PLAN_CONTINUE && styles.careerTypeButtonTextActive,
                 ]}>
                   커리어 지속형
                 </Text>
@@ -215,13 +276,13 @@ const EditProfileScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={[
                   styles.careerTypeButton,
-                  formData.careerType === 'change' && styles.careerTypeButtonActive,
+                  formData.careerPlan === PLAN_CHANGE && styles.careerTypeButtonActive,
                 ]}
-                onPress={() => handleCareerTypeSelect('change')}
+                onPress={() => handleCareerPlanSelect(PLAN_CHANGE)}
               >
                 <Text style={[
                   styles.careerTypeButtonText,
-                  formData.careerType === 'change' && styles.careerTypeButtonTextActive,
+                  formData.careerPlan === PLAN_CHANGE && styles.careerTypeButtonTextActive,
                 ]}>
                   커리어 전환형
                 </Text>

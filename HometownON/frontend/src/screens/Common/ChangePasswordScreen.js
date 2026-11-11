@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { getCurrentUser, saveUser } from '../../utils/storage';
+import { API_BASE } from '../../config/apiConfig';
+import { authHeaders } from '../../services/apiClient';
+import { errorText } from '../../services/AuthService';
 
 const ChangePasswordScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -22,26 +24,9 @@ const ChangePasswordScreen = ({ navigation }) => {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      const user = await getCurrentUser();
-      if (user) {
-        setCurrentUser(user);
-      }
-    } catch (error) {
-      console.error('사용자 데이터 로드 오류:', error);
-      Alert.alert('오류', '사용자 정보를 불러오는데 실패했습니다.');
-    }
-  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -77,34 +62,34 @@ const ChangePasswordScreen = ({ navigation }) => {
   const handleChangePassword = async () => {
     if (!validateForm()) return;
 
-    // 현재 비밀번호 확인
-    if (currentUser.password !== formData.currentPassword) {
-      Alert.alert('오류', '현재 비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const updatedUser = {
-        ...currentUser,
-        password: formData.newPassword,
-        updatedAt: new Date().toISOString(),
-      };
+      // 비밀번호는 서버가 검증·저장한다. 기기에는 저장하지 않는다.
+      const response = await fetch(`${API_BASE}/users/me/password`, {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          current_password: formData.currentPassword,
+          new_password: formData.newPassword,
+        }),
+      });
 
-      const success = await saveUser(updatedUser);
-      if (success) {
+      if (response.status === 204) {
         Alert.alert('성공', '비밀번호가 변경되었습니다!', [
           {
             text: '확인',
             onPress: () => navigation.goBack(),
           },
         ]);
+      } else if (response.status === 401) {
+        Alert.alert('오류', '로그인이 필요합니다.');
       } else {
-        Alert.alert('오류', '비밀번호 변경 중 오류가 발생했습니다.');
+        const data = await response.json().catch(() => ({}));
+        Alert.alert('오류', errorText(data.detail, '비밀번호 변경 중 오류가 발생했습니다.'));
       }
     } catch (error) {
       console.error('비밀번호 변경 오류:', error);
-      Alert.alert('오류', '비밀번호 변경 중 오류가 발생했습니다.');
+      Alert.alert('오류', '서버에 연결할 수 없습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -198,6 +183,7 @@ const ChangePasswordScreen = ({ navigation }) => {
                   placeholder="새 비밀번호를 입력해주세요 (6자 이상)"
                   placeholderTextColor="#999"
                   secureTextEntry={!showNewPassword}
+                  maxLength={128}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -226,6 +212,7 @@ const ChangePasswordScreen = ({ navigation }) => {
                   placeholder="새 비밀번호를 다시 입력해주세요"
                   placeholderTextColor="#999"
                   secureTextEntry={!showConfirmPassword}
+                  maxLength={128}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />

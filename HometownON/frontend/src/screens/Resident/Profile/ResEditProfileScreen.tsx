@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { getCurrentUser } from '../../../utils/storage';
+import { getCurrentUser, updateUserAndSave } from '../../../utils/storage';
+import { fetchMe, patchMyProfile, mergeServerUser } from '../../../services/profileApi';
 
 const ResEditProfileScreen = ({ navigation }) => {
   const [formData, setFormData] = React.useState({
@@ -31,14 +32,18 @@ const ResEditProfileScreen = ({ navigation }) => {
 
   const loadCurrentUser = async () => {
     try {
-      const user = await getCurrentUser();
+      const cached = await getCurrentUser();
+      // 서버의 현재 값이 있으면 그것으로 채운다. 실패하면 기기 캐시를 쓴다.
+      const me = await fetchMe();
+      const user = me.ok ? mergeServerUser(cached, me.data) : cached;
       setCurrentUser(user);
       if (user) {
+        const p = user.profile || {};
         setFormData({
           email: user.email || '',
-          residentName: user.residentName || user.returnName || user.name || '',
-          location: user.location || user.hometown || '',
-          personality: user.personality || '',
+          residentName: p.display_name || user.residentName || user.returnName || user.name || '',
+          location: p.home_region || user.location || user.hometown || '',
+          personality: p.bio || user.personality || '',
         });
       }
     } catch (error) {
@@ -60,6 +65,14 @@ const ResEditProfileScreen = ({ navigation }) => {
       Alert.alert('오류', '거주 지역을 입력해주세요.');
       return false;
     }
+    if (formData.residentName.trim().length > 80) {
+      Alert.alert('오류', '이름은 80자 이하로 입력해주세요.');
+      return false;
+    }
+    if (formData.location.trim().length > 120) {
+      Alert.alert('오류', '거주 지역은 120자 이하로 입력해주세요.');
+      return false;
+    }
     return true;
   };
 
@@ -68,9 +81,20 @@ const ResEditProfileScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
+      const region = formData.location.trim();
+      const res = await patchMyProfile({
+        display_name: formData.residentName.trim(),
+        home_region: region,
+        target_region: region,
+        bio: formData.personality.trim(),
+      });
+      if (!res.ok) {
+        Alert.alert('오류', res.error);
+        return;
+      }
+
       const updatedUser = {
-        ...currentUser,
-        email: formData.email,
+        ...mergeServerUser(currentUser, res.data),
         residentName: formData.residentName,
         location: formData.location,
         personality: formData.personality,
@@ -80,9 +104,7 @@ const ResEditProfileScreen = ({ navigation }) => {
         updatedAt: new Date().toISOString(),
       };
 
-      // saveUser 사용 프로젝트라면 여기서 저장 함수 호출
-      const res = await import('../../../utils/storage');
-      const success = await res.saveUser(updatedUser);
+      const success = await updateUserAndSave(updatedUser);
 
       if (success) {
         Alert.alert('성공', '회원정보가 수정되었습니다!', [

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { saveCurrentUser } from '../../utils/storage';
+import { fetchMe, mergeServerUser } from '../../services/profileApi';
 import AuthService from '../../services/AuthService';
 import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
@@ -34,12 +35,23 @@ const SignInScreen = ({ navigation }) => {
     });
   }, []);
 
+  // 로그인 응답(토큰)은 캐시에 넣지 않는다. 토큰은 AuthService 가 access_token 키에만 저장했다.
+  // 대신 GET /me 의 사용자 정보를 캐시에 저장한다. 실패해도 로그인은 유지된다.
+  const cacheServerUser = async () => {
+    const me = await fetchMe();
+    if (me.ok) {
+      await saveCurrentUser(mergeServerUser(null, me.data));
+    } else {
+      console.warn('사용자 정보 캐시 실패:', me.error);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setIsLoading(true); // 로딩 상태 시작
     try {
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
-      console.log("✅ Google 로그인 성공:", userInfo);
+      console.log("✅ Google 로그인 성공");
 
       // 사용자가 Google 로그인 창을 닫은 경우: 오류 알림 없이 돌아간다 (google-signin v13+ 는 예외 대신 type 으로 알림)
       if (userInfo?.type === 'cancelled') {
@@ -56,10 +68,9 @@ const SignInScreen = ({ navigation }) => {
 
       // 백엔드 API 호출 (AuthService 가 access_token 을 AsyncStorage 에 저장한다)
       const result = await AuthService.googleSignIn(idToken);
-      const data = result.data;
 
       if (result.success) {
-        await saveCurrentUser({ token: data.access_token });
+        await cacheServerUser();
         Alert.alert('성공', 'Google 로그인이 완료되었습니다!', [
           {
             text: '확인',
@@ -87,7 +98,7 @@ const SignInScreen = ({ navigation }) => {
     try {
       const result = await AuthService.signIn(email.trim(), password);
       if (result.success) {
-        await saveCurrentUser(result.data); // Save the full user data including profile
+        await cacheServerUser();
         Alert.alert('성공', '로그인이 완료되었습니다!', [
           {
             text: '확인',

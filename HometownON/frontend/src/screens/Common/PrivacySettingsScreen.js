@@ -10,7 +10,8 @@ import {
   Switch,
   Alert,
 } from 'react-native';
-import { getCurrentUser, saveUser } from '../../utils/storage';
+import { getCurrentUser, updateUserAndSave } from '../../utils/storage';
+import { fetchMe, patchMyProfile, mergeServerUser } from '../../services/profileApi';
 
 const PrivacySettingsScreen = ({ navigation }) => {
   const [privacySettings, setPrivacySettings] = useState({
@@ -33,12 +34,15 @@ const PrivacySettingsScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
-      const user = await getCurrentUser();
+      const cached = await getCurrentUser();
+      // 서버의 profile.preferences.privacy 를 읽는다. 실패하면 기기 캐시를 쓴다.
+      const me = await fetchMe();
+      const user = me.ok ? mergeServerUser(cached, me.data) : cached;
       if (user) {
         setCurrentUser(user);
-        // 저장된 개인정보 설정이 있으면 로드
-        if (user.privacySettings) {
-          setPrivacySettings(user.privacySettings);
+        const saved = (user.profile && user.profile.preferences && user.profile.preferences.privacy) || user.privacySettings;
+        if (saved && typeof saved === 'object') {
+          setPrivacySettings(prev => ({ ...prev, ...saved }));
         }
       }
     } catch (error) {
@@ -57,13 +61,28 @@ const PrivacySettingsScreen = ({ navigation }) => {
   const handleSave = async () => {
     setIsLoading(true);
     try {
+      // preferences 는 통째로 교체되므로 서버의 현재 값을 읽어 privacy 만 바꿔 보낸다.
+      const me = await fetchMe();
+      if (!me.ok) {
+        Alert.alert('오류', me.error);
+        return;
+      }
+      const currentPrefs = (me.data.profile && me.data.profile.preferences) || {};
+      const res = await patchMyProfile(
+        { preferences: { ...currentPrefs, privacy: privacySettings } },
+        '설정 저장 중 오류가 발생했습니다.'
+      );
+      if (!res.ok) {
+        Alert.alert('오류', res.error);
+        return;
+      }
+
       const updatedUser = {
-        ...currentUser,
+        ...mergeServerUser(currentUser, res.data),
         privacySettings,
-        updatedAt: new Date().toISOString(),
       };
 
-      const success = await saveUser(updatedUser);
+      const success = await updateUserAndSave(updatedUser);
       if (success) {
         Alert.alert('성공', '개인정보 설정이 저장되었습니다!', [
           {

@@ -81,7 +81,6 @@ export default function RequestBoardWriteScreen({ route }) {
 
         try {
             const token = await AuthService.getToken();
-            console.log('Token:', token ? 'Token exists' : 'No token');
             console.log('API URL:', `${API_URL}/api/requests/`);
             
             if (!token) {

@@ -12,7 +12,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { getCurrentUser, saveUser } from '../../../utils/storage';
+import { getCurrentUser, updateUserAndSave } from '../../../utils/storage';
+import { fetchMe, patchMyProfile, mergeServerUser, mergePreferences } from '../../../services/profileApi';
 
 const MentorEditProfileScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -34,16 +35,21 @@ const MentorEditProfileScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
-      const user = await getCurrentUser();
+      const cached = await getCurrentUser();
+      // 서버의 현재 값이 있으면 그것으로 채운다. 실패하면 기기 캐시를 쓴다.
+      const me = await fetchMe();
+      const user = me.ok ? mergeServerUser(cached, me.data) : cached;
       if (user) {
         setCurrentUser(user);
+        const p = user.profile || {};
+        const prefs = p.preferences || {};
         setFormData({
           email: user.email || '',
-          mentorName: user.mentorName || user.name || '',
-          mentorType: user.mentorType || '',
-          expertise: user.expertise || '',
-          experience: user.experience || '',
-          qualifications: user.qualifications || '',
+          mentorName: p.display_name || user.mentorName || user.name || '',
+          mentorType: prefs.mentorType || user.mentorType || '',
+          expertise: prefs.expertise || user.expertise || '',
+          experience: p.bio || user.experience || '',
+          qualifications: prefs.qualifications || user.qualifications || '',
           privacyAgreed: !!user.privacyAgreed,
         });
       }
@@ -93,25 +99,56 @@ const MentorEditProfileScreen = ({ navigation }) => {
   const handleSave = async () => {
     if (!validateForm()) return;
 
+    if (formData.mentorName.trim().length > 80) {
+      Alert.alert('오류', '멘토 이름은 80자 이하로 입력해주세요.');
+      return;
+    }
+
     setIsLoading(true);
     try {
+      // 이름 -> display_name, 경력 -> bio, 유형·전문 분야·자격 -> preferences (가입 때와 같은 키).
+      // preferences 는 통째로 교체되므로 현재 값을 읽어 바꿀 키만 덮어쓴다. 읽기에 실패하면 저장하지 않는다.
+      const me = await fetchMe();
+      if (!me.ok) {
+        Alert.alert('오류', me.error);
+        return;
+      }
+      const currentPrefs = (me.data.profile && me.data.profile.preferences) || {};
+      const name = formData.mentorName.trim();
+      const experience = formData.experience.trim();
+      const expertise = formData.expertise.trim();
+      const qualifications = formData.qualifications.trim();
+      const res = await patchMyProfile({
+        display_name: name,
+        bio: experience,
+        preferences: mergePreferences(currentPrefs, {
+          mentorType: formData.mentorType,
+          expertise,
+          qualifications,
+        }),
+      });
+      if (!res.ok) {
+        Alert.alert('오류', res.error);
+        return;
+      }
+      const savedName = (res.data.profile && res.data.profile.display_name) || name;
+
       const updatedUser = {
-        ...currentUser,
+        ...mergeServerUser(currentUser, res.data),
         // 표준 키
-        email: formData.email,
         userType: 'mentor',
-        mentorName: formData.mentorName,
+        mentorName: savedName,
         mentorType: formData.mentorType,
-        expertise: formData.expertise,
-        experience: formData.experience,
-        qualifications: formData.qualifications,
+        expertise,
+        experience,
+        qualifications,
         privacyAgreed: formData.privacyAgreed,
         // 호환 키
-        name: formData.mentorName,
+        name: savedName,
         updatedAt: new Date().toISOString(),
       };
 
-      const success = await saveUser(updatedUser);
+      const success = await updateUserAndSave(updatedUser);
       if (success) {
         Alert.alert('성공', '회원정보가 수정되었습니다!', [
           { text: '확인', onPress: () => navigation.goBack() },

@@ -14,7 +14,8 @@ import {
   Image,
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../../../utils/storage';
+import { buildSignupCache } from '../../../services/profileApi';
+import { updateUserAndSave, isEmailExists, saveCurrentUser, withoutPasswords } from '../../../utils/storage';
 import AuthService from '../../../services/AuthService';
 import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
@@ -61,7 +62,10 @@ const ResidentSignUpScreen = ({ navigation }) => {
   const handleGoogleLogin = async () => {
     try {
       const userInfo = await GoogleSignin.signIn();
-      console.log("✅ 로그인 성공:", userInfo);
+      // 사용자가 로그인 창을 닫은 경우: 알림 없이 돌아간다
+      if (userInfo?.type === 'cancelled' || !userInfo?.data?.user) {
+        return;
+      }
       
       // Google 사용자 정보를 폼에 자동 입력
       setFormData(prev => ({
@@ -175,6 +179,7 @@ const ResidentSignUpScreen = ({ navigation }) => {
           display_name: formData.residentName.trim(),
           home_region: formData.location.trim(),
           target_region: formData.location.trim(),
+          preferences: { userType: 'resident' },
         });
         if (!result.success) {
           Alert.alert('오류', result.error || '회원가입에 실패했습니다.');
@@ -185,15 +190,16 @@ const ResidentSignUpScreen = ({ navigation }) => {
         const userData = {
           id: result.data?.id ?? googleUser.id,
           email: googleUser.email,
-          name: googleUser.name,
+          name: formData.residentName.trim(), // 서버에 저장한 이름 (Google 계정 이름이 아님)
           picture: googleUser.picture,
           userType: 'resident',
           googleUser,
-          ...formData,
+          ...withoutPasswords(formData),
           createdAt: new Date().toISOString(),
         };
-        await updateUserAndSave(userData);
-        await saveCurrentUser(userData);
+        const googleCache = await buildSignupCache(userData);
+        await updateUserAndSave(googleCache);
+        await saveCurrentUser(googleCache);
         Alert.alert('성공', '지역주민 회원가입이 완료되었습니다!', [
           {
             text: '확인',
@@ -222,11 +228,11 @@ const ResidentSignUpScreen = ({ navigation }) => {
             email: result.data.email,
             name: formData.residentName,
             userType: 'resident',
-            ...formData,
+            ...withoutPasswords(formData),
             createdAt: new Date().toISOString(),
           };
 
-          await saveCurrentUser(localUserData);
+          await saveCurrentUser(await buildSignupCache(localUserData));
           Alert.alert('성공', '지역주민 회원가입이 완료되었습니다!', [
             {
               text: '확인',
@@ -391,6 +397,7 @@ const ResidentSignUpScreen = ({ navigation }) => {
                 style={styles.textInput}
                 value={formData.residentName}
                 onChangeText={(text) => handleInputChange('residentName', text)}
+                maxLength={80}
                 placeholder="지역주민 이름을 입력해주세요"
                 placeholderTextColor="#999"
               />
@@ -402,6 +409,7 @@ const ResidentSignUpScreen = ({ navigation }) => {
                 style={styles.textInput}
                 value={formData.location}
                 onChangeText={(text) => handleInputChange('location', text)}
+                maxLength={120}
                 placeholder="현재 거주하고 계신 지역을 입력해주세요 (예: 경기도 수원시 팔달구)"
                 placeholderTextColor="#999"
               />
