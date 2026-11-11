@@ -121,6 +121,45 @@ def test_nearby_requires_coordinates(client):
     assert client.post("/api/locations/nearby", json={}).status_code == 422
 
 
+def _explain_nearby(client, **body):
+    """nearby 엔드포인트가 실제로 보낸 SQL 을 잡아 같은 값으로 EXPLAIN 한 실행 계획 문자열."""
+    from sqlalchemy import event
+
+    from app.core.database import engine
+
+    captured = []
+
+    def grab(conn, cursor, statement, parameters, context, executemany):
+        if "ST_DWithin" in statement:
+            captured.append((statement, parameters))
+
+    event.listen(engine, "before_cursor_execute", grab)
+    try:
+        assert _nearby(client, **body).status_code == 200
+    finally:
+        event.remove(engine, "before_cursor_execute", grab)
+    assert len(captured) == 1, captured
+    statement, parameters = captured[0]
+    with engine.connect() as conn:
+        conn.exec_driver_sql("SET LOCAL enable_seqscan = off")  # 테스트 데이터가 적어 그대로 두면 순차 탐색이 더 싸다
+        plan = "\n".join(row[0] for row in conn.exec_driver_sql("EXPLAIN " + statement, parameters))
+        conn.rollback()
+    return statement, plan
+
+
+def test_nearby_query_uses_geography_index(client, nearby_places, db_conn):
+    """nearby 는 geom::geography 로 거리를 재므로 geometry 인덱스(ix_locations_geom)는 못 쓰고,
+    같은 식으로 만든 ix_locations_geom_geography 를 써야 한다."""
+    indexdef = db_conn.execute(
+        "select indexdef from pg_indexes where indexname='ix_locations_geom_geography'").fetchone()
+    assert indexdef and "gist" in indexdef[0] and "geography" in indexdef[0], indexdef
+
+    statement, plan = _explain_nearby(client)
+    assert "geography" in statement  # 쿼리가 geography 로 계산하는지 (인덱스 식과 같아야 한다)
+    assert "ix_locations_geom_geography" in plan, plan
+    assert "Seq Scan on locations" not in plan, plan
+
+
 def test_location_categories(client, nearby_places):
     r = client.get("/api/locations/categories/")
     assert r.status_code == 200, r.text  # /{location_id} 보다 먼저 정의돼야 422 가 아니다
