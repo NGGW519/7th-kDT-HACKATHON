@@ -70,7 +70,7 @@ def _assignments(text: str):
 
 def _resolve(url: str, variables: dict[str, set[str]]) -> set[str]:
     """`${baseApiEndpoint}/${id}` 처럼 같은 파일에서 대입한 변수로 시작하는 주소를 펼친다."""
-    head = re.match(r"\$\{(\w+)\}(.*)", url)
+    head = re.match(r"\$\{(\w+)\}(.*)", url, re.S)  # 템플릿 주소가 여러 줄이어도 끝까지
     if head and head.group(1) in variables:
         return {base + head.group(2) for base in variables[head.group(1)]}
     return {url}
@@ -153,9 +153,42 @@ def check_api(openapi_path):
 
 
 def _strip_line_comments(text: str) -> str:
-    """// 주석 줄을 같은 길이의 공백으로 바꾼다 (줄 번호 유지). 주석 속 예시 코드를 결함으로 보지 않기 위해."""
-    text = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), text, flags=re.S)
-    return re.sub(r"(?m)^[ \t]*//[^\n]*$", lambda m: " " * len(m.group(0)), text)
+    """// 와 /* */ 주석을 같은 길이의 공백으로 바꾼다 (줄 번호·위치 유지). 주석 속 예시 코드를 결함으로 보지 않기 위해.
+
+    문자열('...', "...", `...`) 안의 // 는 지우지 않는다 ('http://...' 주소가 깨지지 않도록).
+    '...'/"..." 는 줄을 넘지 않으므로, JSX 글자 속 아포스트로피가 있어도 그 줄 안에서 끝난다.
+    정규식 리터럴(/.../)은 구분하지 않는다 (앱 코드에 주소 검사에 영향을 줄 정규식은 없다).
+    """
+    out, i, n, quote = [], 0, len(text), None
+    while i < n:
+        c = text[i]
+        if quote:
+            if c == "\\" and i + 1 < n:
+                out.append(text[i:i + 2])
+                i += 2
+                continue
+            if c == quote or (c == "\n" and quote != "`"):
+                quote = None
+            out.append(c)
+            i += 1
+            continue
+        if c in "'\"`":
+            quote = c
+        elif text.startswith("//", i):
+            end = text.find("\n", i)
+            end = n if end == -1 else end
+            out.append(" " * (end - i))
+            i = end
+            continue
+        elif text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            end = n if end == -1 else end + 2
+            out.append(re.sub(r"[^\n]", " ", text[i:end]))
+            i = end
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
 
 
 def check_nav():
@@ -170,8 +203,9 @@ def check_nav():
 
 def check_env():
     problems = []
-    for p, text in sources():
+    for p, raw in sources():
         rel = p.relative_to(ROOT)
+        text = _strip_line_comments(raw)  # 주석 속 예시 주소·코드는 결함으로 보지 않는다 (위치는 유지)
         for m in re.finditer(r"import\s*\{([^}]*)\}\s*from\s*['\"]@env['\"]", text):
             bad = {n.strip().split(" as ")[0] for n in m.group(1).split(",")} & SECRET_ENV
             if bad:
@@ -180,7 +214,7 @@ def check_env():
             if p.name != "apiConfig.js":
                 line = text.count("\n", 0, m.start()) + 1
                 problems.append(f"[env] 서버 주소를 코드에 직접 씀: {m.group(0)}  ({rel}:{line})")
-        for m in re.finditer(r"""process\.env(?:\.(\w+)|\[\s*['"`](\w+)['"`]\s*\])""", _strip_line_comments(text)):
+        for m in re.finditer(r"""process\.env(?:\.(\w+)|\[\s*['"`](\w+)['"`]\s*\])""", text):
             name = m.group(1) or m.group(2)
             if name == "NODE_ENV":
                 continue
