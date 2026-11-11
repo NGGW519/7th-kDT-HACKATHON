@@ -173,6 +173,7 @@ CREATE TABLE locations (
   extra JSONB                            -- 원시칼럼 보관(출처/링크 등)
 );
 CREATE INDEX ix_locations_geom ON locations USING gist (geom);
+CREATE INDEX ix_locations_geom_geography ON locations USING gist ((geom::geography));  -- 근처 검색(ST_DWithin(geom::geography, ...))용
 CREATE INDEX ix_locations_category_id ON locations (category_id);
 CREATE INDEX ix_locations_name ON locations (name);
 

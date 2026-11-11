@@ -4,6 +4,23 @@
 
 이 문서는 함안군 귀향자 정착 지원 플랫폼 **Hometown_on**의 PostgreSQL(PostGIS + pgvector) 데이터베이스 스키마에 대한 상세 설명서입니다. 총 34개의 테이블로 구성되어 있으며, 사용자 관리부터 AI 기반 검색까지 모든 서비스 기능을 지원합니다.
 
+## ⚙️ 공통 준비 (모든 테이블보다 먼저 실행)
+
+PostGIS(좌표)·pgvector(임베딩) 확장과, 아래 테이블들의 `trg_*_updated_at` 트리거가 호출하는 `set_updated_at()` 함수입니다. `Crawling_Haman/Hometown_on.sql` 맨 앞과 같습니다.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- updated_at 자동 갱신용 (MySQL 의 ON UPDATE CURRENT_TIMESTAMP 대체)
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
 ## 🗂️ 테이블 분류 및 구조
 
 ### 🔹 1. 사용자 관리 (User Management)
@@ -115,6 +132,7 @@ CREATE TABLE missions (
   thumbnail_image VARCHAR(500),
   created_by_user_id BIGINT REFERENCES users(id)  -- 챗봇이 특정 사용자를 위해 만든 미션 (기본 미션은 NULL)
 );
+CREATE INDEX ix_missions_created_by_user_id ON missions (created_by_user_id);
 ```
 - **특징**: 3가지 미션 유형(exploration 탐색형 / bonding 사회유대형 / career 커리어형). `created_by_user_id` 가 NULL 이면 모두에게 보이는 기본 미션, 값이 있으면 챗봇이 그 사용자를 위해 만든 개인 미션
 - **완료 여부**: 미션 자체가 아니라 사용자별로 `mission_assignments.status` 에 저장 (한 사람이 완료해도 다른 사람에겐 그대로)
@@ -193,10 +211,12 @@ CREATE TABLE locations (
   extra JSONB                            -- 원시칼럼 보관(출처/링크 등)
 );
 CREATE INDEX ix_locations_geom ON locations USING gist (geom);
+CREATE INDEX ix_locations_geom_geography ON locations USING gist ((geom::geography));  -- 근처 검색(ST_DWithin(geom::geography, ...))용
 CREATE INDEX ix_locations_category_id ON locations (category_id);
 CREATE INDEX ix_locations_name ON locations (name);
 ```
 - **특징**: PostGIS `geometry(Point, 4326)` + GiST 인덱스로 반경 검색 등 지도 기반 검색 지원 (좌표 순서는 `POINT(경도 위도)`)
+- **인덱스**: `ix_locations_geom`(geometry)과 별도로 `ix_locations_geom_geography`(식 `geom::geography`)를 둔다. 근처 검색(`POST /api/locations/nearby`)은 미터 단위 거리를 위해 `ST_DWithin(geom::geography, ...)` 로 계산하므로, 인덱스도 같은 식으로 만들어야 쓰인다
 
 #### `location_hours` - 운영시간 정보
 ```sql
@@ -279,6 +299,8 @@ CREATE TABLE board_comments (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE TRIGGER trg_board_comments_updated_at BEFORE UPDATE ON board_comments
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE INDEX ix_board_comments_post_created ON board_comments (post_id, created_at);
 ```
 

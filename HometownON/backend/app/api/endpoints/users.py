@@ -78,3 +78,23 @@ def update_my_profile(
 ):
     """로그인 사용자의 프로필에서 보낸 칸만 바꾼다. 프로필이 없으면 만든다. 응답은 GET /me 와 같다."""
     return crud.crud_user.update_user_profile(db, current_user, changes)
+
+
+@router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_my_password(
+    request: schemas.PasswordChangeRequest,
+    current_user=Depends(security.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """현재 비밀번호를 확인하고 새 비밀번호로 바꾼다. 성공하면 204(본문 없음).
+
+    토큰은 email 로 만들므로 기존 토큰은 그대로 쓸 수 있다.
+    """
+    if not current_user.password_hash:
+        raise HTTPException(status_code=400, detail="Google 로 가입한 계정은 비밀번호가 없습니다.")
+    if not security.verify_password(request.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="현재 비밀번호가 일치하지 않습니다.")
+    # 문자열 비교 대신 해시로 확인: bcrypt 는 앞 72바이트만 쓰므로 그 뒤만 다른 비밀번호도 같은 비밀번호다
+    if security.verify_password(request.new_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="새 비밀번호가 현재 비밀번호와 같습니다.")
+    crud.crud_user.update_password(db, current_user, request.new_password)

@@ -43,6 +43,59 @@ def test_signup_validation_and_no_orphan(client, db_conn):
     assert db_conn.execute("select count(*) from users where email=%s", (email,)).fetchone()[0] == 0
 
 
+_SIGNUP_PROFILE = {"display_name": "김귀향", "home_region": "경남 함안군", "target_region": "경남 함안군"}
+
+
+def _signup_profile(client, **profile):
+    email = f"p-{uuid.uuid4().hex[:10]}@example.com"
+    return email, client.post("/api/users/signup", json=_signup_body(email, profile={**_SIGNUP_PROFILE, **profile}))
+
+
+def test_signup_profile_rejects_invalid_input_like_patch(client, db_conn):
+    """가입 프로필도 PATCH /me/profile 과 같은 규칙. 예전에는 gender 가 DB CHECK 위반으로 500 이었다."""
+    this_year = datetime.date.today().year
+    bad_profiles = [
+        {"gender": "x"}, {"gender": "MALE"}, {"gender": ""}, {"gender": "남"},
+        {"birth_year": 1899}, {"birth_year": this_year + 1}, {"birth_year": "옛날"},
+        {"display_name": ""}, {"display_name": "   "}, {"display_name": "가" * 81}, {"display_name": None},
+        {"home_region": "가" * 121}, {"target_region": "가" * 121},
+        {"mentor_hourly_rate": -1}, {"mentor_hourly_rate": 2 ** 31}, {"mentor_available": None},
+        {"profile_image": "x" * 501},
+    ]
+    for profile in bad_profiles:
+        email, r = _signup_profile(client, **profile)
+        assert r.status_code == 422, (profile, r.status_code, r.text)
+        assert isinstance(r.json()["detail"], list) and r.json()["detail"][0]["msg"]
+        assert db_conn.execute("select count(*) from users where email=%s", (email,)).fetchone()[0] == 0, profile
+
+
+def test_signup_birth_year_optional_and_boundaries(client, db_conn):
+    this_year = datetime.date.today().year
+    # 생년은 선택: 빼거나 null 이면 비워 둔다 (앱이 '올해-30' 같은 가짜 값을 만들지 않도록)
+    for profile in ({}, {"birth_year": None}):
+        email, r = _signup_profile(client, **profile)
+        assert r.status_code == 201, (profile, r.text)
+        assert r.json()["profile"]["birth_year"] is None
+        row = db_conn.execute("select p.birth_year from user_profiles p join users u on u.id=p.user_id "
+                              "where u.email=%s", (email,)).fetchone()
+        assert row == (None,)
+
+    ok_profiles = [
+        {"birth_year": 1900}, {"birth_year": this_year}, {"gender": "female"}, {"gender": "other"},
+        {"gender": None}, {"display_name": "가" * 80}, {"home_region": "가" * 120}, {"target_region": ""},
+        {"mentor_available": True, "mentor_hourly_rate": 0}, {"profile_image": "x" * 500},
+    ]
+    for profile in ok_profiles:
+        _, r = _signup_profile(client, **profile)
+        assert r.status_code == 201, (profile, r.text)
+        assert {k: r.json()["profile"][k] for k in profile} == profile
+
+    # 앞뒤 공백은 PATCH 와 같이 지운다
+    _, r = _signup_profile(client, display_name="  김귀향  ", gender="male")
+    assert r.status_code == 201 and r.json()["profile"]["display_name"] == "김귀향"
+    assert r.json()["profile"]["gender"] == "male"
+
+
 def test_long_unicode_password(client):
     email = f"long-{uuid.uuid4().hex[:8]}@example.com"
     assert client.post("/api/users/signup", json=_signup_body(email, password="가" * 40)).status_code == 201
@@ -136,6 +189,42 @@ def test_patch_profile_creates_missing_profile_for_google_user(client, monkeypat
     assert r.json()["profile"]["display_name"] is None
 
 
+def test_patch_profile_concurrent_creation_retries_as_update(client, monkeypatch, db_conn):
+    """프로필이 없는 사용자의 PATCH 두 개가 동시에 오면 늦은 쪽 INSERT 가 PK 충돌(IntegrityError)을 겪는다.
+    500 대신 롤백 후 먼저 생긴 프로필을 다시 읽어 수정으로 한 번 재시도해야 한다."""
+    from sqlalchemy import event
+
+    from app.core.database import SessionLocal
+
+    headers = _google_login_without_name(client, monkeypatch)
+    user_id = client.get("/api/users/me", headers=headers).json()["id"]
+    commits = []
+
+    def other_request_commits_first(session):
+        # 이 요청의 첫 commit 직전(INSERT 가 나가기 전)에 다른 요청이 같은 user_id 프로필을 먼저 저장한 상황
+        commits.append(session)
+        if len(commits) == 1:
+            db_conn.execute("insert into user_profiles (user_id, display_name, gender) values (%s, '먼저 온 요청', 'male')",
+                            (user_id,))
+
+    event.listen(SessionLocal, "before_commit", other_request_commits_first)
+    try:
+        r = client.patch("/api/users/me/profile", headers=headers, json={"bio": "나중 요청", "birth_year": 1960})
+    finally:
+        event.remove(SessionLocal, "before_commit", other_request_commits_first)
+
+    assert r.status_code == 200, r.text
+    assert len(commits) == 2  # 충돌한 첫 commit + 재시도 한 번
+    profile = r.json()["profile"]
+    assert profile["user_id"] == user_id
+    assert (profile["display_name"], profile["gender"]) == ("먼저 온 요청", "male")   # 먼저 온 요청의 값은 그대로
+    assert (profile["bio"], profile["birth_year"]) == ("나중 요청", 1960)             # 늦은 요청의 값도 반영
+    assert r.json() == client.get("/api/users/me", headers=headers).json()
+    rows = db_conn.execute("select display_name, bio, birth_year from user_profiles where user_id=%s",
+                           (user_id,)).fetchall()
+    assert rows == [("먼저 온 요청", "나중 요청", 1960)]
+
+
 def test_patch_profile_rejects_invalid_input(client, user, db_conn):
     headers, user_id = user
     this_year = datetime.date.today().year
@@ -166,6 +255,95 @@ def test_patch_profile_requires_login(client):
     assert client.patch("/api/users/me/profile", json=body).status_code == 401
     assert client.patch("/api/users/me/profile", json=body,
                         headers={"Authorization": "Bearer garbage"}).status_code == 401
+
+
+def _login_status(client, email, password):
+    return client.post("/api/users/login", json={"email": email, "password": password}).status_code
+
+
+# ---------------- POST /api/users/me/password ----------------
+def test_change_password_then_login_with_new_only(client, other_user):
+    email = f"pw-{uuid.uuid4().hex[:8]}@example.com"
+    headers, _ = signup_and_login(client, email=email)
+
+    r = client.post("/api/users/me/password", headers=headers,
+                    json={"current_password": "secret123", "new_password": "newpass456"})
+    assert r.status_code == 204, r.text
+    assert r.content == b""
+    assert _login_status(client, email, "newpass456") == 200
+    assert _login_status(client, email, "secret123") == 401
+    assert client.get("/api/users/me", headers=headers).status_code == 200   # 기존 토큰은 그대로 유효
+
+    # 다른 사용자의 비밀번호는 바뀌지 않는다
+    other_headers, _ = other_user
+    other_email = client.get("/api/users/me", headers=other_headers).json()["email"]
+    assert _login_status(client, other_email, "secret123") == 200
+
+    # 경계값: 6자, 128자
+    for current, new in (("newpass456", "a" * 6), ("a" * 6, "b" * 128)):
+        r = client.post("/api/users/me/password", headers=headers,
+                        json={"current_password": current, "new_password": new})
+        assert r.status_code == 204, (new, r.text)
+    assert _login_status(client, email, "b" * 128) == 200
+
+
+def test_change_password_rejects_wrong_or_same_password(client, db_conn):
+    email = f"pw-{uuid.uuid4().hex[:8]}@example.com"
+    headers, user_id = signup_and_login(client, email=email)
+    old_hash = db_conn.execute("select password_hash from users where id=%s", (user_id,)).fetchone()[0]
+
+    r = client.post("/api/users/me/password", headers=headers,
+                    json={"current_password": "wrong-pw", "new_password": "newpass456"})
+    assert r.status_code == 400 and r.json() == {"detail": "현재 비밀번호가 일치하지 않습니다."}
+
+    r = client.post("/api/users/me/password", headers=headers,
+                    json={"current_password": "secret123", "new_password": "secret123"})
+    assert r.status_code == 400 and r.json() == {"detail": "새 비밀번호가 현재 비밀번호와 같습니다."}
+
+    assert db_conn.execute("select password_hash from users where id=%s", (user_id,)).fetchone()[0] == old_hash
+    assert _login_status(client, email, "secret123") == 200
+
+
+def test_change_password_same_after_bcrypt_72_bytes_is_rejected(client):
+    """bcrypt 는 앞 72바이트만 쓴다. 그 뒤만 다른 새 비밀번호는 실제로는 같은 비밀번호이므로 거부한다."""
+    email = f"pw72-{uuid.uuid4().hex[:8]}@example.com"
+    current = "가" * 24 + "a"          # 한글 24자 = 72바이트, 그 뒤 'a' 는 해시에 쓰이지 않는다
+    assert client.post("/api/users/signup", json=_signup_body(email, password=current)).status_code == 201
+    token = client.post("/api/users/login", json={"email": email, "password": current}).json()["access_token"]
+    r = client.post("/api/users/me/password", headers={"Authorization": f"Bearer {token}"},
+                    json={"current_password": current, "new_password": "가" * 24 + "b"})
+    assert r.status_code == 400 and r.json() == {"detail": "새 비밀번호가 현재 비밀번호와 같습니다."}
+
+
+def test_change_password_google_only_account(client, monkeypatch, db_conn):
+    headers = _google_login_without_name(client, monkeypatch)
+    user_id = client.get("/api/users/me", headers=headers).json()["id"]
+    for current in ("", "anything"):
+        r = client.post("/api/users/me/password", headers=headers,
+                        json={"current_password": current, "new_password": "newpass456"})
+        assert r.status_code == 400 and r.json() == {"detail": "Google 로 가입한 계정은 비밀번호가 없습니다."}
+    assert db_conn.execute("select password_hash from users where id=%s", (user_id,)).fetchone()[0] is None
+
+
+def test_change_password_requires_login_and_valid_body(client, user):
+    body = {"current_password": "secret123", "new_password": "newpass456"}
+    assert client.post("/api/users/me/password", json=body).status_code == 401
+    assert client.post("/api/users/me/password", json=body,
+                       headers={"Authorization": "Bearer garbage"}).status_code == 401
+
+    headers, _ = user
+    bad_bodies = [
+        {"current_password": "secret123", "new_password": "12345"},        # 6자 미만
+        {"current_password": "secret123", "new_password": "a" * 129},      # 128자 초과
+        {"current_password": "secret123"}, {"new_password": "newpass456"}, {},
+        {"current_password": "secret123", "new_password": None},
+        {"current_password": None, "new_password": "newpass456"},
+    ]
+    for bad in bad_bodies:
+        r = client.post("/api/users/me/password", headers=headers, json=bad)
+        assert r.status_code == 422, (bad, r.status_code, r.text)
+    email = client.get("/api/users/me", headers=headers).json()["email"]
+    assert _login_status(client, email, "secret123") == 200   # 거절된 요청은 비밀번호를 바꾸지 않는다
 
 
 def test_profile_response_tolerates_values_saved_before_validation(client, user, db_conn):

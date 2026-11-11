@@ -249,6 +249,14 @@ docker compose up -d --build  # backend :8000, PostgreSQL :5432
 ```
 API 문서: http://localhost:8000/docs
 
+> **이미 만들어 둔 DB 가 있다면:** 서버는 시작할 때 **없는 테이블만** 만들고, 있는 테이블에 새 컬럼·인덱스를 추가하지 않습니다.
+> 개발용 DB 는 지우고 다시 만드는 것이 가장 간단합니다 (`docker compose down -v` 후 `docker compose up -d --build`, 데이터도 지워짐).
+> 데이터를 남겨야 하면 최근 추가된 인덱스만 직접 만드세요:
+> ```sql
+> CREATE INDEX IF NOT EXISTS ix_locations_geom_geography ON locations USING gist ((geom::geography));  -- 근처 장소 검색
+> ANALYZE locations;
+> ```
+
 Docker 없이 백엔드만 실행하려면 (PostGIS·pgvector 확장이 설치된 로컬 PostgreSQL 필요):
 ```bash
 cd HometownON/backend

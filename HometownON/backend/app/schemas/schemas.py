@@ -34,6 +34,15 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     password: Optional[str] = None
 
+class PasswordChangeRequest(BaseModel):
+    """POST /api/users/me/password 요청.
+
+    current_password 는 로그인과 같이 길이 제한이 없다(맞는지만 본다).
+    new_password 는 가입과 같은 규칙(6~128자).
+    """
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=128)
+
 class User(UserBase):
     id: int
     created_at: datetime
@@ -42,20 +51,40 @@ class User(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UserProfileBase(BaseModel):
-    display_name: str
-    birth_year: int
-    gender: Optional[str] = None
-    home_region: str
-    target_region: str
-    bio: Optional[str] = None
-    mentor_available: bool = False
-    mentor_hourly_rate: Optional[int] = None
-    preferences: Optional[dict] = None
-    profile_image: Optional[str] = None
+class ProfileInputRules(BaseModel):
+    """프로필 입력 규칙. 가입(POST /signup 의 profile)과 수정(PATCH /me/profile) 요청이 함께 쓴다.
 
-class UserProfileCreate(UserProfileBase):
-    pass
+    길이 제한은 DB 컬럼 크기와 같다(넘으면 DB 오류로 500 이 나므로 422 로 먼저 막는다).
+    gender 는 DB CHECK 와 같은 값만 받는다. birth_year 는 비워 둘 수 있고, 값이 있으면 1900~올해.
+    응답용 UserProfile 에는 이 규칙을 쓰지 않는다(UserProfileFields 참고).
+    """
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    display_name: Optional[str] = Field(None, min_length=1, max_length=80)
+    birth_year: Optional[int] = None
+    gender: Optional[Literal["male", "female", "other"]] = None
+    home_region: Optional[str] = Field(None, max_length=120)
+    target_region: Optional[str] = Field(None, max_length=120)
+    bio: Optional[str] = None
+    mentor_available: Optional[bool] = None
+    mentor_hourly_rate: Optional[int] = Field(None, ge=0, le=2_147_483_647)  # INTEGER 범위
+    preferences: Optional[dict] = None
+    profile_image: Optional[str] = Field(None, max_length=500)
+
+    @field_validator("birth_year")
+    @classmethod
+    def _birth_year_range(cls, value):
+        this_year = date.today().year
+        if value is not None and not 1900 <= value <= this_year:
+            raise ValueError(f"출생연도는 1900~{this_year} 사이여야 합니다")
+        return value
+
+class UserProfileCreate(ProfileInputRules):
+    """POST /api/users/signup 의 profile. 이름·지역은 필수, 나머지 규칙은 PATCH /me/profile 과 같다."""
+    display_name: str = Field(min_length=1, max_length=80)
+    home_region: str = Field(max_length=120)
+    target_region: str = Field(max_length=120)
+    mentor_available: bool = False
 
 class UserProfileFields(BaseModel):
     """프로필 칸 목록(검증 없음). 응답용 UserProfile 이 상속한다.
@@ -74,25 +103,13 @@ class UserProfileFields(BaseModel):
     preferences: Optional[dict] = None
     profile_image: Optional[str] = None
 
-class UserProfileUpdate(BaseModel):
+class UserProfileUpdate(ProfileInputRules):
     """PATCH /api/users/me/profile 요청. 모든 칸 선택, 보낸 칸만 바꾼다(exclude_unset).
 
-    길이 제한은 DB 컬럼 크기와 같다(넘으면 DB 오류로 500 이 나므로 422 로 먼저 막는다).
+    입력 규칙은 ProfileInputRules(가입과 같음).
     null 을 보내면 그 칸을 비운다. 단 display_name, mentor_available 은 비울 수 없다(422).
     preferences 는 통째로 바뀐다(키 단위 병합 아님).
     """
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    display_name: Optional[str] = Field(None, min_length=1, max_length=80)
-    birth_year: Optional[int] = None
-    gender: Optional[Literal["male", "female", "other"]] = None
-    home_region: Optional[str] = Field(None, max_length=120)
-    target_region: Optional[str] = Field(None, max_length=120)
-    bio: Optional[str] = None
-    mentor_available: Optional[bool] = None
-    mentor_hourly_rate: Optional[int] = Field(None, ge=0, le=2_147_483_647)  # INTEGER 범위
-    preferences: Optional[dict] = None
-    profile_image: Optional[str] = Field(None, max_length=500)
 
     @field_validator("display_name", "mentor_available")
     @classmethod
@@ -100,14 +117,6 @@ class UserProfileUpdate(BaseModel):
         # 기본값(None)에는 실행되지 않고, 요청에 null 을 직접 보냈을 때만 실행된다
         if value is None:
             raise ValueError("이 값은 비울 수 없습니다")
-        return value
-
-    @field_validator("birth_year")
-    @classmethod
-    def _birth_year_range(cls, value):
-        this_year = date.today().year
-        if value is not None and not 1900 <= value <= this_year:
-            raise ValueError(f"출생연도는 1900~{this_year} 사이여야 합니다")
         return value
 
 class UserProfile(UserProfileFields):

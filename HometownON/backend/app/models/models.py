@@ -226,6 +226,9 @@ class Location(Base):
     __tablename__ = 'locations'
     __table_args__ = (
         Index('ix_locations_geom', 'geom', postgresql_using='gist'),
+        # 근처 검색(crud/location.get_nearby_locations)은 geom::geography 로 거리를 재므로
+        # 위 geometry 인덱스를 못 쓴다. 같은 식으로 만든 인덱스가 따로 있어야 ST_DWithin 이 인덱스를 탄다.
+        Index('ix_locations_geom_geography', text('(geom::geography)'), postgresql_using='gist'),
         Index('ix_locations_category_id', 'category_id'),
         Index('ix_locations_name', 'name'),
     )
