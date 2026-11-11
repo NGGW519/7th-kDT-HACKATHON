@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://10.0.2.2:8000';
+import API_URL from '../config/apiConfig';
+
+const API_BASE_URL = API_URL;
 
 class WeatherService {
   // 현재 위치 기반 날씨 정보 가져오기

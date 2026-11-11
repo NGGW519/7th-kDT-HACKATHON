@@ -1,4 +1,5 @@
 import API_URL from '../../config/apiConfig';
+import { authHeaders } from '../../services/apiClient';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -29,7 +30,7 @@ const MissionDetailScreen = ({ navigation, route }) => {
   useEffect(() => {
   const fetchMissionDetails = async () => {
   try {
-    const missionResponse = await fetch(`${API_URL}/api/missions/${cardId}`);
+    const missionResponse = await fetch(`${API_URL}/api/missions/${cardId}`, { headers: await authHeaders() });
     if (!missionResponse.ok) {
       throw new Error(`HTTP error! status: ${missionResponse.status}`);
     }
@@ -106,19 +107,23 @@ const MissionDetailScreen = ({ navigation, route }) => {
     try {
       const response = await fetch(`${API_URL}/api/missions/${cardId}`, {
         method: 'PATCH',
-        headers: {
+        headers: await authHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ status: 'completed' }),
       });
 
       if (!response.ok) {
-        // Even if API call fails, for demonstration, we'll proceed with frontend update
-        // In a real app, you'd handle this error more robustly.
-        console.warn("Backend update failed, but proceeding with frontend visual update for demonstration.");
+        // 서버에 저장되지 않았으므로 완료 처리로 넘어가지 않는다.
+        if (response.status === 401) {
+          Alert.alert('알림', '로그인이 필요합니다.');
+        } else {
+          Alert.alert('알림', '완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        }
+        return;
       }
 
-      // Frontend-only visual update: Set mission status to completed
+      // 서버 저장에 성공한 경우에만 화면을 완료 상태로 바꾼다.
       setMissionDetails(prevDetails => ({
         ...prevDetails,
         status: 'completed', // Assuming 'status' field exists in missionDetails
@@ -138,14 +143,8 @@ const MissionDetailScreen = ({ navigation, route }) => {
       });
     } catch (error) {
       console.error("Failed to update mission status (API call error):", error);
-      Alert.alert("미션 완료 실패", "미션 상태를 업데이트하는 데 실패했습니다. (백엔드 문제)");
-      setShowCompletionModal(false); // Hide modal if there's an error
-
-      // Still perform frontend visual update for demonstration purposes
-      setMissionDetails(prevDetails => ({
-        ...prevDetails,
-        status: 'completed', // Assuming 'status' field exists in missionDetails
-      }));
+      Alert.alert('알림', '완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      setShowCompletionModal(false);
     }
   };
 

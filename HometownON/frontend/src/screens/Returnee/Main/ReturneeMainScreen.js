@@ -20,6 +20,7 @@ import LocationService from '../../../services/LocationService';
 import WeatherService from '../../../services/WeatherService';
 
 import API_URL from '../../../config/apiConfig';
+import { authHeaders } from '../../../services/apiClient';
 
 import { Alert } from 'react-native';
 
@@ -77,7 +78,7 @@ const ReturneeMainScreen = ({ navigation }) => {
     // 미션 데이터 로드 및 처리
     const fetchAndProcessMissions = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/missions`);
+        const response = await fetch(`${API_URL}/api/missions/`, { headers: await authHeaders() });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

@@ -1,9 +1,9 @@
 import { PermissionsAndroid, Platform, Alert } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
+import { API_BASE } from '../config/apiConfig';
 
-// 실제 휴대폰에서 테스트할 때는 컴퓨터의 IP 주소를 사용하세요
-// 예: 'http://192.168.1.100:8000/api' (ipconfig로 확인)
-const API_BASE_URL = 'http://localhost:8000/api';
+// 서버 주소는 config/apiConfig.js (루트 .env 의 API_URL) 에서 온다.
+const API_BASE_URL = API_BASE;
 
 class LocationService {
   // 위치 권한 확인

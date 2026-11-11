@@ -118,13 +118,13 @@ export default function MentorMyPageScreen() {
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('LearningHistory')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('준비 중', '곧 제공될 기능입니다.')}>
             <Text style={styles.menuIcon}>📚</Text>
             <Text style={styles.menuText}>학습 기록</Text>
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ConnectedMentors')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('준비 중', '곧 제공될 기능입니다.')}>
             <Text style={styles.menuIcon}>🤝</Text>
             <Text style={styles.menuText}>연결된 멘토</Text>
             <Text style={styles.menuArrow}>›</Text>

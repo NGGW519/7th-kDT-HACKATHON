@@ -13,6 +13,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import API_URL from '../../config/apiConfig'; // API_URL import 추가
 import { getCurrentUser } from '../../utils/storage'; // getCurrentUser import 추가
+import { authHeaders } from '../../services/apiClient';
 
 const MissionListScreen = ({ navigation, route }) => {
   const [progressAnimation] = useState(new Animated.Value(0));
@@ -123,7 +124,7 @@ const MissionListScreen = ({ navigation, route }) => {
   const fetchUserStats = useCallback(async () => {
     try {
       console.log(`[DEBUG] Fetching user stats from: ${API_URL}/api/missions/user-stats`);
-      const response = await fetch(`${API_URL}/api/missions/user-stats`);
+      const response = await fetch(`${API_URL}/api/missions/user-stats`, { headers: await authHeaders() });
 
       if (response.ok) {
         const stats = await response.json();
@@ -183,11 +184,11 @@ const MissionListScreen = ({ navigation, route }) => {
   }, [missions, EXP_PER_LEVEL]);
 
   const fetchMissions = useCallback(async () => {
-    console.log(`[DEBUG] Fetching missions from: ${API_URL}/api/missions`);
+    console.log(`[DEBUG] Fetching missions from: ${API_URL}/api/missions/`);
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API_URL}/api/missions`);
+      const response = await fetch(`${API_URL}/api/missions/`, { headers: await authHeaders() });
       console.log(`[DEBUG] Response status: ${response.status}`);
 
       if (!response.ok) {

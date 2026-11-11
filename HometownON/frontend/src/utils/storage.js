@@ -86,6 +86,7 @@ export const getCurrentUser = async () => {
 export const logout = async () => {
   try {
     await AsyncStorage.removeItem('current_user');
+    await AsyncStorage.removeItem('access_token');
     return true;
   } catch (error) {
     console.error('로그아웃 오류:', error);

@@ -211,11 +211,11 @@ const ResHomeStack = createNativeStackNavigator();
 function ResHomeStackScreen() {
   return (
     <ResHomeStack.Navigator screenOptions={{ headerShown: false }}>
-      <ResHomeStack.Screen name = "ResidentMainScreen" component={ResidentMainScreen}/>
-      <ResHomeStack.Screen name = "ResNotificationScreen" component={ResNotificationScreen}/>
-      <ResHomeStack.Screen name = "MyActiveRequestsScreen" component={MyActiveRequestsScreen} />
-      <ResHomeStack.Screen name = "ResMessengerChatScreen" component={ResMessengerChatScreen} />
-      <ResHomeStack.Screen name = "MyAllRequestsScreen" component={MyAllRequestsScreen} />
+      <ResHomeStack.Screen name="ResidentMainScreen" component={ResidentMainScreen}/>
+      <ResHomeStack.Screen name="ResNotificationScreen" component={ResNotificationScreen}/>
+      <ResHomeStack.Screen name="MyActiveRequestsScreen" component={MyActiveRequestsScreen} />
+      <ResHomeStack.Screen name="ResMessengerChatScreen" component={ResMessengerChatScreen} />
+      <ResHomeStack.Screen name="MyAllRequestsScreen" component={MyAllRequestsScreen} />
     </ResHomeStack.Navigator>
   );
 }
