@@ -1,12 +1,17 @@
-python-dotenv
-fastapi
-uvicorn
-sqlalchemy
-pymysql
-pydantic
-pydantic-settings
-python-multipart
-python-jose[cryptography]
-passlib[bcrypt]
-google-auth
-geoalchemy2
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30
+pydantic[email]>=2.7
+pydantic-settings>=2.3
+SQLAlchemy>=2.0
+psycopg[binary]>=3.2      # PostgreSQL driver
+GeoAlchemy2>=0.15         # PostGIS geometry columns
+pgvector>=0.3             # pgvector column type (embeddings)
+PyJWT>=2.8
+bcrypt>=4.1
+httpx>=0.27               # weather / geocoding API calls
+google-auth>=2.30         # Google ID token verification
+requests>=2.31            # google-auth transport
+# chatbot (LangGraph agents on the MonoGPT router via the OpenAI-compatible API)
+langchain-core>=1.0,<2.0
+langchain-openai>=1.0,<2.0
+langgraph>=1.0,<2.0

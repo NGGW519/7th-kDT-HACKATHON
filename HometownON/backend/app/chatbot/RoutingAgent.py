@@ -1,61 +1,41 @@
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+import logging
+from typing import Literal
+
+from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from .AgentState import AgentState
 from . import AgentSystemPrompt
-from ..core.config import settings
+from .AgentState import AgentState
+from . import llm
 
-# This defines the structured output format for our router.
+logger = logging.getLogger(__name__)
+
+TASKS = ("GeneralChat", "GeneratePost", "GenerateMission", "DatabaseSearch")
+
+
 class WorkPlan(BaseModel):
     """Creates a work plan to handle the user's request."""
-    tasks: list[str] = Field(..., description="""List of tasks to execute in order. Each task is one of ["GeneralChat", "GeneratePost", "GenerateMission", "DatabaseSearch"]""")
+    tasks: list[Literal["GeneralChat", "GeneratePost", "GenerateMission", "DatabaseSearch"]] = Field(
+        ..., description="Tasks to execute in order (1 to 3 items)")
     reasoning: str = Field(..., description="Brief explanation of why these tasks were chosen")
 
+
 def run_routing_agent(state: AgentState) -> dict:
-    """Determines the user's intent and the next agent to route to."""
-    print("--- Running Routing Agent ---")
-    
-    # Get chat history for context
-    messages = state.get("messages", [])
-    chat_context = ""
-    
-    # Include last few messages for context
-    if len(messages) > 1:
-        recent_messages = messages[-3:]  # Last 3 messages for context
-        context_parts = []
-        for msg in recent_messages[:-1]:  # Exclude current message
-            if hasattr(msg, 'content'):
-                role = "사용자" if hasattr(msg, '__class__') and "Human" in str(msg.__class__) else "어시스턴트"
-                context_parts.append(f"{role}: {msg.content}")
-        
-        if context_parts:
-            chat_context = f"\n\n이전 대화:\n" + "\n".join(context_parts) + "\n\n현재 요청: "
-    
-    full_prompt = chat_context + state["prompt"]
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", AgentSystemPrompt.ROUTING_PROMPT),
-        ("human", full_prompt)
-    ])
-    
-    llm = ChatOpenAI(model="gpt-4o", api_key=settings.OPENAI_API_KEY, temperature=0, timeout=30)
-    
-    # Use structured output to get a work plan
-    structured_llm = llm.with_structured_output(WorkPlan)
-    
+    """사용자 요청을 보고 실행할 작업 순서(work_plan)를 정한다."""
+    # 최근 대화 2개를 함께 보여 '그 게시글 올려줘' 같은 요청을 이해하게 한다
+    recent = [m for m in state.get("messages", [])][-3:-1]
+    context = "\n".join(
+        f"{'사용자' if isinstance(m, HumanMessage) else '어시스턴트'}: {m.content}" for m in recent
+    )
+    request = (f"이전 대화:\n{context}\n\n현재 요청: " if context else "") + state["prompt"]
+
     try:
-        print("Invoking LLM for routing...")
-        work_plan = structured_llm.invoke(prompt.format_prompt(prompt=full_prompt).to_messages())
-        print(f"Work plan received: {work_plan.tasks} - {work_plan.reasoning}")
-        return {
-            "work_plan": work_plan.tasks,
-            "current_task_index": 0,
-            "intent": work_plan.tasks[0] if work_plan.tasks else "GeneralChat"
-        }
+        plan = llm.get_structured_llm(WorkPlan).invoke(
+            [("system", AgentSystemPrompt.ROUTING_PROMPT), ("human", request)]
+        )
+        tasks = [t for t in plan.tasks if t in TASKS][:3] or ["GeneralChat"]
+        logger.info("work plan %s (%s)", tasks, plan.reasoning)
     except Exception as e:
-        print(f"Error during routing: {e}")
-        import traceback
-        traceback.print_exc()
-        # Default to general chat on error
-        return {"work_plan": ["GeneralChat"], "current_task_index": 0, "intent": "GeneralChat"}
+        logger.warning("routing failed, falling back to GeneralChat: %s", e)
+        tasks = ["GeneralChat"]
+    return {"work_plan": tasks, "current_task_index": 0, "intent": tasks[0]}

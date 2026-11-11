@@ -1,56 +1,21 @@
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
-from .AgentState import AgentState
 from . import AgentSystemPrompt
-from ..core.config import settings
+from .AgentState import AgentState
+from . import llm
+
+
+def generate_answer(prompt: str, intermediate_steps: list) -> str:
+    """검색 결과(intermediate_steps)를 바탕으로 사용자 질문에 답한다."""
+    context = "\n".join(map(str, intermediate_steps or []))
+    response = llm.get_chat_llm(temperature=0.5).invoke([
+        ("system", AgentSystemPrompt.ANSWER_GENERATION_PROMPT),
+        ("human", f"User Question: {prompt}\n\nDatabase Search Results:\n{context}"),
+    ])
+    return response.content
 
 
 def run_answer_generation_agent(state: AgentState) -> dict:
-    """Synthesizes a final answer based on the context and returns it."""
-    print("--- Running Answer Generation Agent ---")
-
-    # �����ϰ� intermediate_steps ��������
-    intermediate_steps = state.get("intermediate_steps", [])
-    if not isinstance(intermediate_steps, list):
-        intermediate_steps = [str(intermediate_steps)]
-
-    context = "\n".join(intermediate_steps)
-
-    # prompt ����
-    prompt_text = (
-        f"User Question: {state.get('prompt', '')}\n\n"
-        f"Database Search Results:\n{context}"
-    )
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", AgentSystemPrompt.ANSWER_GENERATION_PROMPT),
-        ("human", prompt_text)
-    ])
-
-    # LLM �ʱ�ȭ (streaming ��)
-    llm = ChatOpenAI(
-        model="gpt-4o",
-        api_key=settings.OPENAI_API_KEY,
-        temperature=0.7,
-        streaming=False,
-    )
-
-    # chain ����
     try:
-        response = (prompt | llm).invoke({
-            "prompt": state.get("prompt", ""),
-            "intermediate_steps": intermediate_steps
-        })
-        final_answer = response.content if hasattr(response, "content") else str(response)
-    except Exception as e:
-        print(f"[ERROR] Answer generation failed: {e}")
-        final_answer = "An error occurred during answer generation."
-
-    print("--- Answer Generation complete. Response: ---")
-    print(final_answer)
-
-    # Update task index for work plan progression
-    current_index = state.get("current_task_index", 0)
-    
-    return {"generation": final_answer, "current_task_index": current_index + 1}
+        answer = generate_answer(state.get("prompt", ""), state.get("intermediate_steps", []))
+    except Exception:
+        answer = "검색 결과를 정리하는 중에 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+    return {"generation": answer, "current_task_index": state.get("current_task_index", 0) + 1}

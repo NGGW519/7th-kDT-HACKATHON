@@ -1,23 +1,63 @@
+"""SQLAlchemy 모델 (PostgreSQL + PostGIS + pgvector).
+
+Crawling_Haman/Hometown_on.sql 과 테이블/컬럼/기본값/제약 이름까지 1:1 로 맞춘다.
+- ENUM 은 VARCHAR + CHECK 제약(native_enum=False)으로 저장한다. 값 추가/삭제 시 ALTER TYPE 이 필요 없다.
+- 기본값은 DB 쪽(server_default)에 둬서 스크립트로 직접 INSERT 해도 같은 값이 들어간다.
+- updated_at 은 DB 트리거(set_updated_at)가 갱신한다.
+"""
+from geoalchemy2 import Geometry
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
-    create_engine, Column, String, TIMESTAMP, Enum, JSON, TEXT, BOOLEAN, DATE, TIME,
-    INT, DECIMAL, ForeignKey,
+    DDL, BigInteger, Boolean, Column, Date, DateTime, Enum, FetchedValue, ForeignKey, Identity,
+    Index, Integer, Numeric, SmallInteger, String, Text, Time, UniqueConstraint, event, false, text,
 )
-from sqlalchemy.dialects.mysql import TINYINT, SMALLINT, BIGINT, VARCHAR
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from geoalchemy2 import Geometry
 
 from ..core.database import Base
 
-# 1. User Management
+
+# ---------------------------------------------------------------------
+# 공통 컬럼 헬퍼
+# ---------------------------------------------------------------------
+def pk_bigint():
+    return Column(BigInteger, Identity(), primary_key=True)
+
+
+def pk_int():
+    return Column(Integer, Identity(), primary_key=True)
+
+
+def created_at_col():
+    return Column(DateTime(timezone=True), server_default=func.now())
+
+
+def updated_at_col():
+    # 값은 트리거가 넣고, ORM 은 UPDATE 후 다시 읽어온다
+    return Column(DateTime(timezone=True), server_default=func.now(), server_onupdate=FetchedValue())
+
+
+def choice(name: str, *values: str) -> Enum:
+    """VARCHAR + CHECK 제약. 제약 이름은 ck_<테이블>_<name> (naming convention)."""
+    return Enum(*values, name=name, native_enum=False, create_constraint=True)
+
+
+def default(value) -> text:
+    return text(f"'{value}'") if isinstance(value, str) else text(str(value))
+
+
+# =====================================================================
+# 1. 사람/계정/역량/배지
+# =====================================================================
 class User(Base):
     __tablename__ = 'users'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    email = Column(VARCHAR(255), unique=True)
-    password_hash = Column(VARCHAR(255))
-    phone = Column(VARCHAR(30))
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    id = pk_bigint()
+    email = Column(String(255), unique=True)
+    password_hash = Column(String(255))
+    phone = Column(String(30))
+    created_at = created_at_col()
+    updated_at = updated_at_col()
 
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     social_accounts = relationship("SocialAccount", back_populates="user")
@@ -26,433 +66,520 @@ class User(Base):
     mission_assignments = relationship("MissionAssignment", back_populates="user")
     goals = relationship("UserGoal", back_populates="user")
 
+
 class UserProfile(Base):
     __tablename__ = 'user_profiles'
-    user_id = Column(BIGINT, ForeignKey('users.id'), primary_key=True)
-    display_name = Column(VARCHAR(80))
-    profile_image = Column(VARCHAR(500), nullable=True)
-    birth_year = Column(SMALLINT)
-    gender = Column(Enum('male', 'female', 'other'), nullable=True)
-    home_region = Column(VARCHAR(120))
-    target_region = Column(VARCHAR(120))
-    preferences = Column(JSON, nullable=True)
-    bio = Column(TEXT, nullable=True)
-    mentor_available = Column(BOOLEAN, default=False)
-    mentor_hourly_rate = Column(INT, nullable=True)
+    user_id = Column(BigInteger, ForeignKey('users.id'), primary_key=True)
+    display_name = Column(String(80))
+    profile_image = Column(String(500))
+    birth_year = Column(SmallInteger)
+    gender = Column(choice('gender', 'male', 'female', 'other'))
+    home_region = Column(String(120))
+    target_region = Column(String(120))
+    preferences = Column(JSONB)
+    bio = Column(Text)
+    mentor_available = Column(Boolean, server_default=false())
+    mentor_hourly_rate = Column(Integer)
 
     user = relationship("User", back_populates="profile")
 
+
 class SocialAccount(Base):
     __tablename__ = 'social_accounts'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    provider = Column(Enum('google', 'kakao', 'naver', 'apple'), nullable=False)
-    provider_uid = Column(VARCHAR(255), nullable=False)
+    __table_args__ = (
+        UniqueConstraint('provider', 'provider_uid', name='uq_social_accounts_provider_uid'),
+        Index('ix_social_accounts_user_id', 'user_id'),
+    )
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    provider = Column(choice('provider', 'google', 'kakao', 'naver', 'apple'), nullable=False)
+    provider_uid = Column(String(255), nullable=False)
 
     user = relationship("User", back_populates="social_accounts")
 
-# 2. Skills and Badges
+
 class Skill(Base):
     __tablename__ = 'skills'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    code = Column(VARCHAR(64), unique=True)
-    name = Column(VARCHAR(120))
-    category = Column(VARCHAR(80))
+    id = pk_bigint()
+    code = Column(String(64), unique=True)
+    name = Column(String(120))
+    category = Column(String(80))
+
 
 class UserSkill(Base):
     __tablename__ = 'user_skills'
-    user_id = Column(BIGINT, ForeignKey('users.id'), primary_key=True)
-    skill_id = Column(BIGINT, ForeignKey('skills.id'), primary_key=True)
-    level = Column(TINYINT)
-    certified = Column(BOOLEAN, default=False)
+    user_id = Column(BigInteger, ForeignKey('users.id'), primary_key=True)
+    skill_id = Column(BigInteger, ForeignKey('skills.id'), primary_key=True)
+    level = Column(SmallInteger)
+    certified = Column(Boolean, server_default=false())
 
     user = relationship("User", back_populates="skills")
     skill = relationship("Skill")
 
+
 class Badge(Base):
     __tablename__ = 'badges'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    code = Column(VARCHAR(64), unique=True)
-    name = Column(VARCHAR(120))
-    description = Column(TEXT)
+    id = pk_bigint()
+    code = Column(String(64), unique=True)
+    name = Column(String(120))
+    description = Column(Text)
+
 
 class UserBadge(Base):
     __tablename__ = 'user_badges'
-    user_id = Column(BIGINT, ForeignKey('users.id'), primary_key=True)
-    badge_id = Column(BIGINT, ForeignKey('badges.id'), primary_key=True)
-    awarded_at = Column(TIMESTAMP, server_default=func.now())
+    user_id = Column(BigInteger, ForeignKey('users.id'), primary_key=True)
+    badge_id = Column(BigInteger, ForeignKey('badges.id'), primary_key=True)
+    awarded_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="badges")
     badge = relationship("Badge")
 
-# 3. Mission System
+
+# =====================================================================
+# 2. 미션(추천/수행)
+# =====================================================================
 class Mission(Base):
     __tablename__ = 'missions'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    code = Column(VARCHAR(255), unique=True, index=True, nullable=False)
-    title = Column(VARCHAR(255), nullable=False)
-    mission_type = Column(VARCHAR(50), nullable=False)
-    difficulty = Column(INT, nullable=False)
-    expected_minutes = Column(SMALLINT, nullable=False)
-    tags = Column(VARCHAR(255), nullable=True)
-    description = Column(TEXT, nullable=True)
-    thumbnail_image = Column(VARCHAR(500), nullable=True)
-    status = Column(Enum('today','locked','completed'), default="today")
+    id = pk_bigint()
+    code = Column(String(64), unique=True)
+    title = Column(String(200))
+    # exploration(탐색형) / bonding(사회유대형) / career(커리어형) - 앱과 챗봇이 쓰는 키
+    mission_type = Column(choice('mission_type', 'exploration', 'bonding', 'career'), nullable=False)
+    difficulty = Column(SmallInteger, server_default=default(1))
+    expected_minutes = Column(SmallInteger)
+    tags = Column(JSONB)
+    description = Column(Text)
+    thumbnail_image = Column(String(500))
+    # 챗봇이 특정 사용자를 위해 만든 미션이면 그 사용자, 모두에게 보이는 기본 미션이면 NULL
+    # (완료 여부는 사용자별로 mission_assignments.status 에 저장한다)
+    created_by_user_id = Column(BigInteger, ForeignKey('users.id'), index=True)
 
     parts = relationship("MissionPart", back_populates="mission")
 
+
 class MissionPart(Base):
     __tablename__ = 'mission_parts'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    mission_id = Column(BIGINT, ForeignKey('missions.id'), nullable=False)
-    step_no = Column(TINYINT, nullable=False)
-    instruction = Column(TEXT)
-    checklist = Column(JSON, nullable=True)
+    __table_args__ = (UniqueConstraint('mission_id', 'step_no', name='uq_mission_parts_mission_step'),)
+    id = pk_bigint()
+    mission_id = Column(BigInteger, ForeignKey('missions.id'), nullable=False)
+    step_no = Column(SmallInteger, nullable=False)
+    instruction = Column(Text)
+    checklist = Column(JSONB)
 
     mission = relationship("Mission", back_populates="parts")
 
+
 class MissionAssignment(Base):
     __tablename__ = 'mission_assignments'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    mission_id = Column(BIGINT, ForeignKey('missions.id'), nullable=False)
-    assigned_at = Column(TIMESTAMP, server_default=func.now())
-    due_date = Column(DATE, nullable=True)
-    status = Column(Enum('assigned', 'in_progress', 'completed', 'skipped', 'canceled'), default='assigned')
-    context = Column(JSON, nullable=True)
+    __table_args__ = (
+        Index('ix_mission_assignments_user_status', 'user_id', 'status'),
+        Index('ix_mission_assignments_mission_id', 'mission_id'),
+    )
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    mission_id = Column(BigInteger, ForeignKey('missions.id'), nullable=False)
+    assigned_at = Column(DateTime(timezone=True), server_default=func.now())
+    due_date = Column(Date)
+    status = Column(
+        choice('status', 'assigned', 'in_progress', 'completed', 'skipped', 'canceled'),
+        server_default=default('assigned'),
+    )
+    context = Column(JSONB)
 
     user = relationship("User", back_populates="mission_assignments")
     mission = relationship("Mission")
     progress = relationship("MissionProgress", back_populates="assignment", uselist=False)
 
+
 class MissionProgress(Base):
     __tablename__ = 'mission_progress'
-    assignment_id = Column(BIGINT, ForeignKey('mission_assignments.id'), primary_key=True)
-    progress_pct = Column(TINYINT, default=0)
-    started_at = Column(TIMESTAMP, nullable=True)
-    completed_at = Column(TIMESTAMP, nullable=True)
-    feedback = Column(TEXT, nullable=True)
+    assignment_id = Column(BigInteger, ForeignKey('mission_assignments.id'), primary_key=True)
+    progress_pct = Column(SmallInteger, server_default=default(0))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    feedback = Column(Text)
 
     assignment = relationship("MissionAssignment", back_populates="progress")
 
+
 class MissionPartProgress(Base):
     __tablename__ = 'mission_part_progress'
-    assignment_id = Column(BIGINT, ForeignKey('mission_assignments.id'), primary_key=True)
-    part_id = Column(BIGINT, ForeignKey('mission_parts.id'), primary_key=True)
-    done = Column(BOOLEAN, default=False)
-    memo = Column(TEXT, nullable=True)
-    done_at = Column(TIMESTAMP, nullable=True)
+    assignment_id = Column(BigInteger, ForeignKey('mission_assignments.id'), primary_key=True)
+    part_id = Column(BigInteger, ForeignKey('mission_parts.id'), primary_key=True)
+    done = Column(Boolean, server_default=false())
+    memo = Column(Text)
+    done_at = Column(DateTime(timezone=True))
 
-# 4. Location & Culture
+
+# =====================================================================
+# 3. 지역 데이터 (PostGIS: 좌표는 POINT(경도 위도), SRID 4326)
+# =====================================================================
 class LocationCategory(Base):
     __tablename__ = 'location_categories'
-    id = Column(INT, primary_key=True, autoincrement=True)
-    main = Column(VARCHAR(50))
-    sub = Column(VARCHAR(80))
+    __table_args__ = (UniqueConstraint('main', 'sub', name='uq_location_categories_main_sub'),)
+    id = pk_int()
+    main = Column(String(50))
+    sub = Column(String(80))
+
 
 class Location(Base):
     __tablename__ = 'locations'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    name = Column(VARCHAR(200), nullable=False)
-    category_id = Column(INT, ForeignKey('location_categories.id'), nullable=False)
-    address = Column(VARCHAR(300), nullable=False)
-    phone = Column(VARCHAR(40), nullable=True)
-    geom = Column(Geometry('POINT', srid=4326), nullable=False)
-    extra = Column(JSON, nullable=True)
+    __table_args__ = (
+        Index('ix_locations_geom', 'geom', postgresql_using='gist'),
+        Index('ix_locations_category_id', 'category_id'),
+        Index('ix_locations_name', 'name'),
+    )
+    id = pk_bigint()
+    name = Column(String(200), nullable=False)
+    category_id = Column(Integer, ForeignKey('location_categories.id'), nullable=False)
+    address = Column(String(300), nullable=False)
+    phone = Column(String(40))
+    geom = Column(Geometry('POINT', srid=4326, spatial_index=False), nullable=False)
+    extra = Column(JSONB)
 
     category = relationship("LocationCategory")
 
+
 class LocationHours(Base):
     __tablename__ = 'location_hours'
-    location_id = Column(BIGINT, ForeignKey('locations.id'), primary_key=True)
-    weekday = Column(TINYINT, primary_key=True) # 0(일)~6(토)
-    open_time = Column(TIME, nullable=True)
-    close_time = Column(TIME, nullable=True)
-    is_24h = Column(BOOLEAN, default=False)
+    location_id = Column(BigInteger, ForeignKey('locations.id'), primary_key=True)
+    weekday = Column(SmallInteger, primary_key=True)  # 0(일)~6(토)
+    open_time = Column(Time)
+    close_time = Column(Time)
+    is_24h = Column(Boolean, server_default=false())
+
 
 class LocationTag(Base):
     __tablename__ = 'location_tags'
-    location_id = Column(BIGINT, ForeignKey('locations.id'), primary_key=True)
-    tag = Column(VARCHAR(60), primary_key=True)
+    __table_args__ = (Index('ix_location_tags_tag', 'tag'),)
+    location_id = Column(BigInteger, ForeignKey('locations.id'), primary_key=True)
+    tag = Column(String(60), primary_key=True)
+
 
 class Culture(Base):
     __tablename__ = 'culture'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    category = Column(Enum('인물', '전설', '유래', '역사', '문화재'), nullable=False)
-    title = Column(VARCHAR(300), nullable=False)
-    story = Column(TEXT, nullable=False) # MEDIUMTEXT -> TEXT
-    haman_url = Column(VARCHAR(500), nullable=True)
-    created_at = Column(TIMESTAMP, server_default=func.now())
+    id = pk_bigint()
+    category = Column(choice('category', '인물', '전설', '유래', '역사', '문화재'), nullable=False)
+    title = Column(String(300), nullable=False)
+    story = Column(Text, nullable=False)
+    haman_url = Column(String(500))
+    created_at = created_at_col()
 
-# 5. Community System
+
+# =====================================================================
+# 4. 상호작용/로그
+# =====================================================================
+class ChatSession(Base):
+    __tablename__ = 'chat_sessions'
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'))
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    session_data = Column(JSONB)
+
+
+class ChatMessage(Base):
+    __tablename__ = 'chat_messages'
+    __table_args__ = (Index('ix_chat_messages_session_created', 'session_id', 'created_at'),)
+    id = pk_bigint()
+    session_id = Column(BigInteger, ForeignKey('chat_sessions.id'), nullable=False)
+    role = Column(choice('role', 'user', 'assistant', 'tool'), nullable=False)
+    content = Column(Text, nullable=False)
+    tokens = Column(Integer)
+    created_at = created_at_col()
+
+
+class ActivityLog(Base):
+    __tablename__ = 'activity_logs'
+    __table_args__ = (Index('ix_activity_logs_event_created', 'event_type', 'created_at'),)
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'))
+    event_type = Column(String(80), nullable=False)
+    payload = Column(JSONB)
+    created_at = created_at_col()
+
+
+class LocationLog(Base):
+    __tablename__ = 'location_logs'
+    __table_args__ = (
+        Index('ix_location_logs_geom', 'geom', postgresql_using='gist'),
+        Index('ix_location_logs_user_recorded', 'user_id', 'recorded_at'),
+    )
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'))
+    geom = Column(Geometry('POINT', srid=4326, spatial_index=False), nullable=False)
+    recorded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# =====================================================================
+# 5. RAG/임베딩 (pgvector, 기존 ChromaDB 대체)
+# =====================================================================
+class DataSource(Base):
+    __tablename__ = 'data_sources'
+    id = pk_int()
+    name = Column(String(120), unique=True)
+    description = Column(Text)
+
+
+class RagDocument(Base):
+    """검색 대상 문서 + 임베딩. collection_name 이 기존 Chroma 컬렉션 역할을 한다.
+
+    임베딩 모델은 .env 의 EMBEDDING_MODEL 하나로 통일한다 (현재 MonoGPT text-embedding-3-small, 1536차원).
+    모델을 바꿔도 테이블을 고치지 않도록 차원 없는 vector 를 쓰고,
+    검색은 같은 collection_name·같은 embedding_model 벡터끼리만 한다.
+    """
+    __tablename__ = 'rag_documents'
+    __table_args__ = (
+        UniqueConstraint('collection_name', 'source_table', 'source_id', name='uq_rag_documents_source'),
+    )
+    id = pk_bigint()
+    collection_name = Column(String(120), nullable=False)
+    source_table = Column(choice('source_table', 'culture', 'locations', 'missions'), nullable=False)
+    source_id = Column(BigInteger, nullable=False)
+    content = Column(Text, nullable=False)
+    doc_metadata = Column(JSONB)
+    embedding = Column(Vector(), nullable=False)
+    embedding_model = Column(String(160), nullable=False)
+    created_at = created_at_col()
+
+
+# =====================================================================
+# 6. 커뮤니티 (게시판/매칭/댓글/좋아요/알림/메신저/평가)
+# =====================================================================
 class BoardPost(Base):
+    """자유·의뢰·멘토 게시판 통합 테이블 (API 주소는 /api/board, /api/requests, /api/mentors 그대로).
+
+    category 는 앱이 보내는 값을 그대로 저장한다 (게시판별로 쓰이는 값은 BOARD_CATEGORIES 참고).
+    게시판별 추가 정보는 attributes(JSONB)에 둔다.
+      request: budget, location, accepted_by
+      mentor : experience, hourly_rate, location
+    """
     __tablename__ = 'board_posts'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    category = Column(Enum('의뢰', '멘토', '자유'), nullable=False)
-    title = Column(VARCHAR(200), nullable=False)
-    content = Column(TEXT, nullable=False) # MEDIUMTEXT -> TEXT
-    images = Column(JSON, nullable=True)
-    likes_count = Column(INT, default=0)
-    comments_count = Column(INT, default=0)
-    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    __table_args__ = (
+        Index('ix_board_posts_board_category_created', 'board_type', 'category', 'created_at'),
+        Index('ix_board_posts_author_user_id', 'author_user_id'),
+        Index('ix_board_posts_board_match_status', 'board_type', 'match_status'),
+    )
+    id = pk_bigint()
+    author_user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    board_type = Column(choice('board_type', 'free', 'request', 'mentor'), nullable=False)
+    category = Column(String(30), nullable=False)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    images = Column(JSONB)
+    attributes = Column(JSONB)
+    # 의뢰 글의 진행 상태 (앱의 의뢰 상태 값과 동일). 자유·멘토 글은 NULL
+    match_status = Column(choice('match_status', 'pending', 'matched', 'completed', 'cancelled'))
+    views_count = Column(Integer, server_default=default(0))
+    likes_count = Column(Integer, server_default=default(0))
+    comments_count = Column(Integer, server_default=default(0))
+    status = Column(choice('status', 'active', 'hidden', 'deleted'), server_default=default('active'))
+    created_at = created_at_col()
+    updated_at = updated_at_col()
 
     author = relationship("User")
     comments = relationship("BoardComment", back_populates="post")
+    matches = relationship("Match", back_populates="post")
+
+    # ---- API 응답용: attributes 안의 게시판별 값을 속성처럼 읽는다 ----
+    def _attr(self, key):
+        return (self.attributes or {}).get(key)
+
+    budget = property(lambda self: self._attr('budget'))
+    location = property(lambda self: self._attr('location'))
+    accepted_by = property(lambda self: self._attr('accepted_by'))
+    experience = property(lambda self: self._attr('experience'))
+    hourly_rate = property(lambda self: self._attr('hourly_rate'))
+    views = property(lambda self: self.views_count or 0)
+
+
+# 게시판별로 앱/챗봇이 쓰는 카테고리 값 (참고용. DB 와 API 는 값을 제한하지 않는다)
+BOARD_CATEGORIES = {
+    'free': ('자유', '일상', '맛집', '추억', '기타'),  # 앱 글쓰기 화면은 '자유', 챗봇은 나머지
+    'request': ('repair', 'agriculture', 'it', 'cleaning', 'installation'),
+    'mentor': ('technical', 'agriculture', 'lifestyle', 'business', 'education', 'seeking', 'offering'),
+}
+
+
+class Match(Base):
+    """의뢰·멘토 글과 사용자의 매칭 (의뢰 수락, 멘토링 신청)."""
+    __tablename__ = 'matches'
+    __table_args__ = (
+        UniqueConstraint('post_id', 'user_id', name='uq_matches_post_user'),
+        Index('ix_matches_user_id', 'user_id'),
+    )
+    id = pk_bigint()
+    post_id = Column(BigInteger, ForeignKey('board_posts.id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    status = Column(
+        choice('status', 'proposed', 'accepted', 'rejected', 'completed'),
+        server_default=default('proposed'),
+    )
+    created_at = created_at_col()
+
+    post = relationship("BoardPost", back_populates="matches")
+
 
 class BoardComment(Base):
     __tablename__ = 'board_comments'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    post_id = Column(BIGINT, ForeignKey('board_posts.id'), nullable=False)
-    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    content = Column(TEXT, nullable=False)
-    parent_comment_id = Column(BIGINT, ForeignKey('board_comments.id'), nullable=True)
-    likes_count = Column(INT, default=0)
-    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
+    __table_args__ = (Index('ix_board_comments_post_created', 'post_id', 'created_at'),)
+    id = pk_bigint()
+    post_id = Column(BigInteger, ForeignKey('board_posts.id'), nullable=False)
+    author_user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    content = Column(Text, nullable=False)
+    parent_comment_id = Column(BigInteger, ForeignKey('board_comments.id'))
+    likes_count = Column(Integer, server_default=default(0))
+    status = Column(choice('status', 'active', 'hidden', 'deleted'), server_default=default('active'))
+    created_at = created_at_col()
+    updated_at = updated_at_col()
 
     post = relationship("BoardPost", back_populates="comments")
     author = relationship("User")
     parent = relationship("BoardComment", remote_side=[id])
 
+
 class Like(Base):
     __tablename__ = 'likes'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    target_type = Column(Enum('post', 'comment'), nullable=False)
-    target_id = Column(BIGINT, nullable=False)
+    __table_args__ = (
+        UniqueConstraint('user_id', 'target_type', 'target_id', name='uq_likes_user_target'),
+        Index('ix_likes_target', 'target_type', 'target_id'),
+    )
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    target_type = Column(choice('target_type', 'post', 'comment'), nullable=False)
+    target_id = Column(BigInteger, nullable=False)
+    created_at = created_at_col()
 
-# 6. Mentoring & Matching
-class CommunityRequest(Base):
-    __tablename__ = 'community_requests'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=True)
-    title = Column(VARCHAR(200), nullable=False)
-    detail = Column(TEXT, nullable=False)
-    region = Column(VARCHAR(120))
-    required_skills = Column(JSON, nullable=True)
-    budget = Column(INT, nullable=True)
-    deadline = Column(DATE, nullable=True)
-    status = Column(Enum('open', 'matched', 'closed', 'canceled'), default='open')
 
-    author = relationship("User")
+class Notification(Base):
+    __tablename__ = 'notifications'
+    __table_args__ = (Index('ix_notifications_user_read_created', 'user_id', 'is_read', 'created_at'),)
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    type = Column(
+        choice('type', 'mission_complete', 'badge_earned', 'mentor_match', 'request_match',
+               'comment', 'like', 'weather', 'system'),
+        nullable=False,
+    )
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    data = Column(JSONB)
+    is_read = Column(Boolean, server_default=false())
+    created_at = created_at_col()
 
-class MentoringOffer(Base):
-    __tablename__ = 'mentoring_offers'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    mentor_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    title = Column(VARCHAR(200))
-    intro = Column(TEXT)
-    skills = Column(JSON, nullable=True)
-    status = Column(Enum('open', 'full', 'closed'), default='open')
 
-    mentor = relationship("User")
-
-class Match(Base):
-    __tablename__ = 'matches'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    request_id = Column(BIGINT, ForeignKey('community_requests.id'), nullable=True)
-    offer_id = Column(BIGINT, ForeignKey('mentoring_offers.id'), nullable=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=True)
-    status = Column(Enum('proposed', 'accepted', 'rejected', 'completed'), default='proposed')
-
-class MentorReview(Base):
-    __tablename__ = 'mentor_reviews'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    mentor_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    reviewer_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    match_id = Column(BIGINT, ForeignKey('matches.id'), nullable=True)
-    rating = Column(TINYINT, nullable=False)
-    comment = Column(TEXT, nullable=True)
-
-# 7. Messenger System
 class Conversation(Base):
     __tablename__ = 'conversations'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user1_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    user2_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    last_message_at = Column(TIMESTAMP, server_default=func.now())
-    user1_unread_count = Column(INT, default=0)
-    user2_unread_count = Column(INT, default=0)
-    status = Column(Enum('active', 'blocked', 'deleted'), default='active')
+    __table_args__ = (
+        UniqueConstraint('user1_id', 'user2_id', name='uq_conversations_users'),
+        Index('ix_conversations_user1_last', 'user1_id', 'last_message_at'),
+        Index('ix_conversations_user2_last', 'user2_id', 'last_message_at'),
+    )
+    id = pk_bigint()
+    user1_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    user2_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    last_message_at = Column(DateTime(timezone=True), server_default=func.now())
+    user1_unread_count = Column(Integer, server_default=default(0))
+    user2_unread_count = Column(Integer, server_default=default(0))
+    status = Column(choice('status', 'active', 'blocked', 'deleted'), server_default=default('active'))
+    created_at = created_at_col()
+
 
 class ConversationMessage(Base):
     __tablename__ = 'conversation_messages'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    conversation_id = Column(BIGINT, ForeignKey('conversations.id'), nullable=False)
-    sender_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    message_type = Column(Enum('text', 'image', 'file', 'system'), default='text')
-    content = Column(TEXT, nullable=False)
-    is_read = Column(BOOLEAN, default=False)
+    __table_args__ = (Index('ix_conversation_messages_conv_created', 'conversation_id', 'created_at'),)
+    id = pk_bigint()
+    conversation_id = Column(BigInteger, ForeignKey('conversations.id'), nullable=False)
+    sender_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    message_type = Column(
+        choice('message_type', 'text', 'image', 'file', 'system'), server_default=default('text')
+    )
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, server_default=false())
+    created_at = created_at_col()
 
-# 8. Notification System
-class Notification(Base):
-    __tablename__ = 'notifications'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    type = Column(Enum('mission_complete', 'badge_earned', 'mentor_match', 'request_match', 'comment', 'like', 'weather', 'system'), nullable=False)
-    title = Column(VARCHAR(200), nullable=False)
-    message = Column(TEXT, nullable=False)
-    data = Column(JSON, nullable=True)
-    is_read = Column(BOOLEAN, default=False)
 
-# 9. Goal Management
+class MentorReview(Base):
+    __tablename__ = 'mentor_reviews'
+    __table_args__ = (Index('ix_mentor_reviews_mentor_rating', 'mentor_user_id', 'rating'),)
+    id = pk_bigint()
+    mentor_user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    reviewer_user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    match_id = Column(BigInteger, ForeignKey('matches.id'))
+    rating = Column(SmallInteger, nullable=False)
+    comment = Column(Text)
+    created_at = created_at_col()
+
+
+# =====================================================================
+# 7. 목표/날씨/공지
+# =====================================================================
 class UserGoal(Base):
     __tablename__ = 'user_goals'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    goal_type = Column(Enum('mission_count', 'skill_level', 'community_participation', 'mentor_sessions'), nullable=False)
-    target_value = Column(INT, nullable=False)
-    current_value = Column(INT, default=0)
-    period = Column(Enum('daily', 'weekly', 'monthly', 'yearly'), nullable=False)
-    start_date = Column(DATE, nullable=False)
-    end_date = Column(DATE, nullable=False)
-    status = Column(Enum('active', 'completed', 'paused', 'canceled'), default='active')
+    __table_args__ = (Index('ix_user_goals_user_status', 'user_id', 'status'),)
+    id = pk_bigint()
+    user_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
+    goal_type = Column(
+        choice('goal_type', 'mission_count', 'skill_level', 'community_participation', 'mentor_sessions'),
+        nullable=False,
+    )
+    target_value = Column(Integer, nullable=False)
+    current_value = Column(Integer, server_default=default(0))
+    period = Column(choice('period', 'daily', 'weekly', 'monthly', 'yearly'), nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    status = Column(
+        choice('status', 'active', 'completed', 'paused', 'canceled'), server_default=default('active')
+    )
+    created_at = created_at_col()
 
     user = relationship("User", back_populates="goals")
 
-# 10. AI Chatbot System
-class ChatSession(Base):
-    __tablename__ = 'chat_sessions'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=True)
-    started_at = Column(TIMESTAMP, server_default=func.now())
-    session_data = Column("metadata", JSON, nullable=True)
 
-class ChatMessage(Base):
-    __tablename__ = 'chat_messages'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    session_id = Column(BIGINT, ForeignKey('chat_sessions.id'), nullable=False)
-    role = Column(Enum('user', 'assistant', 'tool'), nullable=False)
-    content = Column(TEXT, nullable=False) # MEDIUMTEXT -> TEXT
-    tokens = Column(INT, nullable=True)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-
-# 11. Activity Logs
-class ActivityLog(Base):
-    __tablename__ = 'activity_logs'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'), nullable=True)
-    event_type = Column(VARCHAR(80), nullable=False)
-    payload = Column(JSON, nullable=True)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-
-class LocationLog(Base):
-    __tablename__ = 'location_logs'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    user_id = Column(BIGINT, ForeignKey('users.id'))
-    geom = Column(Geometry('POINT', srid=4326), nullable=False)
-    recorded_at = Column(TIMESTAMP, server_default=func.now())
-
-# 12. RAG and AI Search
-class DataSource(Base):
-    __tablename__ = 'data_sources'
-    id = Column(INT, primary_key=True, autoincrement=True)
-    name = Column(VARCHAR(120), unique=True)
-    description = Column(TEXT)
-
-class RagDocument(Base):
-    __tablename__ = 'rag_documents'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    source_table = Column(Enum('culture', 'locations'), nullable=False)
-    source_id = Column(BIGINT, nullable=False)
-    collection_name = Column(VARCHAR(120), nullable=False)
-    chroma_doc_id = Column(VARCHAR(120), nullable=False)
-    embedding_model = Column(VARCHAR(160), nullable=False)
-
-# 13. Other Services
 class WeatherCache(Base):
     __tablename__ = 'weather_cache'
-    id = Column(INT, primary_key=True, autoincrement=True)
-    region = Column(VARCHAR(100), nullable=False)
-    date = Column(DATE, nullable=False)
-    temperature_min = Column(DECIMAL(4, 1))
-    temperature_max = Column(DECIMAL(4, 1))
-    weather_condition = Column(VARCHAR(50))
-    description = Column(VARCHAR(200))
+    __table_args__ = (UniqueConstraint('region', 'date', name='uq_weather_cache_region_date'),)
+    id = pk_int()
+    region = Column(String(100), nullable=False)
+    date = Column(Date, nullable=False)
+    temperature_min = Column(Numeric(4, 1))
+    temperature_max = Column(Numeric(4, 1))
+    weather_condition = Column(String(50))
+    description = Column(String(200))
+    updated_at = updated_at_col()
+
 
 class Announcement(Base):
     __tablename__ = 'announcements'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    title = Column(VARCHAR(200), nullable=False)
-    content = Column(TEXT, nullable=False) # MEDIUMTEXT -> TEXT
-    type = Column(Enum('notice', 'update', 'event', 'maintenance'), nullable=False)
-    is_important = Column(BOOLEAN, default=False)
-    start_date = Column(TIMESTAMP, nullable=False)
-    end_date = Column(TIMESTAMP, nullable=True)
-    status = Column(Enum('active', 'inactive'), default='active')
+    id = pk_bigint()
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    type = Column(choice('type', 'notice', 'update', 'event', 'maintenance'), nullable=False)
+    is_important = Column(Boolean, server_default=false())
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True))
+    status = Column(choice('status', 'active', 'inactive'), server_default=default('active'))
+    created_at = created_at_col()
 
-# Request Board (의뢰 게시판)
-class RequestPost(Base):
-    __tablename__ = 'request_posts'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    category = Column(Enum('repair', 'agriculture', 'it', 'cleaning', 'installation'), nullable=False)
-    title = Column(VARCHAR(200), nullable=False)
-    content = Column(TEXT, nullable=False)
-    budget = Column(VARCHAR(50), nullable=True)
-    location = Column(VARCHAR(120), nullable=True)
-    status = Column(Enum('pending', 'completed', 'cancelled'), default='pending')
-    accepted_by = Column(VARCHAR(100), nullable=True)
-    likes_count = Column(INT, default=0)
-    comments_count = Column(INT, default=0)
-    views = Column(INT, default=0)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
-    author = relationship("User")
-    comments = relationship("RequestComment", back_populates="post")
-
-class RequestComment(Base):
-    __tablename__ = 'request_comments'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    post_id = Column(BIGINT, ForeignKey('request_posts.id'), nullable=False)
-    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    content = Column(TEXT, nullable=False)
-    parent_comment_id = Column(BIGINT, ForeignKey('request_comments.id'), nullable=True)
-    likes_count = Column(INT, default=0)
-    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
-
-    post = relationship("RequestPost", back_populates="comments")
-    author = relationship("User")
-    parent = relationship("RequestComment", remote_side=[id])
-
-# Mentor Board (멘토 게시판)
-class MentorPost(Base):
-    __tablename__ = 'mentor_posts'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    category = Column(Enum('technical', 'lifestyle', 'business', 'seeking', 'offering'), nullable=False)
-    title = Column(VARCHAR(200), nullable=False)
-    content = Column(TEXT, nullable=False)
-    experience = Column(VARCHAR(50), nullable=True)
-    hourly_rate = Column(VARCHAR(50), nullable=True)
-    location = Column(VARCHAR(120), nullable=True)
-    likes_count = Column(INT, default=0)
-    comments_count = Column(INT, default=0)
-    views = Column(INT, default=0)
-    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
-
-    author = relationship("User")
-    comments = relationship("MentorComment", back_populates="post")
-
-class MentorComment(Base):
-    __tablename__ = 'mentor_comments'
-    id = Column(BIGINT, primary_key=True, autoincrement=True)
-    post_id = Column(BIGINT, ForeignKey('mentor_posts.id'), nullable=False)
-    author_user_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
-    content = Column(TEXT, nullable=False)
-    parent_comment_id = Column(BIGINT, ForeignKey('mentor_comments.id'), nullable=True)
-    likes_count = Column(INT, default=0)
-    status = Column(Enum('active', 'hidden', 'deleted'), default='active')
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
-
-    post = relationship("MentorPost", back_populates="comments")
-    author = relationship("User")
-    parent = relationship("MentorComment", remote_side=[id])
+# =====================================================================
+# DDL: 확장 모듈, updated_at 트리거 (Hometown_on.sql 과 동일)
+# =====================================================================
+event.listen(Base.metadata, "before_create", DDL("CREATE EXTENSION IF NOT EXISTS postgis"))
+event.listen(Base.metadata, "before_create", DDL("CREATE EXTENSION IF NOT EXISTS vector"))
+event.listen(
+    Base.metadata,
+    "before_create",
+    DDL(
+        "CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$ "
+        "BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ LANGUAGE plpgsql"
+    ),
+)
+for _table in (User.__table__, BoardPost.__table__, BoardComment.__table__, WeatherCache.__table__):
+    event.listen(
+        _table,
+        "after_create",
+        DDL(
+            f"CREATE TRIGGER trg_{_table.name}_updated_at BEFORE UPDATE ON {_table.name} "
+            "FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        ),
+    )

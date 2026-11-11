@@ -25,6 +25,8 @@ async def get_current_weather(location_data: LocationRequest):
     """
     현재 위치 기반 날씨 정보 가져오기
     """
+    if not settings.WEATHER_API_KEY:
+        raise HTTPException(status_code=503, detail="날씨 기능이 설정되지 않았습니다 (WEATHER_API_KEY).")
     try:
         # 기상청 초단기예보 API 호출
         weather_data = await fetch_weather_from_api(
@@ -210,6 +212,8 @@ async def get_location_name(lat: float, lon: float) -> str:
     """
     Google Maps API로 위치명 가져오기
     """
+    if not settings.GOOGLEMAP_API_KEY:
+        return "알 수 없는 위치"
     try:
         url = "https://maps.googleapis.com/maps/api/geocode/json"
         params = {

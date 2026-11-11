@@ -1,8 +1,7 @@
+from datetime import date, datetime
+from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List, Any
-from datetime import datetime, date
-import enum
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 # =======================================
 # Base Schemas & Common Schemas
@@ -24,6 +23,10 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
 
 class UserCreate(UserBase):
+    password: str = Field(min_length=6, max_length=128)  # 프론트 회원가입 규칙(6자 이상)과 동일
+
+class UserLogin(BaseModel):
+    email: EmailStr
     password: str
 
 class UserUpdate(BaseModel):
@@ -36,8 +39,7 @@ class User(UserBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserProfileBase(BaseModel):
@@ -67,51 +69,44 @@ class UserProfileUpdate(BaseModel):
     preferences: Optional[dict] = None
     profile_image: Optional[str] = None
 
-class UserProfile(UserProfileBase):
+class UserProfile(UserProfileUpdate):
+    """응답용 프로필. Google 로그인 직후처럼 이름만 있는 프로필도 있어 모든 값이 비어 있을 수 있다."""
     user_id: int
+    mentor_available: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserWithProfile(User):
     profile: Optional[UserProfile] = None
 
+class UserSignupRequest(UserCreate):
+    profile: UserProfileCreate
+
+
 class GoogleLoginRequest(BaseModel):
-    id_token: str
+    id_token: str = Field(min_length=1)
 
 
 # =======================================
-# 2. Mission Schemas
+# 2. Chatbot Schemas
 # =======================================
 
-class MissionBase(BaseModel):
-    title: str
-    mission_type: str
-    difficulty: int
-    expected_minutes: Optional[int] = None
-    tags: Optional[List[str]] = None
-    description: Optional[str] = None
-    thumbnail_image: Optional[str] = None
+class ChatRequest(BaseModel):
+    session_id: Optional[int] = None
+    message: str = Field(min_length=1, max_length=2000)
 
-class Mission(MissionBase):
+class ChatMessage(BaseModel):
     id: int
-    code: str
+    role: str
+    content: str
+    created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-class MissionAssignmentBase(BaseModel):
-    user_id: int
-    mission_id: int
-    status: str = 'assigned'
-    due_date: Optional[date] = None
-
-class MissionAssignment(MissionAssignmentBase):
+class ChatSession(BaseModel):
     id: int
-    assigned_at: datetime
-    mission: Mission # Include mission details
+    user_id: Optional[int] = None
+    started_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-# ... (We can add more schemas as we build the APIs)
