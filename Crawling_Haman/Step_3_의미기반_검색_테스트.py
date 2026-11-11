@@ -17,9 +17,9 @@ from psycopg.rows import dict_row
 
 load_dotenv()
 
-# Step 2 와 같은 OpenRouter 임베딩 모델 (.env 의 EMBEDDING_MODEL)
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nvidia/nemotron-3-embed-1b:free")
-OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+# Step 2 와 같은 MonoGPT 임베딩 모델 (.env 의 EMBEDDING_MODEL)
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+MONOGPT_BASE_URL = os.getenv("MONOGPT_BASE_URL", "https://monogpt.kr/api/monorouter/v1")
 
 # === 설정 ===
 DB_CONFIG = {
@@ -70,8 +70,8 @@ def connect_vector_db():
     return conn, row["model"]
 
 
-class OpenRouterEmbedder:
-    """질문을 OpenRouter 임베딩 모델로 벡터화한다."""
+class ApiEmbedder:
+    """질문을 MonoGPT 임베딩 모델로 벡터화한다."""
 
     def __init__(self, client: OpenAI, model: str):
         self.client, self.model = client, model
@@ -86,12 +86,12 @@ def load_embedding_model(stored_model):
         print(f"⚠️  저장된 벡터의 모델({stored_model})이 현재 EMBEDDING_MODEL({EMBEDDING_MODEL})과 다릅니다.")
         print("    'Step_2_문화데이터_임베딩.py' 를 다시 실행해 현재 모델로 임베딩해주세요.")
         sys.exit(1)
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = os.getenv("MONOGPT_API_KEY")
     if not api_key:
-        print("❌ OPENROUTER_API_KEY 가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
+        print("❌ MONOGPT_API_KEY 가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
         sys.exit(1)
-    print(f"🤖 임베딩 모델: {EMBEDDING_MODEL} (OpenRouter)")
-    return OpenRouterEmbedder(OpenAI(api_key=api_key, base_url=OPENROUTER_BASE_URL), EMBEDDING_MODEL)
+    print(f"🤖 임베딩 모델: {EMBEDDING_MODEL} (MonoGPT)")
+    return ApiEmbedder(OpenAI(api_key=api_key, base_url=MONOGPT_BASE_URL), EMBEDDING_MODEL)
 
 
 def search_similar_content(conn, model, query_text, n_results=5):

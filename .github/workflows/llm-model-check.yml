@@ -1,8 +1,8 @@
-name: LLM 무료 모델 주간 점검
+name: LLM 모델 주간 점검 (MonoGPT)
 
-# 설정된 OpenRouter 무료 모델(채팅·대체·임베딩)이 아직 있고, 무료이고, 응답하는지 매주 확인한다.
+# 설정된 MonoGPT 모델(채팅·대체·임베딩)이 아직 목록에 있고 응답하는지 매주 확인한다.
 # 기본 채팅 모델이나 임베딩 모델을 쓸 수 없으면 실패로 끝나고 Discord 로 알린다.
-# - 저장소 Secrets 에 OPENROUTER_API_KEY 가 있으면 실제 호출까지, 없으면 모델 목록만 확인
+# - 저장소 Secrets 에 MONOGPT_API_KEY 가 있어야 한다 (모델 목록 조회와 짧은 실제 호출에 사용)
 # - DISCORD_WEBHOOK_URL 은 기존 push 알림과 같은 Secret 을 사용
 on:
   schedule:
@@ -23,14 +23,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check OpenRouter free models
+      - name: Check MonoGPT models
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MONOGPT_API_KEY: ${{ secrets.MONOGPT_API_KEY }}
         run: python scripts/check_llm_models.py
 
       - name: Notify Discord on failure
         if: failure() && env.DISCORD_WEBHOOK_URL != ''
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          JSON=$(jq -n --arg url "$RUN_URL" '{content: ("⚠️ OpenRouter 무료 모델 점검 실패 — 기본 채팅/임베딩 모델을 쓸 수 없습니다. 결과: " + $url)}')
+          JSON=$(jq -n --arg url "$RUN_URL" '{content: ("⚠️ MonoGPT 모델 점검 실패 — 기본 채팅/임베딩 모델을 쓸 수 없습니다. 결과: " + $url)}')
           curl -sS -H "Content-Type: application/json" -X POST -d "$JSON" "$DISCORD_WEBHOOK_URL"

@@ -7,7 +7,7 @@
 python-dotenv>=1.0
 psycopg[binary]>=3.2      # PostgreSQL driver
 
-# Embeddings + LLM via OpenRouter free models (OpenAI-compatible API) -> pgvector
+# Embeddings + LLM via the MonoGPT router (OpenAI-compatible API) -> pgvector
 # used by Crawling_Haman (culture embedding/search) and Ai_llm (mission recommendation)
 openai>=1.40
 langgraph>=0.2            # Ai_llm mission_graph.py

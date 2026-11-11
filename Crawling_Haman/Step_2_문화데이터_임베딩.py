@@ -3,7 +3,7 @@
 """
 Step 2: culture 테이블의 이야기를 임베딩해 rag_documents(pgvector)에 저장한다.
 
-임베딩은 미션 추천과 같은 OpenRouter 무료 모델(.env 의 EMBEDDING_MODEL)을 쓴다.
+임베딩은 미션 추천과 같은 MonoGPT 임베딩 모델(.env 의 EMBEDDING_MODEL)을 쓴다.
 같은 모델이어야 백엔드 챗봇이 문화·미션 데이터를 한 번에 검색할 수 있다.
 
 실행 전: Step 1 로 culture 데이터가 적재되어 있어야 합니다.
@@ -31,8 +31,8 @@ DB_CONFIG = {
 
 COLLECTION_NAME = "haman_culture"
 BATCH_SIZE = 50
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nvidia/nemotron-3-embed-1b:free")
-OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+MONOGPT_BASE_URL = os.getenv("MONOGPT_BASE_URL", "https://monogpt.kr/api/monorouter/v1")
 
 
 def to_pgvector(values) -> str:
@@ -53,12 +53,12 @@ def get_db_connection() -> psycopg.Connection:
 
 
 def get_embedding_client() -> OpenAI:
-    """OpenRouter 클라이언트 (OpenAI 호환 API)."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    """MonoGPT 클라이언트 (OpenAI 호환 API)."""
+    api_key = os.getenv("MONOGPT_API_KEY")
     if not api_key:
-        print("❌ OPENROUTER_API_KEY 가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
+        print("❌ MONOGPT_API_KEY 가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
         sys.exit(1)
-    return OpenAI(api_key=api_key, base_url=OPENROUTER_BASE_URL)
+    return OpenAI(api_key=api_key, base_url=MONOGPT_BASE_URL)
 
 
 def embed(client, texts: list[str]) -> list[list[float]]:
@@ -83,7 +83,8 @@ def fetch_culture_data(connection) -> list[dict]:
 def process_and_embed_data(connection, culture_data, client) -> int:
     """컬렉션을 새로 만들고(기존 데이터 삭제) 배치 단위로 임베딩해 저장한다. 실패 시 전체 롤백."""
     print("🔄 데이터 임베딩 및 저장 중...")
-    documents = [f"제목: {item['title']}\n내용: {item['story']}" for item in culture_data]
+    # 분류(인물/전설)도 함께 임베딩해야 "함안 출신 인물", "전해 내려오는 전설" 같은 종류 질문이 맞는 쪽을 찾는다
+    documents = [f"분류: {item['category']}\n제목: {item['title']}\n내용: {item['story']}" for item in culture_data]
 
     with connection.transaction():
         connection.execute("DELETE FROM rag_documents WHERE collection_name = %s", (COLLECTION_NAME,))
@@ -134,7 +135,7 @@ def verify_data(connection) -> bool:
 
 
 def main():
-    print("🚀 문화 데이터 임베딩 작업 시작 (OpenRouter → PostgreSQL pgvector)")
+    print("🚀 문화 데이터 임베딩 작업 시작 (MonoGPT → PostgreSQL pgvector)")
     print("=" * 50)
     connection = get_db_connection()
     try:
@@ -143,7 +144,7 @@ def main():
             print("⚠️  처리할 데이터가 없습니다. Step 1 을 먼저 실행하세요.")
             return
 
-        print(f"🤖 임베딩 모델: {EMBEDDING_MODEL} (OpenRouter)")
+        print(f"🤖 임베딩 모델: {EMBEDDING_MODEL} (MonoGPT)")
         processed_count = process_and_embed_data(connection, culture_data, get_embedding_client())
 
         if not verify_data(connection):

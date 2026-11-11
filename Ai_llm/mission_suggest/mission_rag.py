@@ -1,6 +1,6 @@
 """RAG 기반 미션 추천 (PostgreSQL + pgvector).
 
-1) build_mission_vector_db(): 미션(+단계)을 임베딩(OpenRouter)으로 변환해 rag_documents 테이블에 저장
+1) build_mission_vector_db(): 미션(+단계)을 임베딩(MonoGPT)으로 변환해 rag_documents 테이블에 저장
 2) search_candidate_missions(): 사용자 프로필(지역/선호/보유 기술)과 유사한 미션을 검색 (완료한 미션 제외)
 3) generate_recommendation(): 후보 미션을 근거로 LLM 이 3개를 추천하고 이유를 설명
 
@@ -18,24 +18,21 @@ from db_config import get_connection, to_pgvector
 from extract_missions import extract_mission_data
 
 COLLECTION_NAME = "missions"
-# OpenRouter 무료(:free) 모델 사용. 모델 이름은 '제공사/모델' 형식
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nvidia/nemotron-3-embed-1b:free")  # 2048차원
-CHAT_MODEL = os.getenv("LLM_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
-# 무료 모델이 혼잡(429)할 때 OpenRouter 가 순서대로 대신 시도할 모델
-FALLBACK_MODELS = [m.strip() for m in os.getenv(
-    "LLM_FALLBACK_MODELS", "google/gemma-4-31b-it:free,dots-studio/dots-3-note-preview:free").split(",") if m.strip()]
-# 지정하지 않으면 OpenRouter 가 모델 최대치 기준으로 잔액을 확인해 402 로 거절할 수 있음
+# MonoGPT 라우터 (OpenAI 호환 API). 앱의 모든 LLM 호출과 같은 설정(루트 .env)을 쓴다.
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")  # 1536차원
+CHAT_MODEL = os.getenv("LLM_MODEL", "gpt-5.4-mini")
+# 기본 모델 호출이 실패하면 순서대로 대신 시도할 모델 (쉼표 구분)
+FALLBACK_MODELS = [m.strip() for m in os.getenv("LLM_FALLBACK_MODELS", "claude-haiku-4.5").split(",") if m.strip()]
 MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", 1024))
-OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+MONOGPT_BASE_URL = os.getenv("MONOGPT_BASE_URL", "https://monogpt.kr/api/monorouter/v1")
 
 
-@lru_cache(maxsize=1)
 def get_openai_client() -> OpenAI:
-    """OpenRouter 클라이언트 (OpenAI 호환 API 라서 openai SDK 에 주소와 키만 지정)."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    """MonoGPT 클라이언트 (OpenAI 호환 API 라서 openai SDK 에 주소와 키만 지정)."""
+    api_key = os.getenv("MONOGPT_API_KEY")
     if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY 환경 변수가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
-    return OpenAI(api_key=api_key, base_url=OPENROUTER_BASE_URL)
+        raise RuntimeError("MONOGPT_API_KEY 환경 변수가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
+    return OpenAI(api_key=api_key, base_url=MONOGPT_BASE_URL)
 
 
 def embed(texts: list[str]) -> list[list[float]]:
@@ -187,18 +184,23 @@ def generate_recommendation(user_id: int, candidates: list[dict], profile: dict 
 [후보 미션]
 {context}
 """
-    response = get_openai_client().chat.completions.create(
-        model=CHAT_MODEL,
-        temperature=0.7,
-        max_tokens=MAX_TOKENS,
-        # OpenRouter 는 models 배열을 3개까지만 허용 (넘으면 400)
-        extra_body={"models": [CHAT_MODEL, *[m for m in FALLBACK_MODELS if m != CHAT_MODEL]][:3]},
-        messages=[
-            {"role": "system", "content": "당신은 귀향자 정착 미션 추천 전문가입니다."},
-            {"role": "user", "content": prompt},
-        ],
-    )
-    return response.choices[0].message.content
+    messages = [
+        {"role": "system", "content": "당신은 귀향자 정착 미션 추천 전문가입니다."},
+        {"role": "user", "content": prompt},
+    ]
+    client = get_openai_client()
+    last_error = None
+    # 기본 모델이 실패하면 대체 모델로 다시 시도
+    for model in [CHAT_MODEL, *[m for m in FALLBACK_MODELS if m != CHAT_MODEL]]:
+        try:
+            response = client.chat.completions.create(
+                model=model, temperature=0.7, max_tokens=MAX_TOKENS, messages=messages
+            )
+            return response.choices[0].message.content
+        except Exception as e:  # 네트워크/모델 오류
+            last_error = e
+            print(f"⚠️ {model} 호출 실패, 다음 모델로 시도: {e}")
+    raise last_error
 
 
 def recommend_missions(user_id: int, top_k: int = 5) -> str:
