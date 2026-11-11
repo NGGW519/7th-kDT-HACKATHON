@@ -14,7 +14,8 @@ import {
   Image,
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../../../utils/storage';
+import { buildSignupCache } from '../../../services/profileApi';
+import { updateUserAndSave, isEmailExists, saveCurrentUser, withoutPasswords } from '../../../utils/storage';
 import AuthService from '../../../services/AuthService';
 import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
@@ -29,6 +30,8 @@ const MentorSignUpScreen = ({ navigation }) => {
     expertise: '',
     experience: '',
     qualifications: '',
+    location: '',
+    hourlyRate: '',
     privacyAgreed: false,
   });
 
@@ -50,7 +53,10 @@ const MentorSignUpScreen = ({ navigation }) => {
   const handleGoogleLogin = async () => {
     try {
       const userInfo = await GoogleSignin.signIn();
-      console.log("✅ 로그인 성공:", userInfo);
+      // 사용자가 로그인 창을 닫은 경우: 알림 없이 돌아간다
+      if (userInfo?.type === 'cancelled' || !userInfo?.data?.user) {
+        return;
+      }
       
       // Google 사용자 정보를 폼에 자동 입력
       setFormData(prev => ({
@@ -169,9 +175,16 @@ const MentorSignUpScreen = ({ navigation }) => {
         const rate = Number(formData.hourlyRate);
         const result = await AuthService.googleSignUp(googleIdToken, {
           display_name: formData.mentorName.trim(),
-          home_region: formData.location,
-          target_region: formData.location,
+          home_region: formData.location.trim() || undefined,
+          target_region: formData.location.trim() || undefined,
+          bio: formData.experience.trim() || undefined, // 경력은 bio 에 둔다 (수정 화면과 같은 칸)
           mentor_available: true,
+          preferences: {
+            userType: 'mentor',
+            mentorType: formData.mentorType,
+            expertise: formData.expertise.trim(),
+            qualifications: formData.qualifications.trim(),
+          },
           mentor_hourly_rate: formData.hourlyRate && !Number.isNaN(rate) && rate >= 0 ? rate : undefined,
         });
         if (!result.success) {
@@ -183,15 +196,16 @@ const MentorSignUpScreen = ({ navigation }) => {
         const userData = {
           id: result.data?.id ?? googleUser.id,
           email: googleUser.email,
-          name: googleUser.name,
+          name: formData.mentorName.trim(), // 서버에 저장한 이름 (Google 계정 이름이 아님)
           picture: googleUser.picture,
           userType: 'mentor',
           googleUser,
-          ...formData,
+          ...withoutPasswords(formData),
           createdAt: new Date().toISOString(),
         };
-        await updateUserAndSave(userData);
-        await saveCurrentUser(userData);
+        const googleCache = await buildSignupCache(userData);
+        await updateUserAndSave(googleCache);
+        await saveCurrentUser(googleCache);
         Alert.alert('성공', '멘토 회원가입이 완료되었습니다!', [
           {
             text: '확인',
@@ -206,10 +220,16 @@ const MentorSignUpScreen = ({ navigation }) => {
           phone: null,
           name: formData.mentorName,
           userType: 'mentor',
-          expertise: formData.expertise,
+          mentorType: formData.mentorType,
+          expertise: formData.expertise.trim(),
+          qualifications: formData.qualifications.trim(),
           experience: formData.experience,
-          hourlyRate: formData.hourlyRate,
-          location: formData.location,
+          bio: formData.experience.trim() || undefined, // AuthService.signUp 이 bio 로 보낸다
+          mentorHourlyRate: formData.hourlyRate !== '' && !Number.isNaN(Number(formData.hourlyRate))
+            ? Number(formData.hourlyRate)
+            : undefined,
+          hometown: formData.location.trim() || undefined,
+          targetRegion: formData.location.trim() || undefined,
         };
 
         // 실제 API 호출
@@ -222,11 +242,11 @@ const MentorSignUpScreen = ({ navigation }) => {
             email: result.data.email,
             name: formData.mentorName,
             userType: 'mentor',
-            ...formData,
+            ...withoutPasswords(formData),
             createdAt: new Date().toISOString(),
           };
 
-          await saveCurrentUser(localUserData);
+          await saveCurrentUser(await buildSignupCache(localUserData));
           Alert.alert('성공', '멘토 회원가입이 완료되었습니다!', [
             {
               text: '확인',
@@ -391,7 +411,33 @@ const MentorSignUpScreen = ({ navigation }) => {
                 style={styles.textInput}
                 value={formData.mentorName}
                 onChangeText={(text) => handleInputChange('mentorName', text)}
+                maxLength={80}
                 placeholder="멘토 이름을 입력해주세요"
+                placeholderTextColor="#999"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>활동 지역</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.location}
+                onChangeText={(text) => handleInputChange('location', text)}
+                maxLength={120}
+                placeholder="활동 가능한 지역을 입력해주세요 (예: 경남 함안군)"
+                placeholderTextColor="#999"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>시간당 희망 금액 (원, 선택)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.hourlyRate}
+                onChangeText={(text) => handleInputChange('hourlyRate', text.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                maxLength={9}
+                placeholder="예: 30000"
                 placeholderTextColor="#999"
               />
             </View>

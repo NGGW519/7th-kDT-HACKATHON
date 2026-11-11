@@ -4,7 +4,7 @@ import { API_BASE } from '../config/apiConfig';
 const API_BASE_URL = API_BASE;
 
 // 서버 오류 detail(문자열 또는 [{msg}] 배열)을 사람이 읽을 수 있는 문장으로 바꾼다.
-function errorText(detail, fallback) {
+export function errorText(detail, fallback) {
   if (typeof detail === 'string' && detail) return detail;
   if (Array.isArray(detail) && detail.length > 0) {
     const first = detail[0];
@@ -14,11 +14,21 @@ function errorText(detail, fallback) {
   return fallback;
 }
 
+// preferences 값의 앞뒤 공백을 지우고 빈 값(undefined/null/'')은 뺀다. 서버는 preferences(JSONB) 안의 값을 다듬지 않는다.
+function compactPreferences(prefs) {
+  const out = {};
+  Object.entries(prefs).forEach(([key, value]) => {
+    const v = typeof value === 'string' ? value.trim() : value;
+    if (v !== undefined && v !== null && v !== '') out[key] = v;
+  });
+  return out;
+}
+
 class AuthService {
   // 회원가입 API 호출
   static async signUp(userData) {
     try {
-      console.log('? 회원가입 API 호출:', userData);
+      console.log('? 회원가입 API 호출:', userData.email);
       
       const response = await fetch(`${API_BASE_URL}/users/signup`, {
         method: 'POST',
@@ -31,21 +41,28 @@ class AuthService {
           phone: userData.phone || null,
           profile: {
             display_name: userData.name,
-            birth_year: userData.birthYear || new Date().getFullYear() - 30,
+            birth_year: userData.birthYear ? Number(userData.birthYear) : undefined,
             gender: userData.gender || null,
-            home_region: userData.hometown || '함안군',
-            target_region: userData.targetRegion || '함안군',
+            home_region: userData.hometown || userData.location || '함안군',
+            target_region: userData.targetRegion || userData.hometown || userData.location || '함안군',
             bio: userData.bio || null,
             mentor_available: userData.userType === 'mentor',
-            mentor_hourly_rate: userData.mentorHourlyRate || null,
-            preferences: {
+            mentor_hourly_rate:
+              userData.userType === 'mentor' && userData.mentorHourlyRate !== undefined && userData.mentorHourlyRate !== null
+                ? userData.mentorHourlyRate
+                : null,
+            // Google 가입 경로와 같은 저장 값이 되도록 앞뒤 공백을 지우고 빈 값은 뺀다
+            preferences: compactPreferences({
               userType: userData.userType,
               careerType: userData.careerType,
               careerPlan: userData.careerPlan,
               previousCareer: userData.previousCareer,
               personality: userData.personality,
               hometownSchool: userData.hometownSchool,
-            },
+              mentorType: userData.mentorType,
+              expertise: userData.expertise,
+              qualifications: userData.qualifications,
+            }),
             profile_image: userData.picture || null,
           }
         }),
@@ -54,10 +71,9 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || '회원가입에 실패했습니다.');
+        throw new Error(errorText(data.detail, '회원가입에 실패했습니다.'));
       }
 
-      console.log('? 회원가입 성공:', data);
 
       // 이전 사용자의 토큰이 남아 있지 않도록 지운 뒤, 같은 계정으로 자동 로그인해 토큰을 저장한다.
       await AsyncStorage.removeItem('access_token');
@@ -93,13 +109,12 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || '로그인에 실패했습니다.');
+        throw new Error(errorText(data.detail, '로그인에 실패했습니다.'));
       }
 
       // JWT 토큰 저장
       await AsyncStorage.setItem('access_token', data.access_token);
       
-      console.log('? 로그인 성공:', data);
       return { success: true, data };
     } catch (error) {
       console.error('? 로그인 실패:', error);
@@ -131,7 +146,6 @@ class AuthService {
       // JWT 토큰 저장
       await AsyncStorage.setItem('access_token', data.access_token);
       
-      console.log('? Google 로그인 성공:', data);
       return { success: true, data };
     } catch (error) {
       console.error('? Google 로그인 실패:', error);
@@ -202,10 +216,9 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || '사용자 정보를 가져올 수 없습니다.');
+        throw new Error(errorText(data.detail, '사용자 정보를 가져올 수 없습니다.'));
       }
 
-      console.log('? 사용자 정보 조회 성공:', data);
       return { success: true, data };
     } catch (error) {
       console.error('? 사용자 정보 조회 실패:', error);

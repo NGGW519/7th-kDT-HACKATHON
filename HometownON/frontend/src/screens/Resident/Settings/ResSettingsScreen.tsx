@@ -51,7 +51,7 @@ const ResSettingsScreen = ({ navigation }) => {
             try {
               // AuthService를 통해 토큰과 사용자 정보 삭제
               await AuthService.signOut();
-              console.log('✅ Logout successful, tokens cleared');
+              console.log('✅ Logout successful');
               
               // 화면을 Welcome으로 이동
               navigation.reset({

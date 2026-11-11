@@ -14,7 +14,8 @@ import {
   Image,
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../../../utils/storage';
+import { buildSignupCache } from '../../../services/profileApi';
+import { updateUserAndSave, isEmailExists, saveCurrentUser, withoutPasswords } from '../../../utils/storage';
 import AuthService from '../../../services/AuthService';
 import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
@@ -52,17 +53,20 @@ const ReturneeSignUpScreen = ({ navigation }) => {
   const handleGoogleLogin = async () => {
     try {
       const userInfo = await GoogleSignin.signIn();
-      console.log("✅ Google 로그인 성공:", userInfo);
+      console.log("✅ Google 로그인 성공");
+
+      if (userInfo?.type === 'cancelled') {
+        return; // 로그인 창을 닫은 경우: 알림 없이 돌아간다
+      }
 
       // Google Sign-in 응답 구조 확인 (data.user에 사용자 정보가 있음)
       if (!userInfo || !userInfo.data || !userInfo.data.user) {
-        console.error("❌ Google 사용자 정보가 없습니다:", userInfo);
+        console.error("❌ Google 사용자 정보가 없습니다.");
         Alert.alert('오류', 'Google 사용자 정보를 가져올 수 없습니다.');
         return;
       }
 
       const { user } = userInfo.data;
-      console.log("🔍 Google 사용자 정보:", user);
 
       // 이메일과 이름만 가져오고, 나머지는 사용자가 입력하도록
       setFormData(prev => ({
@@ -148,6 +152,15 @@ const ReturneeSignUpScreen = ({ navigation }) => {
           display_name: formData.returnName.trim(),
           home_region: formData.hometown.trim(),
           target_region: formData.hometown.trim(),
+          // 이메일 가입(AuthService.signUp)과 같은 preferences. 빈 값은 뺀다.
+          preferences: Object.fromEntries(Object.entries({
+            userType: 'returnee',
+            careerType: formData.careerType,
+            careerPlan: formData.careerPlan,
+            previousCareer: formData.previousCareer.trim(),
+            personality: formData.personality.trim(),
+            hometownSchool: formData.hometownSchool.trim(),
+          }).filter(([, v]) => v !== undefined && v !== null && v !== '')),
         });
         if (!googleResult.success) {
           Alert.alert('오류', googleResult.error || '회원가입에 실패했습니다.');
@@ -159,11 +172,12 @@ const ReturneeSignUpScreen = ({ navigation }) => {
           email: googleUser.email || formData.email,
           name: formData.returnName,
           userType: 'returnee',
-          ...formData,
+          ...withoutPasswords(formData),
           createdAt: new Date().toISOString(),
         };
-        await updateUserAndSave(googleLocal);
-        await saveCurrentUser(googleLocal);
+        const googleCache = await buildSignupCache(googleLocal);
+        await updateUserAndSave(googleCache);
+        await saveCurrentUser(googleCache);
         Alert.alert('성공', '귀향자 회원가입이 완료되었습니다!', [
           { text: '확인', onPress: () => navigation.navigate('ReturneeMain') },
         ]);
@@ -197,12 +211,13 @@ const ReturneeSignUpScreen = ({ navigation }) => {
           email: result.data.email,
           name: formData.returnName,
           userType: 'returnee',
-          ...formData,
+          ...withoutPasswords(formData),
           createdAt: new Date().toISOString(),
         };
         
-        await updateUserAndSave(localUserData);
-        await saveCurrentUser(localUserData);
+        const localCache = await buildSignupCache(localUserData);
+        await updateUserAndSave(localCache);
+        await saveCurrentUser(localCache);
         
         Alert.alert('성공', '귀향자 회원가입이 완료되었습니다!', [
           { text: '확인', onPress: () => navigation.navigate('ReturneeMain') },
@@ -326,6 +341,7 @@ const ReturneeSignUpScreen = ({ navigation }) => {
                 style={styles.input}
                 value={formData.returnName}
                 onChangeText={(text) => handleInputChange('returnName', text)}
+                maxLength={80}
                 placeholder="이름을 입력하세요"
               />
             </View>
@@ -336,6 +352,7 @@ const ReturneeSignUpScreen = ({ navigation }) => {
                 style={styles.input}
                 value={formData.hometown}
                 onChangeText={(text) => handleInputChange('hometown', text)}
+                maxLength={120}
                 placeholder="귀향할 지역인 본인의 고향을 입력하세요(ex.함안군 가야읍)"
               />
             </View>
