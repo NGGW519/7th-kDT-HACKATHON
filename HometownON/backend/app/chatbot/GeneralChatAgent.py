@@ -1,62 +1,19 @@
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, SystemMessage
 
-from .AgentState import AgentState
 from . import AgentSystemPrompt
-from ..core.config import settings
+from .AgentState import AgentState
+from . import llm
 
 
-async def run_general_chat_agent(state: AgentState) -> AgentState:
-    """Generates a response for general conversation and appends it to the session memory."""
-
-    print("--- Running General Chat Agent ---")
-
-    # Prepare the prompt template
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", AgentSystemPrompt.GENERAL_CHAT_PROMPT),
-        MessagesPlaceholder(variable_name="messages"),
-        ("human", "{prompt}")
-    ])
-
-    # Initialize the LLM
-    llm = ChatOpenAI(
-        model="gpt-4o",
-        api_key=settings.OPENAI_API_KEY,
-        temperature=0.7,
-        streaming=True
-    )
-
-    # Chain the prompt and LLM
-    chain = prompt | llm
-
-    # Find the last human message
-    last_human_message = next(
-        (msg for msg in reversed(state["messages"]) if isinstance(msg, HumanMessage)),
-        None
-    )
-    if not last_human_message:
-        raise ValueError("No human message found in state for prompt.")
-
-    # Use the last human message as the current prompt
-    current_prompt = last_human_message.content
-
-    ai_message = await chain.ainvoke({"messages": state["messages"], "prompt": current_prompt})
-
-    # ai_message가 문자열인지, AIMessage인지 확인
-    # Append AIMessage to state and update generation
-    if isinstance(ai_message, str):
-        ai_msg_obj = AIMessage(content=ai_message)
-    elif isinstance(ai_message, AIMessage):
-        ai_msg_obj = ai_message
-    else:
-        raise ValueError(f"Unexpected type from chain: {type(ai_message)}")
-
-    state["messages"].append(ai_msg_obj)
-    state["generation"] = ai_msg_obj.content
-    
-    # Update task index for work plan progression
-    current_index = state.get("current_task_index", 0)
-    state["current_task_index"] = current_index + 1
-
-    return state
+async def run_general_chat_agent(state: AgentState) -> dict:
+    """일반 대화. 대화 기록(messages)의 마지막이 현재 사용자 질문이다."""
+    messages = [SystemMessage(content=AgentSystemPrompt.GENERAL_CHAT_PROMPT), *state.get("messages", [])]
+    # 앞선 에이전트(장소 검색 등)가 찾은 정보가 있으면 참고하게 한다
+    if state.get("intermediate_steps"):
+        messages.append(SystemMessage(content="참고 정보:\n" + "\n".join(map(str, state["intermediate_steps"]))))
+    ai = await llm.get_chat_llm(temperature=0.7).ainvoke(messages)
+    return {
+        "messages": [AIMessage(content=ai.content)],
+        "generation": ai.content,
+        "current_task_index": state.get("current_task_index", 0) + 1,
+    }

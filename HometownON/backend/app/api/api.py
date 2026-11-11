@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
-from .endpoints import users, chat, weather, locations, missions, request, mentor
-from .endpoints import board
+from .endpoints import board, chat, locations, missions, users, weather
 
 api_router = APIRouter()
 
@@ -10,7 +9,7 @@ api_router.include_router(chat.router, prefix="/chatbot", tags=["Chatbot"])
 api_router.include_router(weather.router, prefix="/weather", tags=["Weather"])
 api_router.include_router(locations.router, prefix="/locations", tags=["Locations"])
 api_router.include_router(missions.router, prefix="/missions", tags=["Missions"])
-api_router.include_router(board.router, prefix="/board", tags=["Board"])
-api_router.include_router(request.router, prefix="/requests", tags=["Requests"])
-api_router.include_router(mentor.router, prefix="/mentors", tags=["Mentors"])
-
+# 자유·의뢰·멘토 게시판: 같은 코드, 같은 테이블(board_posts)을 board_type 으로 구분
+api_router.include_router(board.free_router, prefix="/board", tags=["Board"])
+api_router.include_router(board.request_router, prefix="/requests", tags=["Requests"])
+api_router.include_router(board.mentor_router, prefix="/mentors", tags=["Mentors"])

@@ -1,3 +1,5 @@
+> **⚠️ 예전 문서 (MySQL 기준)** — 지금 DB 는 PostgreSQL(PostGIS + pgvector)이고 게시판 테이블이 하나로 합쳐졌습니다. 현재 스키마는 `Crawling_Haman/Hometown_on.sql`, 설명은 `HometownON/Hometown_on_테이블_설명서.md` 를 보세요.
+
 
 # Hometown_on 데이터베이스 테이블 설명서 v2 (2025-09-02)
 
