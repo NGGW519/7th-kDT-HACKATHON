@@ -11,6 +11,8 @@ import {
   Dimensions,
 } from 'react-native';
 import Svg, { Polygon, Circle, Text as SvgText } from 'react-native-svg';
+import API_URL from '../../config/apiConfig';
+import { authHeaders } from '../../services/apiClient';
 
 const { width } = Dimensions.get('window');
 
@@ -27,7 +29,7 @@ const MissionDashboardScreen = ({ navigation }) => {
   useEffect(() => {
     const fetchMissionStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/missions/completed_missions_with_difficulty'); // Assuming backend runs on 8000
+        const response = await fetch(`${API_URL}/api/missions/completed_missions_with_difficulty`, { headers: await authHeaders() });
         const data = await response.json();
 
         let calculatedExp = 0;
@@ -58,7 +60,7 @@ const MissionDashboardScreen = ({ navigation }) => {
   useEffect(() => {
     const fetchMissionStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/missions/completed_missions_with_difficulty'); // Assuming backend runs on 8000
+        const response = await fetch(`${API_URL}/api/missions/completed_missions_with_difficulty`, { headers: await authHeaders() });
         const data = await response.json();
 
         let calculatedExp = 0;

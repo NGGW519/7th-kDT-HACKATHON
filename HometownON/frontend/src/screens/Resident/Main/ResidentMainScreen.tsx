@@ -156,7 +156,7 @@ const ResidentMainScreen = ({ navigation, route }: any) => {
       <View style={styles.root}>
         {/* 상단 우측 알림 아이콘 */}
         <TouchableOpacity
-          onPress={() => navigation.navigate('NotificationScreen')}
+          onPress={() => navigation.navigate('ResNotificationScreen')}
           style={{ position: 'absolute', left: px(331.71), top: px(43.97) }}
         >
           <Image

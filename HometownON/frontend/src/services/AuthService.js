@@ -1,12 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE } from '../config/apiConfig';
 
-const API_BASE_URL = 'http://10.0.2.2:8000/api'; // Android ¿¡¹Ä·¹ÀÌÅÍ¿ë
+const API_BASE_URL = API_BASE;
+
+// ì„œë²„ ì˜¤ë¥˜ detail(ë¬¸ìì—´ ë˜ëŠ” [{msg}] ë°°ì—´)ì„ ì‚¬ëŒì´ ì½ì„ ìˆ˜ ìˆëŠ” ë¬¸ì¥ìœ¼ë¡œ ë°”ê¾¼ë‹¤.
+function errorText(detail, fallback) {
+  if (typeof detail === 'string' && detail) return detail;
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first.msg === 'string') return first.msg;
+  }
+  return fallback;
+}
 
 class AuthService {
-  // È¸¿ø°¡ÀÔ API È£Ãâ
+  // íšŒì›ê°€ì… API í˜¸ì¶œ
   static async signUp(userData) {
     try {
-      console.log('? È¸¿ø°¡ÀÔ API È£Ãâ:', userData);
+      console.log('? íšŒì›ê°€ì… API í˜¸ì¶œ:', userData);
       
       const response = await fetch(`${API_BASE_URL}/users/signup`, {
         method: 'POST',
@@ -21,8 +33,8 @@ class AuthService {
             display_name: userData.name,
             birth_year: userData.birthYear || new Date().getFullYear() - 30,
             gender: userData.gender || null,
-            home_region: userData.hometown || 'ÇÔ¾È±º',
-            target_region: userData.targetRegion || 'ÇÔ¾È±º',
+            home_region: userData.hometown || 'í•¨ì•ˆêµ°',
+            target_region: userData.targetRegion || 'í•¨ì•ˆêµ°',
             bio: userData.bio || null,
             mentor_available: userData.userType === 'mentor',
             mentor_hourly_rate: userData.mentorHourlyRate || null,
@@ -42,21 +54,30 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || 'È¸¿ø°¡ÀÔ¿¡ ½ÇÆĞÇß½À´Ï´Ù.');
+        throw new Error(data.detail || 'íšŒì›ê°€ì…ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.');
       }
 
-      console.log('? È¸¿ø°¡ÀÔ ¼º°ø:', data);
+      console.log('? íšŒì›ê°€ì… ì„±ê³µ:', data);
+
+      // ì´ì „ ì‚¬ìš©ìì˜ í† í°ì´ ë‚¨ì•„ ìˆì§€ ì•Šë„ë¡ ì§€ìš´ ë’¤, ê°™ì€ ê³„ì •ìœ¼ë¡œ ìë™ ë¡œê·¸ì¸í•´ í† í°ì„ ì €ì¥í•œë‹¤.
+      await AsyncStorage.removeItem('access_token');
+      if (userData.email && userData.password) {
+        const login = await AuthService.signIn(userData.email, userData.password);
+        if (!login.success) {
+          console.warn('íšŒì›ê°€ì… í›„ ìë™ ë¡œê·¸ì¸ ì‹¤íŒ¨:', login.error);
+        }
+      }
       return { success: true, data };
     } catch (error) {
-      console.error('? È¸¿ø°¡ÀÔ ½ÇÆĞ:', error);
+      console.error('? íšŒì›ê°€ì… ì‹¤íŒ¨:', error);
       return { success: false, error: error.message };
     }
   }
 
-  // ·Î±×ÀÎ API È£Ãâ
+  // ë¡œê·¸ì¸ API í˜¸ì¶œ
   static async signIn(email, password) {
     try {
-      console.log('? ·Î±×ÀÎ API È£Ãâ:', email);
+      console.log('? ë¡œê·¸ì¸ API í˜¸ì¶œ:', email);
       
       const response = await fetch(`${API_BASE_URL}/users/login`, {
         method: 'POST',
@@ -72,24 +93,24 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || '·Î±×ÀÎ¿¡ ½ÇÆĞÇß½À´Ï´Ù.');
+        throw new Error(data.detail || 'ë¡œê·¸ì¸ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.');
       }
 
-      // JWT ÅäÅ« ÀúÀå
+      // JWT í† í° ì €ì¥
       await AsyncStorage.setItem('access_token', data.access_token);
       
-      console.log('? ·Î±×ÀÎ ¼º°ø:', data);
+      console.log('? ë¡œê·¸ì¸ ì„±ê³µ:', data);
       return { success: true, data };
     } catch (error) {
-      console.error('? ·Î±×ÀÎ ½ÇÆĞ:', error);
+      console.error('? ë¡œê·¸ì¸ ì‹¤íŒ¨:', error);
       return { success: false, error: error.message };
     }
   }
 
-  // Google ·Î±×ÀÎ API È£Ãâ
+  // Google ë¡œê·¸ì¸ API í˜¸ì¶œ
   static async googleSignIn(idToken) {
     try {
-      console.log('? Google ·Î±×ÀÎ API È£Ãâ');
+      console.log('? Google ë¡œê·¸ì¸ API í˜¸ì¶œ');
       
       const response = await fetch(`${API_BASE_URL}/users/google-login`, {
         method: 'POST',
@@ -104,26 +125,70 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || 'Google ·Î±×ÀÎ¿¡ ½ÇÆĞÇß½À´Ï´Ù.');
+        throw new Error(errorText(data.detail, 'Google ë¡œê·¸ì¸ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.'));
       }
 
-      // JWT ÅäÅ« ÀúÀå
+      // JWT í† í° ì €ì¥
       await AsyncStorage.setItem('access_token', data.access_token);
       
-      console.log('? Google ·Î±×ÀÎ ¼º°ø:', data);
+      console.log('? Google ë¡œê·¸ì¸ ì„±ê³µ:', data);
       return { success: true, data };
     } catch (error) {
-      console.error('? Google ·Î±×ÀÎ ½ÇÆĞ:', error);
+      console.error('? Google ë¡œê·¸ì¸ ì‹¤íŒ¨:', error);
       return { success: false, error: error.message };
     }
   }
 
-  // ÇöÀç »ç¿ëÀÚ Á¤º¸ °¡Á®¿À±â
+  // Google íšŒì›ê°€ì…: (1) ì´ì „ í† í° ì‚­ì œ (2) ì„œë²„ ê³„ì • ìƒì„±Â·í† í° ì €ì¥ (3) ì…ë ¥í•œ í”„ë¡œí•„ ì „ì†¡
+  // profile: { display_name, birth_year, home_region, target_region, mentor_available, mentor_hourly_rate }
+  // ê°’ì´ ë¹„ì–´ ìˆëŠ” í•„ë“œëŠ” ë³´ë‚´ì§€ ì•ŠëŠ”ë‹¤. ì„±ê³µí•˜ë©´ { success: true, data: ì„œë²„ ì‚¬ìš©ì }.
+  static async googleSignUp(idToken, profile = {}) {
+    try {
+      if (!idToken) {
+        return { success: false, error: 'Google ID í† í°ì„ ê°€ì ¸ì˜¬ ìˆ˜ ì—†ìŠµë‹ˆë‹¤. ë‹¤ì‹œ ë¡œê·¸ì¸í•´ì£¼ì„¸ìš”.' };
+      }
+      await AsyncStorage.removeItem('access_token');
+
+      const login = await AuthService.googleSignIn(idToken);
+      if (!login.success) {
+        return { success: false, error: login.error };
+      }
+
+      const body = {};
+      Object.keys(profile).forEach((key) => {
+        const v = profile[key];
+        if (v !== undefined && v !== null && v !== '') body[key] = v;
+      });
+
+      const token = await AsyncStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/users/me/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return {
+          success: false,
+          error: errorText(data.detail, 'í”„ë¡œí•„ ì €ì¥ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.'),
+        };
+      }
+      return { success: true, data };
+    } catch (error) {
+      console.error('Google íšŒì›ê°€ì… ì‹¤íŒ¨:', error);
+      return { success: false, error: error.message || 'Google íšŒì›ê°€ì…ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.' };
+    }
+  }
+
+  // í˜„ì¬ ì‚¬ìš©ì ì •ë³´ ê°€ì ¸ì˜¤ê¸°
   static async getCurrentUser() {
     try {
       const token = await AsyncStorage.getItem('access_token');
       if (!token) {
-        return { success: false, error: '·Î±×ÀÎÀÌ ÇÊ¿äÇÕ´Ï´Ù.' };
+        return { success: false, error: 'ë¡œê·¸ì¸ì´ í•„ìš”í•©ë‹ˆë‹¤.' };
       }
 
       const response = await fetch(`${API_BASE_URL}/users/me`, {
@@ -137,37 +202,37 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.detail || '»ç¿ëÀÚ Á¤º¸¸¦ °¡Á®¿Ã ¼ö ¾ø½À´Ï´Ù.');
+        throw new Error(data.detail || 'ì‚¬ìš©ì ì •ë³´ë¥¼ ê°€ì ¸ì˜¬ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.');
       }
 
-      console.log('? »ç¿ëÀÚ Á¤º¸ Á¶È¸ ¼º°ø:', data);
+      console.log('? ì‚¬ìš©ì ì •ë³´ ì¡°íšŒ ì„±ê³µ:', data);
       return { success: true, data };
     } catch (error) {
-      console.error('? »ç¿ëÀÚ Á¤º¸ Á¶È¸ ½ÇÆĞ:', error);
+      console.error('? ì‚¬ìš©ì ì •ë³´ ì¡°íšŒ ì‹¤íŒ¨:', error);
       return { success: false, error: error.message };
     }
   }
 
-  // ·Î±×¾Æ¿ô
+  // ë¡œê·¸ì•„ì›ƒ
   static async signOut() {
     try {
       await AsyncStorage.removeItem('access_token');
       await AsyncStorage.removeItem('current_user');
-      console.log('? ·Î±×¾Æ¿ô ¿Ï·á');
+      console.log('? ë¡œê·¸ì•„ì›ƒ ì™„ë£Œ');
       return { success: true };
     } catch (error) {
-      console.error('? ·Î±×¾Æ¿ô ½ÇÆĞ:', error);
+      console.error('? ë¡œê·¸ì•„ì›ƒ ì‹¤íŒ¨:', error);
       return { success: false, error: error.message };
     }
   }
 
-  // ÅäÅ« È®ÀÎ
+  // í† í° í™•ì¸
   static async getToken() {
     try {
       const token = await AsyncStorage.getItem('access_token');
       return token;
     } catch (error) {
-      console.error('? ÅäÅ« Á¶È¸ ½ÇÆĞ:', error);
+      console.error('? í† í° ì¡°íšŒ ì‹¤íŒ¨:', error);
       return null;
     }
   }

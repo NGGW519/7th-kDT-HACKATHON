@@ -1,15 +1,14 @@
+import { Platform } from 'react-native';
+import { API_URL as ENV_API_URL } from '@env';
 
-// API 서버의 기본 URL을 설정합니다.
-// 환경에 따라 이 값을 변경하여 사용하세요.
+// API 서버의 기본 URL.
+// 루트 .env 의 API_URL 을 쓰고, 없으면 에뮬레이터 기본값을 쓴다.
+//  - 실제 기기: 서버 컴퓨터의 내부 IP (예: http://192.168.0.42:8000) 또는 ngrok/배포 주소를 .env 의 API_URL 에 적는다.
+//  - Android 에뮬레이터: http://10.0.2.2:8000 / iOS 시뮬레이터: http://localhost:8000
+const DEFAULT_API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000';
 
-// --- 사용 예시 ---
-// 1. 로컬 개발 환경 (같은 Wi-Fi):
-//    - 백엔드 서버 컴퓨터의 내부 IP 주소를 사용합니다. (예: 'http://192.168.0.42:8000')
-// 2. 외부 테스트 환경 (다른 네트워크):
-//    - ngrok 같은 터널링 도구를 사용하여 생성된 공개 주소를 사용합니다. (예: 'https://xxxxx.ngrok-free.app')
-// 3. 프로덕션 (배포) 환경:
-//    - 클라우드에 배포된 백엔드 서버의 실제 도메인 주소를 사용합니다. (예: 'https://api.hometownon.com')
+const API_URL = ENV_API_URL || DEFAULT_API_URL;
 
-const API_URL = 'http://10.0.2.2:8000'; // <-- 이 주소를 상황에 맞게 변경하세요.
+export const API_BASE = `${API_URL}/api`;
 
 export default API_URL;

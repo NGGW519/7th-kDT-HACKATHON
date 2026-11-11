@@ -16,6 +16,7 @@ import {
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../../../utils/storage';
 import AuthService from '../../../services/AuthService';
+import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
 
 const ReturneeSignUpScreen = ({ navigation }) => {
@@ -34,14 +35,15 @@ const ReturneeSignUpScreen = ({ navigation }) => {
   });
 
   const [googleUser, setGoogleUser] = useState(null);
+  const [googleIdToken, setGoogleIdToken] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [useGoogleSignUp, setUseGoogleSignUp] = useState(false);
 
   useEffect(() => {
     // Google Sign-In 초기화
     GoogleSignin.configure({
-      webClientId: process.env.GOOGLE_CLIENT_ID_WEB,
-      iosClientId: process.env.GOOGLE_CLIENT_ID_IOS,
+      webClientId: GOOGLE_CLIENT_ID_WEB,
+      iosClientId: GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
       offlineAccess: true,
     });
@@ -69,6 +71,7 @@ const ReturneeSignUpScreen = ({ navigation }) => {
         // returnName은 사용자가 직접 입력하도록 비워둠
       }));
 
+      setGoogleIdToken(userInfo.idToken || userInfo.data?.idToken || null);
       setGoogleUser(user);
       setUseGoogleSignUp(true);
       Alert.alert('성공', 'Google 계정이 연결되었습니다!\n이제 나머지 정보를 입력해주세요.');
@@ -139,6 +142,34 @@ const ReturneeSignUpScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
+      if (useGoogleSignUp) {
+        // Google 회원가입: 이전 토큰 삭제 -> 서버 계정 생성·토큰 저장 -> 프로필 전송
+        const googleResult = await AuthService.googleSignUp(googleIdToken, {
+          display_name: formData.returnName.trim(),
+          home_region: formData.hometown.trim(),
+          target_region: formData.hometown.trim(),
+        });
+        if (!googleResult.success) {
+          Alert.alert('오류', googleResult.error || '회원가입에 실패했습니다.');
+          return;
+        }
+        // 서버 성공 뒤에만 기기 저장
+        const googleLocal = {
+          id: googleResult.data?.id,
+          email: googleUser.email || formData.email,
+          name: formData.returnName,
+          userType: 'returnee',
+          ...formData,
+          createdAt: new Date().toISOString(),
+        };
+        await updateUserAndSave(googleLocal);
+        await saveCurrentUser(googleLocal);
+        Alert.alert('성공', '귀향자 회원가입이 완료되었습니다!', [
+          { text: '확인', onPress: () => navigation.navigate('ReturneeMain') },
+        ]);
+        return;
+      }
+
       // API 호출용 사용자 데이터 준비
       const userData = {
         email: formData.email.trim(),
@@ -231,6 +262,7 @@ const ReturneeSignUpScreen = ({ navigation }) => {
                     onPress={() => {
                       setUseGoogleSignUp(false);
                       setGoogleUser(null);
+                      setGoogleIdToken(null);
                       setFormData(prev => ({ ...prev, email: '' }));
                     }}
                   >

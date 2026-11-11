@@ -16,6 +16,7 @@ import {
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { updateUserAndSave, isEmailExists, saveCurrentUser } from '../../../utils/storage';
 import AuthService from '../../../services/AuthService';
+import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
 
 const MentorSignUpScreen = ({ navigation }) => {
@@ -32,14 +33,15 @@ const MentorSignUpScreen = ({ navigation }) => {
   });
 
   const [googleUser, setGoogleUser] = useState(null);
+  const [googleIdToken, setGoogleIdToken] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [useGoogleSignUp, setUseGoogleSignUp] = useState(false);
 
   useEffect(() => {
     // Google Sign-In 초기화
     GoogleSignin.configure({
-      webClientId: process.env.GOOGLE_CLIENT_ID_WEB,
-      iosClientId: process.env.GOOGLE_CLIENT_ID_IOS,
+      webClientId: GOOGLE_CLIENT_ID_WEB,
+      iosClientId: GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
       offlineAccess: true,
     });
@@ -57,6 +59,7 @@ const MentorSignUpScreen = ({ navigation }) => {
         mentorName: userInfo.data.user.name,
       }));
       
+      setGoogleIdToken(userInfo.idToken || userInfo.data?.idToken || null);
       setGoogleUser(userInfo.data.user);
       setUseGoogleSignUp(true);
       Alert.alert('성공', 'Google 로그인이 완료되었습니다!');
@@ -162,9 +165,23 @@ const MentorSignUpScreen = ({ navigation }) => {
     setIsLoading(true);
     try {
       if (useGoogleSignUp) {
-        // Google 회원가입
+        // Google 회원가입: 이전 토큰 삭제 -> 서버 계정 생성·토큰 저장 -> 프로필 전송
+        const rate = Number(formData.hourlyRate);
+        const result = await AuthService.googleSignUp(googleIdToken, {
+          display_name: formData.mentorName.trim(),
+          home_region: formData.location,
+          target_region: formData.location,
+          mentor_available: true,
+          mentor_hourly_rate: formData.hourlyRate && !Number.isNaN(rate) && rate >= 0 ? rate : undefined,
+        });
+        if (!result.success) {
+          Alert.alert('오류', result.error || '회원가입에 실패했습니다.');
+          return;
+        }
+
+        // 서버 성공 뒤에만 기기 저장
         const userData = {
-          id: googleUser.id,
+          id: result.data?.id ?? googleUser.id,
           email: googleUser.email,
           name: googleUser.name,
           picture: googleUser.picture,
@@ -173,20 +190,14 @@ const MentorSignUpScreen = ({ navigation }) => {
           ...formData,
           createdAt: new Date().toISOString(),
         };
-        
-        const success = await updateUserAndSave(userData);
-        if (success) {
-          // 현재 사용자로 저장
-          await saveCurrentUser(userData);
-          Alert.alert('성공', '멘토 회원가입이 완료되었습니다!', [
-            {
-              text: '확인',
-              onPress: () => navigation.navigate('MentorMain'),
-            },
-          ]);
-        } else {
-          Alert.alert('오류', '회원가입 중 오류가 발생했습니다.');
-        }
+        await updateUserAndSave(userData);
+        await saveCurrentUser(userData);
+        Alert.alert('성공', '멘토 회원가입이 완료되었습니다!', [
+          {
+            text: '확인',
+            onPress: () => navigation.navigate('MentorMain'),
+          },
+        ]);
       } else {
         // API 호출용 사용자 데이터 준비
         const userData = {
@@ -223,7 +234,7 @@ const MentorSignUpScreen = ({ navigation }) => {
             },
           ]);
         } else {
-          Alert.alert('오류', result.message || '회원가입에 실패했습니다.');
+          Alert.alert('오류', result.error || '회원가입에 실패했습니다.');
         }
       }
     } catch (error) {

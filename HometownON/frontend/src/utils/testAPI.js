@@ -1,10 +1,12 @@
-// API ¿¬°á Å×½ºÆ®¿ë À¯Æ¿¸®Æ¼
+// API ì—°ê²° í…ŒìŠ¤íŠ¸ìš© ìœ í‹¸ë¦¬í‹°
 
-const API_BASE_URL = 'http://10.0.2.2:8000';
+import API_URL from '../config/apiConfig';
+
+const API_BASE_URL = API_URL;
 
 export const testAPIConnection = async () => {
   try {
-    console.log('? API ¿¬°á Å×½ºÆ® ½ÃÀÛ...');
+    console.log('? API ì—°ê²° í…ŒìŠ¤íŠ¸ ì‹œì‘...');
     
     const response = await fetch(`${API_BASE_URL}/`, {
       method: 'GET',
@@ -14,38 +16,38 @@ export const testAPIConnection = async () => {
     });
 
     const data = await response.json();
-    console.log('? API ¿¬°á ¼º°ø:', data);
+    console.log('? API ì—°ê²° ì„±ê³µ:', data);
     return { success: true, data };
   } catch (error) {
-    console.error('? API ¿¬°á ½ÇÆĞ:', error);
+    console.error('? API ì—°ê²° ì‹¤íŒ¨:', error);
     return { success: false, error: error.message };
   }
 };
 
 export const testSignUpAPI = async () => {
   try {
-    console.log('? È¸¿ø°¡ÀÔ API Å×½ºÆ® ½ÃÀÛ...');
+    console.log('? íšŒì›ê°€ì… API í…ŒìŠ¤íŠ¸ ì‹œì‘...');
     
     const testUserData = {
       email: "test@example.com",
       password: "test123456",
       phone: null,
       profile: {
-        display_name: "Å×½ºÆ® »ç¿ëÀÚ",
+        display_name: "í…ŒìŠ¤íŠ¸ ì‚¬ìš©ì",
         birth_year: 1990,
         gender: null,
-        home_region: "ÇÔ¾È±º",
-        target_region: "ÇÔ¾È±º",
+        home_region: "í•¨ì•ˆêµ°",
+        target_region: "í•¨ì•ˆêµ°",
         bio: null,
         mentor_available: false,
         mentor_hourly_rate: null,
         preferences: {
           userType: "returnee",
-          careerType: "Ã¢¾÷",
-          careerPlan: "»õ·Î¿î µµÀü",
-          previousCareer: "IT °³¹ßÀÚ",
-          personality: "Àû±ØÀû",
-          hometownSchool: "ÇÔ¾ÈÃÊµîÇĞ±³",
+          careerType: "ì°½ì—…",
+          careerPlan: "ìƒˆë¡œìš´ ë„ì „",
+          previousCareer: "IT ê°œë°œì",
+          personality: "ì ê·¹ì ",
+          hometownSchool: "í•¨ì•ˆì´ˆë“±í•™êµ",
         },
         profile_image: null,
       }
@@ -62,14 +64,14 @@ export const testSignUpAPI = async () => {
     const data = await response.json();
     
     if (!response.ok) {
-      console.error('? È¸¿ø°¡ÀÔ API ½ÇÆĞ:', data);
-      return { success: false, error: data.detail || 'È¸¿ø°¡ÀÔ ½ÇÆĞ' };
+      console.error('? íšŒì›ê°€ì… API ì‹¤íŒ¨:', data);
+      return { success: false, error: data.detail || 'íšŒì›ê°€ì… ì‹¤íŒ¨' };
     }
 
-    console.log('? È¸¿ø°¡ÀÔ API ¼º°ø:', data);
+    console.log('? íšŒì›ê°€ì… API ì„±ê³µ:', data);
     return { success: true, data };
   } catch (error) {
-    console.error('? È¸¿ø°¡ÀÔ API ¿À·ù:', error);
+    console.error('? íšŒì›ê°€ì… API ì˜¤ë¥˜:', error);
     return { success: false, error: error.message };
   }
 };

@@ -304,7 +304,7 @@ const MentorBoardScreen = () => {
             styles.contactButton,
             isSpecialtyMatch(item.category) && styles.contactButtonHighlight
           ]}
-          onPress={() => navigation.navigate('MentorDetailScreen', { post: item })}
+          onPress={() => navigation.navigate('MentorDetail', { post: item })}
         >
           <Text style={[
             styles.contactButtonText,

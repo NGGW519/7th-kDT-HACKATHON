@@ -15,6 +15,7 @@ import {
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { saveCurrentUser } from '../../utils/storage';
 import AuthService from '../../services/AuthService';
+import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
 
 
 const SignInScreen = ({ navigation }) => {
@@ -26,8 +27,8 @@ const SignInScreen = ({ navigation }) => {
   useEffect(() => {
     // Google Sign-In 초기화
     GoogleSignin.configure({
-      webClientId: process.env.GOOGLE_CLIENT_ID_WEB,
-      iosClientId: process.env.GOOGLE_CLIENT_ID_IOS,
+      webClientId: GOOGLE_CLIENT_ID_WEB,
+      iosClientId: GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
       offlineAccess: true,
     });
@@ -40,27 +41,25 @@ const SignInScreen = ({ navigation }) => {
       const userInfo = await GoogleSignin.signIn();
       console.log("✅ Google 로그인 성공:", userInfo);
 
-      const idToken = userInfo.idToken; // Google ID Token 추출
+      // 사용자가 Google 로그인 창을 닫은 경우: 오류 알림 없이 돌아간다 (google-signin v13+ 는 예외 대신 type 으로 알림)
+      if (userInfo?.type === 'cancelled') {
+        setIsLoading(false);
+        return;
+      }
+      // google-signin v13+ 는 data.idToken, 그 이전 버전은 idToken 에 둔다 (가입 화면과 같은 방식)
+      const idToken = userInfo?.data?.idToken || userInfo?.idToken;
       if (!idToken) {
         Alert.alert('오류', 'Google ID 토큰을 가져올 수 없습니다.');
         setIsLoading(false);
         return;
       }
 
-      // 백엔드 API 호출
-      const backendApiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000'; // .env에서 API URL 가져오기
-      const response = await fetch(`${backendApiUrl}/api/users/google-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id_token: idToken }),
-      });
+      // 백엔드 API 호출 (AuthService 가 access_token 을 AsyncStorage 에 저장한다)
+      const result = await AuthService.googleSignIn(idToken);
+      const data = result.data;
 
-      const data = await response.json();
-
-      if (response.ok) {
-        await saveCurrentUser({ token: data.access_token }); // 백엔드에서 받은 토큰 저장
+      if (result.success) {
+        await saveCurrentUser({ token: data.access_token });
         Alert.alert('성공', 'Google 로그인이 완료되었습니다!', [
           {
             text: '확인',
@@ -68,7 +67,7 @@ const SignInScreen = ({ navigation }) => {
           },
         ]);
       } else {
-        Alert.alert('오류', `백엔드 로그인 실패: ${data.detail || response.statusText}`);
+        Alert.alert('오류', `백엔드 로그인 실패: ${result.error}`);
       }
     } catch (error) {
       console.error("❌ Google 로그인 또는 백엔드 통신 실패:", error);

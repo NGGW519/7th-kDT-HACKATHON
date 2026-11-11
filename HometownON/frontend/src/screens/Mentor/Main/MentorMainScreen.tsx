@@ -270,7 +270,7 @@ const MentorMainScreen = ({ navigation, route }: any) => {
             {/* 마이메뉴 */}
             <Text style={styles.sectionTitle2}>마이메뉴</Text>
             <View style={styles.menuRow}>
-              <TouchableOpacity onPress={() => navigation.navigate('NotificationScreen')} style={styles.menuCard}>
+              <TouchableOpacity onPress={() => navigation.navigate('MentorNotificationScreen')} style={styles.menuCard}>
                   <Text style={styles.menuEmojiLg}>🔔</Text>
                 <Text style={[styles.menuLabel, { marginTop: px(12) }]}>알림 확인하기</Text>
               </TouchableOpacity>
