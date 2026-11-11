@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MonoGPT 모델 상태 점검 (매주 GitHub Actions 에서 실행, 로컬 실행도 가능).
+"""MonoGPT 모델 상태 점검 (로컬 실행, 또는 GitHub Actions 에서 수동 실행).
 
 설정된 채팅 모델(LLM_MODEL + LLM_FALLBACK_MODELS)과 임베딩 모델(EMBEDDING_MODEL)에 대해
   1) MonoGPT 모델 목록에 아직 있는지

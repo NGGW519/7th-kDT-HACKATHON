@@ -14,7 +14,7 @@ description: "고향으로 ON의 LLM·AI 작업 규칙. 챗봇 에이전트(Lang
 ## 설정 위치
 - 백엔드: `app/core/config.py`의 `LLM_MODEL`(기본 gpt-5.4-mini), `LLM_FALLBACK_MODELS`(기본 claude-haiku-4.5, 다른 회사 모델), `LLM_MAX_TOKENS`.
 - 스크립트: `Ai_llm/mission_suggest/mission_rag.py`, `Crawling_Haman/Step_2/3`는 같은 이름의 환경 변수(`LLM_MODEL`, `EMBEDDING_MODEL` 등)를 읽는다.
-- 모델 이름을 바꾸면 루트 `.env`, config.py 기본값, mission_rag.py 기본값, README 표를 함께 바꾼다. `scripts/check_llm_models.py`가 매주 이 설정을 점검한다.
+- 모델 이름을 바꾸면 루트 `.env`, config.py 기본값, mission_rag.py 기본값, README 표를 함께 바꾼다. 바꾼 뒤 `python scripts/check_llm_models.py`로 모델이 목록에 있고 응답하는지 확인한다(GitHub Actions 에서 수동 실행도 가능).
 
 ## 챗봇 구조 (`app/chatbot/`)
 - `llm.py`가 유일한 LLM 생성 지점이다: `get_chat_llm()`(대체 모델 자동 전환 포함), `get_structured_llm(schema)`(함수 호출 방식), `run_tool_agent()`(도구 호출 루프).
