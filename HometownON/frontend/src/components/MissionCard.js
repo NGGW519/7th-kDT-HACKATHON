@@ -24,10 +24,8 @@ const MissionCard = ({ mission, onViewCompleted, onStartMission, onViewAll }) =>
           
           <View style={styles.missionTextContainer}>
             <Text style={styles.missionText}>
-              {mission.userName}님,{'\n'}
-              오늘의 미션은{'\n'}
-              <Text style={styles.boldMission}>{mission.todayMission}</Text>{'\n'}
-              입니다.
+              {mission.userName}님,
+              <Text style={styles.boldMission}>{mission.todayMission}</Text>
             </Text>
           </View>
         </View>

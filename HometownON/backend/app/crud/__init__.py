@@ -1,2 +1,1 @@
-from . import crud_user
-from . import crud_chat
+from . import crud_board, crud_chat, crud_mission, crud_user, location

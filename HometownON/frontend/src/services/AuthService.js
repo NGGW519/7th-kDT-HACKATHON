@@ -1,0 +1,254 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE } from '../config/apiConfig';
+
+const API_BASE_URL = API_BASE;
+
+// 서버 오류 detail(문자열 또는 [{msg}] 배열)을 사람이 읽을 수 있는 문장으로 바꾼다.
+export function errorText(detail, fallback) {
+  if (typeof detail === 'string' && detail) return detail;
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first.msg === 'string') return first.msg;
+  }
+  return fallback;
+}
+
+// preferences 값의 앞뒤 공백을 지우고 빈 값(undefined/null/'')은 뺀다. 서버는 preferences(JSONB) 안의 값을 다듬지 않는다.
+function compactPreferences(prefs) {
+  const out = {};
+  Object.entries(prefs).forEach(([key, value]) => {
+    const v = typeof value === 'string' ? value.trim() : value;
+    if (v !== undefined && v !== null && v !== '') out[key] = v;
+  });
+  return out;
+}
+
+class AuthService {
+  // 회원가입 API 호출
+  static async signUp(userData) {
+    try {
+      console.log('? 회원가입 API 호출:', userData.email);
+      
+      const response = await fetch(`${API_BASE_URL}/users/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userData.email,
+          password: userData.password,
+          phone: userData.phone || null,
+          profile: {
+            display_name: userData.name,
+            birth_year: userData.birthYear ? Number(userData.birthYear) : undefined,
+            gender: userData.gender || null,
+            home_region: userData.hometown || userData.location || '함안군',
+            target_region: userData.targetRegion || userData.hometown || userData.location || '함안군',
+            bio: userData.bio || null,
+            mentor_available: userData.userType === 'mentor',
+            mentor_hourly_rate:
+              userData.userType === 'mentor' && userData.mentorHourlyRate !== undefined && userData.mentorHourlyRate !== null
+                ? userData.mentorHourlyRate
+                : null,
+            // Google 가입 경로와 같은 저장 값이 되도록 앞뒤 공백을 지우고 빈 값은 뺀다
+            preferences: compactPreferences({
+              userType: userData.userType,
+              careerType: userData.careerType,
+              careerPlan: userData.careerPlan,
+              previousCareer: userData.previousCareer,
+              personality: userData.personality,
+              hometownSchool: userData.hometownSchool,
+              mentorType: userData.mentorType,
+              expertise: userData.expertise,
+              qualifications: userData.qualifications,
+            }),
+            profile_image: userData.picture || null,
+          }
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(errorText(data.detail, '회원가입에 실패했습니다.'));
+      }
+
+
+      // 이전 사용자의 토큰이 남아 있지 않도록 지운 뒤, 같은 계정으로 자동 로그인해 토큰을 저장한다.
+      await AsyncStorage.removeItem('access_token');
+      if (userData.email && userData.password) {
+        const login = await AuthService.signIn(userData.email, userData.password);
+        if (!login.success) {
+          console.warn('회원가입 후 자동 로그인 실패:', login.error);
+        }
+      }
+      return { success: true, data };
+    } catch (error) {
+      console.error('? 회원가입 실패:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 로그인 API 호출
+  static async signIn(email, password) {
+    try {
+      console.log('? 로그인 API 호출:', email);
+      
+      const response = await fetch(`${API_BASE_URL}/users/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(errorText(data.detail, '로그인에 실패했습니다.'));
+      }
+
+      // JWT 토큰 저장
+      await AsyncStorage.setItem('access_token', data.access_token);
+      
+      return { success: true, data };
+    } catch (error) {
+      console.error('? 로그인 실패:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Google 로그인 API 호출
+  static async googleSignIn(idToken) {
+    try {
+      console.log('? Google 로그인 API 호출');
+      
+      const response = await fetch(`${API_BASE_URL}/users/google-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id_token: idToken,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(errorText(data.detail, 'Google 로그인에 실패했습니다.'));
+      }
+
+      // JWT 토큰 저장
+      await AsyncStorage.setItem('access_token', data.access_token);
+      
+      return { success: true, data };
+    } catch (error) {
+      console.error('? Google 로그인 실패:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Google 회원가입: (1) 이전 토큰 삭제 (2) 서버 계정 생성·토큰 저장 (3) 입력한 프로필 전송
+  // profile: { display_name, birth_year, home_region, target_region, mentor_available, mentor_hourly_rate }
+  // 값이 비어 있는 필드는 보내지 않는다. 성공하면 { success: true, data: 서버 사용자 }.
+  static async googleSignUp(idToken, profile = {}) {
+    try {
+      if (!idToken) {
+        return { success: false, error: 'Google ID 토큰을 가져올 수 없습니다. 다시 로그인해주세요.' };
+      }
+      await AsyncStorage.removeItem('access_token');
+
+      const login = await AuthService.googleSignIn(idToken);
+      if (!login.success) {
+        return { success: false, error: login.error };
+      }
+
+      const body = {};
+      Object.keys(profile).forEach((key) => {
+        const v = profile[key];
+        if (v !== undefined && v !== null && v !== '') body[key] = v;
+      });
+
+      const token = await AsyncStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/users/me/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return {
+          success: false,
+          error: errorText(data.detail, '프로필 저장에 실패했습니다.'),
+        };
+      }
+      return { success: true, data };
+    } catch (error) {
+      console.error('Google 회원가입 실패:', error);
+      return { success: false, error: error.message || 'Google 회원가입에 실패했습니다.' };
+    }
+  }
+
+  // 현재 사용자 정보 가져오기
+  static async getCurrentUser() {
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      if (!token) {
+        return { success: false, error: '로그인이 필요합니다.' };
+      }
+
+      const response = await fetch(`${API_BASE_URL}/users/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(errorText(data.detail, '사용자 정보를 가져올 수 없습니다.'));
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('? 사용자 정보 조회 실패:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 로그아웃
+  static async signOut() {
+    try {
+      await AsyncStorage.removeItem('access_token');
+      await AsyncStorage.removeItem('current_user');
+      console.log('? 로그아웃 완료');
+      return { success: true };
+    } catch (error) {
+      console.error('? 로그아웃 실패:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 토큰 확인
+  static async getToken() {
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      return token;
+    } catch (error) {
+      console.error('? 토큰 조회 실패:', error);
+      return null;
+    }
+  }
+}
+
+export default AuthService;

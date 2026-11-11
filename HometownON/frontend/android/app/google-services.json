@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "368562474055",
+    "project_id": "hometown-on",
+    "storage_bucket": "hometown-on.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:368562474055:android:22727a381872a0b01df562",
+        "android_client_info": {
+          "package_name": "com.jiyun.hometownon"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB92nGjniN8BljMHvGANegwzDotBPp25og"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

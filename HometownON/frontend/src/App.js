@@ -2,26 +2,27 @@ import React, { useEffect } from 'react';
 import AppNavigator from './navigation/AppNavigator';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_IOS } from '@env';
-import 'react-native-gesture-handler';
 
+import 'react-native-gesture-handler';
+import { purgeStoredPasswords } from './utils/storage';
 
 const App = () => {
+  // 앱 시작 때 기기에 남은 옛 비밀번호 필드를 한 번 지운다.
   useEffect(() => {
-    // 환경변수 디버깅
-    console.log('🔍 환경변수 확인:');
-    console.log('GOOGLE_CLIENT_ID_WEB:', GOOGLE_CLIENT_ID_WEB);
-    console.log('GOOGLE_CLIENT_ID_IOS:', GOOGLE_CLIENT_ID_IOS);
-    
-    // 환경변수가 undefined인지 확인
+    purgeStoredPasswords();
+  }, []);
+
+  useEffect(() => {
     if (!GOOGLE_CLIENT_ID_WEB || !GOOGLE_CLIENT_ID_IOS) {
-      console.error('❌ 환경변수가 로드되지 않았습니다!');
+      console.error('❌ Google Client ID가 .env 파일에서 로드되지 않았습니다!');
       return;
     }
-    
+
     GoogleSignin.configure({
       webClientId: GOOGLE_CLIENT_ID_WEB,
       iosClientId: GOOGLE_CLIENT_ID_IOS,
       scopes: ['email', 'profile'],
+      offlineAccess: true,
     });
   }, []);
 

@@ -1,3 +1,5 @@
+> ⚠️ **2026-11: 임베딩은 OpenRouter 무료 모델(`.env` 의 `EMBEDDING_MODEL`, 현재 `nvidia/nemotron-3-embed-1b:free`)로 통일되었습니다.** 문화 데이터와 미션이 같은 모델·같은 테이블(`rag_documents`)을 씁니다. 이 문서는 로컬 모델(ko-sroberta 등) 기준의 당시 분석 기록입니다.
+
 # 임베딩 모델 분석: jhgan/ko-sroberta-multitask
 
 ## 1. 개요

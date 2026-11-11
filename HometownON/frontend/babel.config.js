@@ -7,12 +7,14 @@ module.exports = function (api) {
           "module:react-native-dotenv",
           {
             "moduleName": "@env",
-            "path": ".env",
-            "safe": true,
-            "allowUndefined": false,
+            // 모노레포 루트의 .env 를 읽는다 (서버 비밀키도 들어 있으므로 아래 allowlist 로 공개 변수만 허용)
+            "path": "../../.env",
+            "blocklist": null,
+            "allowlist": ["API_URL", "GOOGLE_CLIENT_ID_WEB", "GOOGLE_CLIENT_ID_IOS", "GOOGLE_CLIENT_ID_ANDROID"],
+            "safe": false,
+            "allowUndefined": true,
           }
         ]
       ]
     };
   };
-  
