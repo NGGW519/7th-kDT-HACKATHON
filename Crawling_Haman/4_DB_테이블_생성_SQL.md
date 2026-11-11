@@ -1,3 +1,5 @@
+> ⚠️ **2026-11: DB가 PostgreSQL(PostGIS + pgvector)로 전환되었습니다.** 이 문서는 MySQL·ChromaDB 기준의 당시 설계 기록입니다. 최신 스키마는 [`Hometown_on.sql`](./Hometown_on.sql)과 [테이블 설명서](./Hometown_on_테이블_설명서.md)를 보세요.
+
 # 함안군 프로젝트 데이터베이스 스키마 (SQL DDL)
 
 ## 1. 개요

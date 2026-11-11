@@ -10,6 +10,8 @@ const MyMenu = ({ onAIChatbot, onMissionDashboard, onFindEducation, onBoard }) =
     { key: 'mission', title: '미션 대시보드', icon: '📊', handler: onMissionDashboard },
     { key: 'education', title: '교육/멘토 찾기', icon: '💡', handler: onFindEducation },
     { key: 'board', title: '게시판', icon: '📋', handler: onBoard },
+    
+    
   ]);
 
   useEffect(() => {
@@ -53,6 +55,11 @@ const MyMenu = ({ onAIChatbot, onMissionDashboard, onFindEducation, onBoard }) =
     
     setSelectedMenus(newSelectedMenus);
     saveMenuSettings(newSelectedMenus);
+  };
+
+  const handleResetSelection = () => {
+    setSelectedMenus([]);
+    saveMenuSettings([]);
   };
 
   const getSelectedMenuItems = () => {
@@ -143,6 +150,12 @@ const MyMenu = ({ onAIChatbot, onMissionDashboard, onFindEducation, onBoard }) =
               <Text style={styles.selectedCount}>
                 선택된 메뉴: {selectedMenus.length}/3
               </Text>
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={handleResetSelection}
+              >
+                <Text style={styles.resetButtonText}>선택 초기화</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -326,6 +339,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 15,
     borderTopWidth: 1,
@@ -335,6 +350,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '600',
+  },
+  resetButton: {
+    backgroundColor: '#DC3545',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+  },
+  resetButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
 

@@ -1,117 +1,216 @@
-# chromadb, openai 등은 실제 환경에서 pip install 필요
-import pymysql
-from pymysql.cursors import DictCursor
-import chromadb  # type: ignore
-from chromadb.config import Settings  # type: ignore
-from openai import OpenAI  # type: ignore
+"""RAG 기반 미션 추천 (PostgreSQL + pgvector).
+
+1) build_mission_vector_db(): 미션(+단계)을 임베딩(MonoGPT)으로 변환해 rag_documents 테이블에 저장
+2) search_candidate_missions(): 사용자 프로필(지역/선호/보유 기술)과 유사한 미션을 검색 (완료한 미션 제외)
+3) generate_recommendation(): 후보 미션을 근거로 LLM 이 3개를 추천하고 이유를 설명
+
+실행:  python mission_rag.py [user_id]
+"""
+import json
 import os
-from typing import List, Dict, Any
-from dotenv import load_dotenv  # type: ignore
-load_dotenv()
-from db_config import get_db_config
+import sys
+from functools import lru_cache
 
-MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
-MYSQL_USER = os.getenv('MYSQL_USER', 'root')
-MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
-MYSQL_DB = os.getenv('MYSQL_DB', 'hometown_on')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+from openai import OpenAI
+from psycopg.types.json import Jsonb
 
-CHROMA_PATH = './chroma_missions'
-chroma_client = chromadb.Client(Settings(persist_directory=CHROMA_PATH))
-collection = chroma_client.get_or_create_collection('missions')
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+from db_config import get_connection, to_pgvector
+from extract_missions import extract_mission_data
 
-# DB 연결 함수 예시
+COLLECTION_NAME = "missions"
+# MonoGPT 라우터 (OpenAI 호환 API). 앱의 모든 LLM 호출과 같은 설정(루트 .env)을 쓴다.
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")  # 1536차원
+CHAT_MODEL = os.getenv("LLM_MODEL", "gpt-5.4-mini")
+# 기본 모델 호출이 실패하면 순서대로 대신 시도할 모델 (쉼표 구분)
+FALLBACK_MODELS = [m.strip() for m in os.getenv("LLM_FALLBACK_MODELS", "claude-haiku-4.5").split(",") if m.strip()]
+MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", 1024))
+MONOGPT_BASE_URL = os.getenv("MONOGPT_BASE_URL", "https://monogpt.kr/api/monorouter/v1")
 
-def get_connection():
-    config = get_db_config()
-    return pymysql.connect(**config)
 
-# MySQL에서 미션/미션파트 id, description만 불러오기
-def fetch_mission_descriptions() -> List[Dict[str, Any]]:
-    conn = get_connection()
-    cursor = conn.cursor(DictCursor)
-    cursor.execute('SELECT id, description FROM missions')
-    missions = [{'type': 'mission', 'id': row['id'], 'description': row['description']} for row in cursor.fetchall()]
-    cursor.execute('SELECT id, description FROM mission_parts')
-    parts = [{'type': 'part', 'id': row['id'], 'description': row['description']} for row in cursor.fetchall()]
-    conn.close()
-    return missions + parts
+def get_openai_client() -> OpenAI:
+    """MonoGPT 클라이언트 (OpenAI 호환 API 라서 openai SDK 에 주소와 키만 지정)."""
+    api_key = os.getenv("MONOGPT_API_KEY")
+    if not api_key:
+        raise RuntimeError("MONOGPT_API_KEY 환경 변수가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
+    return OpenAI(api_key=api_key, base_url=MONOGPT_BASE_URL)
 
-# 벡터DB에 id, description만 저장
-def build_mission_vector_db():
-    items = fetch_mission_descriptions()
-    texts = [item['description'] for item in items]
-    ids = [f"{item['type']}_{item['id']}" for item in items]
-    embeddings = []
-    for text in texts:
-        response = openai_client.embeddings.create(
-            input=text,
-            model='text-embedding-3-small'
+
+def embed(texts: list[str]) -> list[list[float]]:
+    response = get_openai_client().embeddings.create(input=texts, model=EMBEDDING_MODEL)
+    return [item.embedding for item in response.data]
+
+
+def count_mission_documents() -> int:
+    """현재 임베딩 모델로 만든 미션 벡터 수. 모델을 바꾸면 0 이 되어 다시 생성하게 된다
+    (모델마다 벡터 차원이 달라 섞어서 비교할 수 없음)."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT count(*) AS n FROM rag_documents WHERE collection_name = %s AND embedding_model = %s",
+            (COLLECTION_NAME, EMBEDDING_MODEL),
+        ).fetchone()
+    return row["n"]
+
+
+def build_mission_vector_db(batch_size: int = 100) -> int:
+    """미션 전체를 임베딩해 저장한다. 같은 미션은 덮어쓰고, DB 에서 사라진 미션은 지우므로 여러 번 실행해도 안전하다."""
+    missions = extract_mission_data()
+    with get_connection() as conn:
+        for start in range(0, len(missions), batch_size):
+            batch = missions[start:start + batch_size]
+            embeddings = embed([m["content"] for m in batch])
+            conn.cursor().executemany(
+                """
+                INSERT INTO rag_documents
+                    (collection_name, source_table, source_id, content, doc_metadata, embedding, embedding_model)
+                VALUES (%s, 'missions', %s, %s, %s, %s::vector, %s)
+                ON CONFLICT (collection_name, source_table, source_id) DO UPDATE SET
+                    content = EXCLUDED.content,
+                    doc_metadata = EXCLUDED.doc_metadata,
+                    embedding = EXCLUDED.embedding,
+                    embedding_model = EXCLUDED.embedding_model
+                """,
+                [
+                    (
+                        COLLECTION_NAME, m["id"], m["content"],
+                        Jsonb({"title": m["title"], "mission_type": m["mission_type"]}),
+                        to_pgvector(vec), EMBEDDING_MODEL,
+                    )
+                    for m, vec in zip(batch, embeddings)
+                ],
+            )
+        conn.execute(
+            "DELETE FROM rag_documents WHERE collection_name = %s AND NOT (source_id = ANY(%s::bigint[]))",
+            (COLLECTION_NAME, [m["id"] for m in missions]),
         )
-        embeddings.append(response.data[0].embedding)
-    collection.add(documents=texts, embeddings=embeddings, ids=ids)
-    print(f"{len(texts)}개 미션/파트 임베딩 저장 완료.")
+    print(f"{len(missions)}개 미션 임베딩 저장 완료 (rag_documents, collection='{COLLECTION_NAME}')")
+    return len(missions)
 
-# 유저 프로필(스킬, 관심사 등) 벡터화 예시
-def get_user_profile_vector(user_id: int) -> List[float]:
-    profile_text = 'Python, 데이터 분석, 여행'  # TODO: DB에서 유저 정보 불러와 합치기
-    response = openai_client.embeddings.create(
-        input=profile_text,
-        model='text-embedding-3-small'
-    )
-    return response.data[0].embedding
 
-# 벡터DB에서 유사한 id만 top-k로 반환
-def search_similar_mission_ids(user_id: int, top_k: int = 5) -> List[str]:
-    user_vec = get_user_profile_vector(user_id)
-    results = collection.query(query_embeddings=[user_vec], n_results=top_k)
-    return results['ids'][0] if results['ids'] else []
+def get_user_profile(user_id: int) -> dict:
+    """user_profiles / user_skills / mission_assignments 에서 추천에 필요한 정보를 모은다."""
+    with get_connection() as conn:
+        profile = conn.execute(
+            """
+            SELECT display_name, home_region, target_region, preferences, bio
+            FROM user_profiles WHERE user_id = %s
+            """,
+            (user_id,),
+        ).fetchone() or {}
+        skills = conn.execute(
+            """
+            SELECT s.name, s.category, us.level
+            FROM user_skills us JOIN skills s ON s.id = us.skill_id
+            WHERE us.user_id = %s
+            """,
+            (user_id,),
+        ).fetchall()
+        completed = [
+            row["mission_id"]
+            for row in conn.execute(
+                "SELECT mission_id FROM mission_assignments WHERE user_id = %s AND status = 'completed'",
+                (user_id,),
+            )
+        ]
 
-# id 리스트로 MySQL에서 미션/파트 원본 정보 조회
-def get_mission_details_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
-    conn = get_connection()
-    cursor = conn.cursor(DictCursor)
-    details = []
-    for id_str in ids:
-        if id_str.startswith('mission_'):
-            mission_id = int(id_str.split('_')[1])
-            cursor.execute('SELECT id, title, description FROM missions WHERE id=%s', (mission_id,))
-            row = cursor.fetchone()
-            if row:
-                details.append({'type': 'mission', **row})
-        elif id_str.startswith('part_'):
-            part_id = int(id_str.split('_')[1])
-            cursor.execute('SELECT id, mission_id, description FROM mission_parts WHERE id=%s', (part_id,))
-            row = cursor.fetchone()
-            if row:
-                details.append({'type': 'part', **row})
-    conn.close()
-    return details
+    preferences = profile.get("preferences")
+    if isinstance(preferences, str):  # JSONB 는 dict 로 오지만, 문자열로 저장된 경우도 허용
+        try:
+            preferences = json.loads(preferences)
+        except json.JSONDecodeError:
+            pass
 
-# LLM 프롬프트에 원본 정보(제목+설명 등)로 추천
-def recommend_missions(user_id: int) -> str:
-    ids = search_similar_mission_ids(user_id)
-    details = get_mission_details_by_ids(ids)
-    prompt_lines = []
-    for d in details:
-        if d['type'] == 'mission':
-            prompt_lines.append(f"[미션] {d['title']}\n{d['description']}")
-        elif d['type'] == 'part':
-            prompt_lines.append(f"[미션 파트] (미션ID: {d['mission_id']})\n{d['description']}")
-    prompt = f"""
-    아래는 유저의 프로필과 유사한 미션/파트 원본 정보입니다. 유저에게 가장 적합한 미션 3개를 추천해 주세요.
-    ---
-    {chr(10).join(prompt_lines)}
-    """
-    response = openai_client.chat.completions.create(
-        model='gpt-4o',
-        messages=[{"role": "system", "content": "당신은 미션 추천 전문가입니다."},
-                  {"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
+    return {
+        "name": profile.get("display_name") or f"사용자 {user_id}",
+        "home_region": profile.get("home_region") or "",
+        "target_region": profile.get("target_region") or "",
+        "preferences": preferences or {},
+        "bio": profile.get("bio") or "",
+        "skills": [f"{s['name']}({s['category']}, Lv.{s['level']})" for s in skills],
+        "completed_mission_ids": completed,
+    }
 
-if __name__ == '__main__':
-    build_mission_vector_db()
-    user_id = 1  # 예시 유저
-    print(recommend_missions(user_id)) 
+
+def profile_to_text(profile: dict) -> str:
+    return "\n".join([
+        f"고향: {profile['home_region']}",
+        f"정착 희망 지역: {profile['target_region']}",
+        f"관심사/선호: {json.dumps(profile['preferences'], ensure_ascii=False)}",
+        f"보유 기술: {', '.join(profile['skills']) or '없음'}",
+        f"자기소개: {profile['bio']}",
+    ])
+
+
+def search_candidate_missions(user_id: int, top_k: int = 5, profile: dict | None = None) -> list[dict]:
+    """사용자 프로필과 의미상 가까운 미션 후보를 반환한다 (이미 완료한 미션은 SQL 에서 제외)."""
+    profile = profile or get_user_profile(user_id)
+    if count_mission_documents() == 0:
+        raise RuntimeError(
+            f"'{EMBEDDING_MODEL}' 로 만든 미션 임베딩이 없습니다. 먼저 build_mission_vector_db() 를 실행하세요."
+        )
+
+    query_vector = to_pgvector(embed([profile_to_text(profile)])[0])
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT source_id AS mission_id, content, embedding <=> %s::vector AS distance
+            FROM rag_documents
+            WHERE collection_name = %s
+              AND embedding_model = %s
+              AND NOT (source_id = ANY(%s::bigint[]))
+            ORDER BY distance
+            LIMIT %s
+            """,
+            (query_vector, COLLECTION_NAME, EMBEDDING_MODEL, profile["completed_mission_ids"], top_k),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def generate_recommendation(user_id: int, candidates: list[dict], profile: dict | None = None) -> str:
+    profile = profile or get_user_profile(user_id)
+    if not candidates:
+        return "추천할 새 미션이 없습니다. 모든 후보 미션을 이미 완료하셨어요!"
+
+    context = "\n\n".join(f"[후보 미션 ID {c['mission_id']}]\n{c['content']}" for c in candidates)
+    prompt = f"""당신은 귀향자가 고향에 잘 정착하도록 돕는 AI 도우미 '고향으로 ON' 입니다.
+아래 사용자 프로필과 후보 미션을 보고, 오늘 수행하면 좋을 미션 3개를 추천해주세요.
+- 각 미션이 왜 이 사용자에게 적합한지 한두 문장으로 쉽고 친절하게 설명하세요.
+- 가능하면 탐색형/사회유대형/커리어형이 골고루 섞이도록 하세요.
+- 후보에 없는 미션은 만들지 마세요.
+
+[사용자 프로필]
+이름: {profile['name']}
+{profile_to_text(profile)}
+
+[후보 미션]
+{context}
+"""
+    messages = [
+        {"role": "system", "content": "당신은 귀향자 정착 미션 추천 전문가입니다."},
+        {"role": "user", "content": prompt},
+    ]
+    client = get_openai_client()
+    last_error = None
+    # 기본 모델이 실패하면 대체 모델로 다시 시도
+    for model in [CHAT_MODEL, *[m for m in FALLBACK_MODELS if m != CHAT_MODEL]]:
+        try:
+            response = client.chat.completions.create(
+                model=model, temperature=0.7, max_tokens=MAX_TOKENS, messages=messages
+            )
+            return response.choices[0].message.content
+        except Exception as e:  # 네트워크/모델 오류
+            last_error = e
+            print(f"⚠️ {model} 호출 실패, 다음 모델로 시도: {e}")
+    raise last_error
+
+
+def recommend_missions(user_id: int, top_k: int = 5) -> str:
+    profile = get_user_profile(user_id)
+    candidates = search_candidate_missions(user_id, top_k=top_k, profile=profile)
+    return generate_recommendation(user_id, candidates, profile=profile)
+
+
+if __name__ == "__main__":
+    target_user_id = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    if count_mission_documents() == 0:
+        build_mission_vector_db()
+    print(recommend_missions(target_user_id))

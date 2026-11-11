@@ -1,27 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ChromaDB에 저장된 함안군 문화 데이터를 의미 기반으로 검색하는 테스트 스크립트
+rag_documents(pgvector)에 저장된 함안군 문화 데이터를 의미 기반으로 검색하는 테스트 스크립트
 자연어 질의를 통해 관련 정보를 찾아주는 대화형 검색 시스템
+
+실행 전: Step 2 로 임베딩이 저장되어 있어야 합니다.
 """
 
-import chromadb
-from sentence_transformers import SentenceTransformer
 import os
 import sys
-from pathlib import Path
-import json
+
+import psycopg
+from dotenv import load_dotenv
+from openai import OpenAI
+from psycopg.rows import dict_row
+
+load_dotenv()
+
+# Step 2 와 같은 MonoGPT 임베딩 모델 (.env 의 EMBEDDING_MODEL)
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+MONOGPT_BASE_URL = os.getenv("MONOGPT_BASE_URL", "https://monogpt.kr/api/monorouter/v1")
 
 # === 설정 ===
-CHROMA_PERSIST_DIR = Path(__file__).parent / "chroma_db"
-CHROMA_COLLECTION_NAME = "haman_culture"
-
-# 임베딩 모델들 (Step 2와 동일한 순서)
-EMBEDDING_MODELS = [
-    'jhgan/ko-sroberta-multitask',
-    'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
-    'sentence-transformers/all-MiniLM-L6-v2'
-]
+DB_CONFIG = {
+    'host': os.getenv('POSTGRES_HOST', 'localhost'),
+    'port': int(os.getenv('POSTGRES_PORT', 5432)),
+    'user': os.getenv('POSTGRES_USER', 'postgres'),
+    'password': os.getenv('POSTGRES_PASSWORD', ''),
+    'dbname': os.getenv('POSTGRES_DB', 'hometown_on'),
+}
+COLLECTION_NAME = "haman_culture"
 
 # 검색 예시 질문들
 SAMPLE_QUERIES = [
@@ -32,96 +40,103 @@ SAMPLE_QUERIES = [
     "함안 지역의 민담이나 설화"
 ]
 
-def load_embedding_model():
-    """임베딩 모델 로드"""
-    for model_name in EMBEDDING_MODELS:
-        try:
-            print(f"🤖 임베딩 모델 로딩: {model_name}")
-            model = SentenceTransformer(model_name)
-            print(f"✅ 모델 로드 성공")
-            return model, model_name
-        except Exception as e:
-            print(f"⚠️  모델 로드 실패: {e}")
-            continue
-    
-    print("❌ 모든 임베딩 모델 로드 실패")
-    sys.exit(1)
+def to_pgvector(values) -> str:
+    return "[" + ",".join(str(float(v)) for v in values) + "]"
 
-def setup_chromadb():
-    """ChromaDB 연결 설정"""
-    print("🗄️  ChromaDB 연결 중...")
-    
-    if not CHROMA_PERSIST_DIR.exists():
-        print(f"❌ ChromaDB 데이터 디렉토리를 찾을 수 없습니다: {CHROMA_PERSIST_DIR}")
-        print("먼저 'Step_2_ChromaDB에_데이터_임베딩.py'를 실행해주세요.")
-        sys.exit(1)
-    
+
+def connect_vector_db():
+    """DB 연결 후 저장된 문서 수와 임베딩 모델명을 확인한다."""
+    print("🗄️  PostgreSQL 연결 중...")
     try:
-        client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
-        collection = client.get_collection(name=CHROMA_COLLECTION_NAME)
-        
-        # 컬렉션 정보 확인
-        count = collection.count()
-        print(f"✅ ChromaDB 연결 성공 - 저장된 문서 수: {count}")
-        
-        if count == 0:
-            print("⚠️  저장된 데이터가 없습니다.")
-            sys.exit(1)
-            
-        return client, collection
-        
-    except Exception as e:
-        print(f"❌ ChromaDB 연결 실패: {e}")
+        conn = psycopg.connect(**DB_CONFIG, row_factory=dict_row)
+    except psycopg.Error as e:
+        print(f"❌ 데이터베이스 연결 실패: {e}")
         sys.exit(1)
 
-def search_similar_content(collection, model, query_text, n_results=5):
-    """의미 기반 검색 수행"""
+    row = conn.execute(
+        """
+        SELECT count(*) AS n, min(embedding_model) AS model, count(DISTINCT embedding_model) AS models
+        FROM rag_documents WHERE collection_name = %s
+        """,
+        (COLLECTION_NAME,),
+    ).fetchone()
+    if row["n"] == 0:
+        print("⚠️  저장된 데이터가 없습니다. 먼저 'Step_2_문화데이터_임베딩.py'를 실행해주세요.")
+        sys.exit(1)
+    if row["models"] > 1:
+        print("⚠️  컬렉션에 여러 임베딩 모델이 섞여 있습니다. Step 2 를 다시 실행해주세요.")
+        sys.exit(1)
+    print(f"✅ 연결 성공 - 저장된 문서 수: {row['n']}")
+    return conn, row["model"]
+
+
+class ApiEmbedder:
+    """질문을 MonoGPT 임베딩 모델로 벡터화한다."""
+
+    def __init__(self, client: OpenAI, model: str):
+        self.client, self.model = client, model
+
+    def encode(self, text: str) -> list[float]:
+        return self.client.embeddings.create(model=self.model, input=[text]).data[0].embedding
+
+
+def load_embedding_model(stored_model):
+    """저장된 벡터와 같은 모델인지 확인하고 임베딩 클라이언트를 만든다 (모델이 다르면 벡터를 비교할 수 없음)."""
+    if stored_model != EMBEDDING_MODEL:
+        print(f"⚠️  저장된 벡터의 모델({stored_model})이 현재 EMBEDDING_MODEL({EMBEDDING_MODEL})과 다릅니다.")
+        print("    'Step_2_문화데이터_임베딩.py' 를 다시 실행해 현재 모델로 임베딩해주세요.")
+        sys.exit(1)
+    api_key = os.getenv("MONOGPT_API_KEY")
+    if not api_key:
+        print("❌ MONOGPT_API_KEY 가 설정되지 않았습니다. 루트 .env 를 확인하세요.")
+        sys.exit(1)
+    print(f"🤖 임베딩 모델: {EMBEDDING_MODEL} (MonoGPT)")
+    return ApiEmbedder(OpenAI(api_key=api_key, base_url=MONOGPT_BASE_URL), EMBEDDING_MODEL)
+
+
+def search_similar_content(conn, model, query_text, n_results=5):
+    """의미 기반 검색 (코사인 거리 기준, 가까운 순)"""
     try:
-        # 검색어를 벡터로 변환
-        query_embedding = model.encode(query_text).tolist()
-        
-        # ChromaDB에서 유사한 문서 검색
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=n_results,
-            include=['documents', 'metadatas', 'distances']
-        )
-        
-        return results
-        
+        query_vector = to_pgvector(model.encode(query_text))
+        return conn.execute(
+            """
+            SELECT source_id, content, doc_metadata, embedding <=> %s::vector AS distance
+            FROM rag_documents
+            WHERE collection_name = %s
+            ORDER BY distance
+            LIMIT %s
+            """,
+            (query_vector, COLLECTION_NAME, n_results),
+        ).fetchall()
     except Exception as e:
         print(f"❌ 검색 중 오류 발생: {e}")
         return None
+
 
 def display_search_results(results, query_text):
     """검색 결과를 보기 좋게 출력"""
     print(f"\n🔍 검색어: '{query_text}'")
     print("=" * 60)
-    
-    if not results or not results['ids'][0]:
+
+    if not results:
         print("😔 관련된 내용을 찾지 못했습니다.")
         return
-    
-    for i, doc_id in enumerate(results['ids'][0]):
-        distance = results['distances'][0][i]
-        similarity_score = 1 - distance  # 거리를 유사도로 변환
-        metadata = results['metadatas'][0][i]
-        document = results['documents'][0][i]
-        
-        print(f"\n📄 결과 {i+1} (유사도: {similarity_score:.3f})")
-        print(f"   🏷️  카테고리: {metadata['category']}")
-        print(f"   📝 제목: {metadata['title']}")
-        print(f"   🆔 ID: {doc_id}")
-        
+
+    for i, row in enumerate(results, 1):
+        similarity_score = 1 - row['distance']  # 코사인 거리 → 코사인 유사도
+        metadata = row['doc_metadata'] or {}
+
+        print(f"\n📄 결과 {i} (유사도: {similarity_score:.3f})")
+        print(f"   🏷️  카테고리: {metadata.get('category')}")
+        print(f"   📝 제목: {metadata.get('title')}")
+        print(f"   🆔 ID: culture_{row['source_id']}")
+
         # 문서 내용 출력 (너무 길면 줄임)
-        content_lines = document.split('\n')
-        for line in content_lines:
+        for line in row['content'].split('\n'):
             if line.strip():
-                if len(line) > 100:
-                    print(f"   📖 {line[:100]}...")
-                else:
-                    print(f"   📖 {line}")
+                print(f"   📖 {line[:100]}..." if len(line) > 100 else f"   📖 {line}")
         print("-" * 40)
+
 
 def show_sample_queries():
     """예시 검색어 표시"""
@@ -130,7 +145,7 @@ def show_sample_queries():
         print(f"   {i}. {query}")
     print()
 
-def interactive_search(collection, model):
+def interactive_search(conn, model):
     """대화형 검색 인터페이스"""
     print("\n🎯 함안군 문화 데이터 의미 검색 시스템")
     print("=" * 60)
@@ -162,7 +177,7 @@ def interactive_search(collection, model):
             
             # 검색 수행
             print("🔄 검색 중...")
-            results = search_similar_content(collection, model, query)
+            results = search_similar_content(conn, model, query)
             
             if results:
                 display_search_results(results, query)
@@ -178,14 +193,14 @@ def interactive_search(collection, model):
     
     print(f"\n📊 총 {search_count}번의 검색을 수행했습니다.")
 
-def run_sample_searches(collection, model):
+def run_sample_searches(conn, model):
     """샘플 검색 실행"""
     print("\n🧪 샘플 검색 테스트 실행")
     print("=" * 60)
     
     for i, query in enumerate(SAMPLE_QUERIES[:3], 1):  # 처음 3개만 테스트
         print(f"\n🔍 샘플 검색 {i}/{3}")
-        results = search_similar_content(collection, model, query, n_results=2)
+        results = search_similar_content(conn, model, query, n_results=2)
         if results:
             display_search_results(results, query)
         
@@ -197,13 +212,12 @@ def main():
     print("=" * 60)
     
     try:
-        # 1. ChromaDB 연결
-        client, collection = setup_chromadb()
-        
-        # 2. 임베딩 모델 로드
-        model, model_name = load_embedding_model()
-        print(f"🤖 사용 모델: {model_name}")
-        
+        # 1. DB 연결 (저장된 임베딩 모델명 확인)
+        conn, model_name = connect_vector_db()
+
+        # 2. 같은 임베딩 모델 로드
+        model = load_embedding_model(model_name)
+
         # 3. 실행 모드 선택
         print("\n📋 실행 모드를 선택하세요:")
         print("   1. 대화형 검색 (추천)")
@@ -215,14 +229,14 @@ def main():
                 choice = input("\n선택 (1-3): ").strip()
                 
                 if choice == '1':
-                    interactive_search(collection, model)
+                    interactive_search(conn, model)
                     break
                 elif choice == '2':
-                    run_sample_searches(collection, model)
+                    run_sample_searches(conn, model)
                     break
                 elif choice == '3':
-                    run_sample_searches(collection, model)
-                    interactive_search(collection, model)
+                    run_sample_searches(conn, model)
+                    interactive_search(conn, model)
                     break
                 else:
                     print("⚠️  1, 2, 3 중에서 선택해주세요.")

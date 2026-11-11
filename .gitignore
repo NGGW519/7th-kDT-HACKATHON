@@ -207,23 +207,40 @@ marimo/_lsp/
 __marimo__/
 
 # ChromaDB data
+chroma_db/
 chroma_db_data/
+chroma_missions/
+chroma.sqlite3
+data_level0.bin
+header.bin
+length.bin
+link_lists.bin
+
 # =========================
-# 추가: Node.js, OS/IDE, 기타 무시 항목
+# Node.js / Expo / React Native
 # =========================
-hometownON/node_modules/
-hyuna/node_modules/
+node_modules/
+.expo/
+web-build/
+*.tsbuildinfo
+android/.gradle/
+ios/Pods/
+
+# 생성 산출물
+Ai_llm/mission_suggest/extracted_missions.json
+
+# 환경 변수 (저장소 루트의 .env 하나로 관리, 커밋하지 않음)
+.env.*
+
+# OS / IDE
 .DS_Store
 Thumbs.db
 .idea/
 *.iml
 *.log
 *.bak
-node_modules
-HometownON/android/.gradle/
 settings.json
-chroma.sqlite3
-data_level0.bin
-header.bin
-length.bin
-link_lists.bin
+
+# 하네스 중간 산출물 (.claude/skills/hometown-dev)
+_workspace/
+_workspace_*/

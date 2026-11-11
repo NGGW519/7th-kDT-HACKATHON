@@ -1,81 +1,73 @@
-import os
-import pymysql
-from dotenv import load_dotenv
+"""PostgreSQL 의 missions / mission_parts 를 임베딩용 텍스트로 추출해 JSON 으로 저장한다.
 
-# .env 파일 로드
-load_dotenv()
+실행:  python extract_missions.py  →  같은 폴더에 extracted_missions.json 생성
+"""
+import json
+from pathlib import Path
 
-def extract_mission_data():
-    db_name = os.getenv("POSTGRES_DB")
-    db_user = os.getenv("POSTGRES_USER")
-    db_password = os.getenv("POSTGRES_PASSWORD")
-    db_host = os.getenv("POSTGRES_HOST", "localhost")
-    db_port = os.getenv("POSTGRES_PORT", "5432")
+from db_config import get_connection
 
-    conn = None
-    try:
-        conn = pymysql.connect(
-            host=db_host,
-            user=db_user,
-            password=db_password,
-            db=db_name,
-            charset='utf8'
-        )
-        cur = conn.cursor()
+OUTPUT_PATH = Path(__file__).parent / "extracted_missions.json"
 
-        # 미션 데이터를 쿼리합니다.
-        # 필요에 따라 JOIN을 통해 mission_parts 등 다른 테이블의 정보를 가져올 수 있습니다.
-        cur.execute("""
-            SELECT
-                id,
-                mission_name,
-                description,
-                category,
-                difficulty,
-                required_skills,
-                estimated_time,
-                points,
-                status
+# DB 에는 영문 키로 저장한다 (앱·챗봇과 같은 값). 사람이 읽는 텍스트에는 한글 이름을 함께 쓴다.
+MISSION_TYPE_LABELS = {"exploration": "탐색형", "bonding": "사회유대형", "career": "커리어형"}
+
+
+def _as_list(value) -> list:
+    """JSONB 컬럼(tags 등)을 리스트로 정규화한다 (문자열로 저장된 JSON 도 허용)."""
+    if not value:
+        return []
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return [value]
+    return value if isinstance(value, list) else [value]
+
+
+def format_mission(mission: dict, parts: list[dict]) -> str:
+    """미션 1개를 임베딩/프롬프트에 쓰기 좋은 텍스트로 만든다."""
+    lines = [
+        f"미션명: {mission['title']}",
+        f"유형: {MISSION_TYPE_LABELS.get(mission['mission_type'], mission['mission_type'])}",
+        f"난이도: {mission['difficulty']}",
+        f"예상 소요시간: {mission['expected_minutes'] or '정보 없음'}분",
+        f"태그: {', '.join(map(str, _as_list(mission['tags']))) or '없음'}",
+        f"설명: {mission['description'] or ''}",
+    ]
+    if parts:
+        lines.append("단계:")
+        lines.extend(f"  {p['step_no']}. {p['instruction'] or ''}" for p in parts)
+    return "\n".join(lines)
+
+
+def extract_mission_data() -> list[dict]:
+    with get_connection() as conn:
+        missions = conn.execute(
+            """
+            SELECT id, code, title, mission_type, difficulty, expected_minutes, tags, description
             FROM missions
-            ORDER BY id;
-        """)
-        missions = cur.fetchall()
+            ORDER BY id
+            """
+        ).fetchall()
+        parts_by_mission: dict[int, list[dict]] = {}
+        for part in conn.execute(
+            "SELECT mission_id, step_no, instruction FROM mission_parts ORDER BY mission_id, step_no"
+        ):
+            parts_by_mission.setdefault(part["mission_id"], []).append(part)
 
-        # 데이터를 LangChain Document 형태로 변환하거나, 임베딩에 적합한 텍스트로 포맷팅합니다.
-        # 여기서는 간단한 텍스트 포맷으로 변환합니다.
-        formatted_missions = []
-        for mission in missions:
-            mission_id, name, desc, category, difficulty, skills, time, points, status = mission
-            formatted_text = (
-                f"미션 ID: {mission_id}\n"
-                f"미션 이름: {name}\n"
-                f"설명: {desc}\n"
-                f"카테고리: {category}\n"
-                f"난이도: {difficulty}\n"
-                f"필요 기술: {skills if skills else '없음'}\n"
-                f"예상 시간: {time if time else '정보 없음'}\n"
-                f"포인트: {points}\n"
-                f"상태: {status}"
-            )
-            formatted_missions.append({"id": mission_id, "content": formatted_text})
+    return [
+        {
+            "id": m["id"],
+            "title": m["title"],
+            "mission_type": m["mission_type"],
+            "content": format_mission(m, parts_by_mission.get(m["id"], [])),
+        }
+        for m in missions
+    ]
 
-        print(f"총 {len(formatted_missions)}개의 미션 데이터를 추출했습니다.")
-        return formatted_missions
-
-    except Exception as e:
-        print(f"데이터베이스 연결 또는 쿼리 중 오류 발생: {e}")
-        return None
-    finally:
-        if conn:
-            conn.close()
 
 if __name__ == "__main__":
-    mission_data = extract_mission_data()
-    if mission_data:
-        # 추출된 데이터를 파일로 저장하거나 다음 단계로 전달할 수 있습니다.
-        # 예: JSON 파일로 저장
-        import json
-        output_path = "C:/Aicamp/7th-kDT-HACKATHON/Ai_llm/mission_suggest/extracted_missions.json"
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(mission_data, f, ensure_ascii=False, indent=4)
-        print(f"추출된 미션 데이터를 {output_path}에 저장했습니다.")
+    data = extract_mission_data()
+    OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"총 {len(data)}개의 미션을 {OUTPUT_PATH} 에 저장했습니다.")
