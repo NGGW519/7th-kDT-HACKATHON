@@ -68,3 +68,13 @@ def google_login(request: schemas.GoogleLoginRequest, db: Session = Depends(get_
 def read_me(current_user=Depends(security.get_current_user)):
     """토큰의 주인(현재 로그인 사용자) 정보를 반환한다."""
     return current_user
+
+
+@router.patch("/me/profile", response_model=schemas.UserWithProfile)
+def update_my_profile(
+    changes: schemas.UserProfileUpdate,
+    current_user=Depends(security.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """로그인 사용자의 프로필에서 보낸 칸만 바꾼다. 프로필이 없으면 만든다. 응답은 GET /me 와 같다."""
+    return crud.crud_user.update_user_profile(db, current_user, changes)

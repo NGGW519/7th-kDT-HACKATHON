@@ -37,6 +37,24 @@ def create_user_with_profile(
     return db_user
 
 
+def update_user_profile(db: Session, user: models.User, changes: schemas.UserProfileUpdate) -> models.User:
+    """보낸 칸만 바꾼다. 프로필이 없으면(Google 가입 때 이름이 없던 사용자) 새로 만든다."""
+    data = changes.model_dump(exclude_unset=True)
+    if not data:
+        return user
+    if user.profile is None:
+        user.profile = models.UserProfile()  # mentor_available 은 DB 기본값(false)
+    for field, value in data.items():
+        setattr(user.profile, field, value)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(user)
+    return user
+
+
 def get_social_account(db: Session, provider: str, provider_uid: str) -> models.SocialAccount | None:
     return (
         db.query(models.SocialAccount)

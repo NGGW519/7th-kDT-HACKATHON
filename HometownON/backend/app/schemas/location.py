@@ -23,3 +23,39 @@ class Location(LocationBase):
     longitude: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LocationCategory(BaseModel):
+    id: int
+    main: Optional[str] = None
+    sub: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NearbyRequest(BaseModel):
+    """POST /api/locations/nearby 요청. 좌표는 위도/경도(도 단위), 반경은 km."""
+    latitude: float = Field(..., ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(..., ge=-180, le=180, allow_inf_nan=False)
+    radius_km: float = Field(5.0, gt=0, le=50, allow_inf_nan=False)
+    limit: int = Field(20, ge=1, le=100)
+    # location_categories 의 main 또는 sub 와 정확히 같은 값만 고른다 (빈 값이면 전체)
+    category: Optional[str] = Field(None, max_length=80)
+
+
+class Coordinates(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class NearbyLocation(BaseModel):
+    id: int
+    name: str
+    category_id: int
+    category: Optional[str] = None  # 소분류(없으면 대분류) 이름
+    address: str
+    phone: Optional[str] = None
+    latitude: float
+    longitude: float
+    coordinates: Coordinates  # 앱(ExplorationMission)은 coordinates.latitude/longitude 를 읽는다
+    distance_km: float
